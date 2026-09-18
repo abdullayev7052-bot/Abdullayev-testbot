@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: bito-telegram-shop
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install --no-audit --no-fund && npm run db:generate && npm run build
+    startCommand: npm run db:check && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TUNNEL
+        value: none
+      - key: ALLOW_DEV_AUTH
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_TELEGRAM_ID
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PUBLIC_URL
+        sync: false
+      - key: BITO_API_KEY
+        sync: false
