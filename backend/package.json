@@ -1,0 +1,39 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "generate": "dotenv -e ../.env -- prisma generate",
+    "db:push": "dotenv -e ../.env -- prisma db push --accept-data-loss",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "dotenv -e ../.env -- prisma studio",
+    "typecheck": "tsc --noEmit",
+    "db:check": "dotenv -e ../.env -- prisma db push --accept-data-loss --skip-generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.0",
+    "bcryptjs": "^3.0.2",
+    "bwip-js": "^4.7.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "grammy": "^1.38.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.5.0",
+    "prisma": "^6.16.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "dotenv-cli": "^10.0.0"
+  }
+}

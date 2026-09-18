@@ -1,0 +1,607 @@
+/**
+ * Admin paneldagi BARCHA sozlamalarning sxemasi.
+ * Admin panel shu sxema asosida formalarni avtomatik chizadi,
+ * backend esa shu yerdagi standart qiymatlardan foydalanadi.
+ */
+
+export type Lang = "uz" | "ru" | "en";
+export type LText = Record<Lang, string>;
+export const LANGS: Lang[] = ["uz", "ru", "en"];
+
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "ltext"
+  | "ltextarea"
+  | "number"
+  | "boolean"
+  | "color"
+  | "select"
+  | "image"
+  | "password"
+  | "tags";
+
+export interface FieldDef {
+  key: string;
+  label: string;
+  type: FieldType;
+  help?: string;
+  default: unknown;
+  options?: { value: string; label: string }[];
+  /** Dinamik variantlar manbai: bito:organizations | bito:warehouses | bito:prices | bito:employees | bito:states | bito:currencies */
+  source?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholders?: string[];
+}
+
+export interface GroupDef {
+  title: string;
+  description?: string;
+  fields: FieldDef[];
+}
+
+export interface SectionDef {
+  key: string;
+  title: string;
+  icon: string;
+  description?: string;
+  groups: GroupDef[];
+}
+
+const L = (uz: string, ru: string, en: string): LText => ({ uz, ru, en });
+
+export const settingsSchema: SectionDef[] = [
+  {
+    key: "general",
+    title: "Umumiy",
+    icon: "settings",
+    description: "Do'kon nomi, tillar va aloqa ma'lumotlari",
+    groups: [
+      {
+        title: "Do'kon",
+        fields: [
+          { key: "shopName", label: "Do'kon nomi", type: "ltext", default: L("Birlik kitoblar do'koni", "Магазин книг Birlik", "Birlik bookstore") },
+          { key: "supportPhone", label: "Aloqa telefoni", type: "text", default: "+998 90 000 00 00" },
+          { key: "supportTelegram", label: "Aloqa uchun Telegram (username, @siz)", type: "text", default: "" },
+          { key: "defaultLanguage", label: "Standart til", type: "select", default: "uz", options: [
+            { value: "uz", label: "O'zbek" }, { value: "ru", label: "Русский" }, { value: "en", label: "English" },
+          ] },
+          { key: "enabledLanguages", label: "Yoqilgan tillar", type: "tags", default: ["uz", "ru", "en"], help: "uz, ru, en" },
+          { key: "currencySuffix", label: "Valyuta belgisi (narx yonida)", type: "ltext", default: L("so'm", "сум", "UZS") },
+          { key: "priceDecimals", label: "Narxda kasr xonalari", type: "number", default: 0, min: 0, max: 3 },
+        ],
+      },
+      {
+        title: "Admin panel",
+        fields: [
+          { key: "adminPassword", label: "Admin panel paroli (bo'sh qoldirilsa o'zgarmaydi)", type: "password", default: "" },
+        ],
+      },
+    ],
+  },
+  {
+    key: "bito",
+    title: "Bito integratsiyasi",
+    icon: "plug",
+    description: "Istalgan Bito akkauntiga ulash uchun shu yerdagi qiymatlarni o'zgartiring",
+    groups: [
+      {
+        title: "Ulanish",
+        description: "API kalit: Bito → Sozlamalar → Integratsiyalar → Maxsus integratsiya",
+        fields: [
+          { key: "apiKey", label: "API kalit (login:secret)", type: "text", default: "" },
+          { key: "apiUrl", label: "API manzili", type: "text", default: "https://api.bito.uz/integration-api/integration/api/v2" },
+          { key: "filesUrl", label: "Fayllar (rasmlar) manzili", type: "text", default: "https://api.bito.uz/upload-api/public" },
+          { key: "webBaseUrl", label: "Bito veb manzili (guruhdagi 'Bito' tugmasi uchun)", type: "text", default: "", help: "Masalan: https://kokand-test.bito.uz. Bo'sh bo'lsa API kalitdagi logindan avtomatik olinadi." },
+        ],
+      },
+      {
+        title: "Kontekst",
+        description: "Ulanishni saqlagach, ro'yxatlar Bito'dan avtomatik yuklanadi",
+        fields: [
+          { key: "organizationId", label: "Tashkilot (filial)", type: "select", default: "", source: "bito:organizations" },
+          { key: "warehouseId", label: "Ombor (buyurtma va qoldiq uchun)", type: "select", default: "", source: "bito:warehouses" },
+          { key: "priceId", label: "Mijozga ko'rinadigan narx turi", type: "select", default: "", source: "bito:prices" },
+          { key: "currencyId", label: "Valyuta", type: "select", default: "", source: "bito:currencies" },
+          { key: "responsibleId", label: "Buyurtmalar uchun mas'ul xodim", type: "select", default: "", source: "bito:employees" },
+          { key: "stockSource", label: "Qoldiq manbai", type: "select", default: "warehouse", options: [
+            { value: "warehouse", label: "Tanlangan ombor" }, { value: "organization", label: "Butun tashkilot" },
+          ] },
+          { key: "customerOrganizations", label: "Yangi mijozni qaysi tashkilotlarga qo'shish", type: "select", default: "all", options: [
+            { value: "all", label: "Barcha tashkilotlarga" }, { value: "selected", label: "Faqat tanlangan tashkilotga" },
+          ] },
+        ],
+      },
+      {
+        title: "Sinxronizatsiya",
+        fields: [
+          { key: "syncIntervalSec", label: "Mahsulotlarni yangilash oralig'i (soniya)", type: "number", default: 300, min: 30 },
+          { key: "pollIntervalSec", label: "Buyurtma/savdo/to'lovlarni tekshirish oralig'i (soniya)", type: "number", default: 60, min: 15 },
+          { key: "webhookEnabled", label: "Bito webhooklaridan foydalanish (tezkor yangilanish)", type: "boolean", default: true },
+          { key: "onlyAvailableForSale", label: "Bito'da 'mavjud emas' deb belgilangan mahsulotlarni yashirish", type: "boolean", default: false },
+        ],
+      },
+    ],
+  },
+  {
+    key: "statuses",
+    title: "Buyurtma holatlari",
+    icon: "list-checks",
+    description: "Bito'dagi holatlar bilan bog'lash va mijozga boradigan xabarlar",
+    groups: [
+      {
+        title: "Bito holatlariga bog'lash",
+        description: "Har bir bosqich uchun Bito'dagi mos holatni tanlang (ro'yxat Bito'dan yuklanadi)",
+        fields: [
+          { key: "newStateId", label: "Yangi buyurtma", type: "select", default: "", source: "bito:states" },
+          { key: "acceptedStateId", label: "Qabul qilingan", type: "select", default: "", source: "bito:states" },
+          { key: "readyStateId", label: "Tayyor", type: "select", default: "", source: "bito:states" },
+          { key: "deliveringStateId", label: "Yetkazilmoqda", type: "select", default: "", source: "bito:states" },
+          { key: "doneStateId", label: "Bajarildi", type: "select", default: "", source: "bito:states" },
+          { key: "canceledStateId", label: "Bekor qilingan", type: "select", default: "", source: "bito:states" },
+        ],
+      },
+      {
+        title: "Guruhdagi tugmalar",
+        fields: [
+          { key: "btnAccept", label: "Qabul qilish", type: "text", default: "✅ Qabul qilish" },
+          { key: "btnReady", label: "Tayyor", type: "text", default: "📦 Tayyor" },
+          { key: "btnDispatch", label: "Yo'lga chiqish", type: "text", default: "🚚 Yo'lga chiqish" },
+          { key: "btnDelivered", label: "Yetkazildi", type: "text", default: "🏁 Yetkazildi" },
+          { key: "btnPickedUp", label: "Olib ketildi", type: "text", default: "🏁 Olib ketildi" },
+          { key: "btnCancel", label: "Bekor qilish", type: "text", default: "❌ Bekor qilish" },
+          { key: "btnBito", label: "Bito tugmasi", type: "text", default: "🔗 Bito" },
+          { key: "btnLocation", label: "Joylashuv tugmasi", type: "text", default: "📍 Joylashuv" },
+        ],
+      },
+      {
+        title: "Mijozga ko'rinadigan holat nomlari",
+        fields: [
+          { key: "nameNew", label: "Yangi", type: "ltext", default: L("Yangi", "Новый", "New") },
+          { key: "nameAccepted", label: "Qabul qilingan", type: "ltext", default: L("Qabul qilingan", "Принят", "Accepted") },
+          { key: "nameReady", label: "Tayyor", type: "ltext", default: L("Tayyor", "Готов", "Ready") },
+          { key: "nameDelivering", label: "Yetkazilmoqda", type: "ltext", default: L("Yetkazilmoqda", "Доставляется", "Delivering") },
+          { key: "nameDone", label: "Bajarildi", type: "ltext", default: L("Bajarildi", "Выполнен", "Completed") },
+          { key: "nameCanceled", label: "Bekor qilingan", type: "ltext", default: L("Bekor qilingan", "Отменён", "Canceled") },
+        ],
+      },
+      {
+        title: "Holat o'zgarganda mijozga xabar",
+        description: "Bo'sh qoldirilsa xabar yuborilmaydi. O'zgaruvchilar: {order} — buyurtma raqami, {status} — holat nomi, {name} — mijoz ismi",
+        fields: [
+          { key: "msgAccepted", label: "Qabul qilinganda", type: "ltextarea", default: L("✅ #{order} buyurtmangiz qabul qilindi. Tez orada tayyorlaymiz!", "✅ Ваш заказ #{order} принят. Скоро подготовим!", "✅ Your order #{order} has been accepted. We'll prepare it soon!"), placeholders: ["{order}", "{status}", "{name}"] },
+          { key: "msgReady", label: "Tayyor bo'lganda", type: "ltextarea", default: L("📦 #{order} buyurtmangiz tayyor!", "📦 Ваш заказ #{order} готов!", "📦 Your order #{order} is ready!"), placeholders: ["{order}", "{status}", "{name}"] },
+          { key: "msgDelivering", label: "Yo'lga chiqqanda", type: "ltextarea", default: L("🚚 #{order} buyurtmangiz yo'lga chiqdi. Kuryer tez orada yetib boradi.", "🚚 Ваш заказ #{order} в пути. Курьер скоро прибудет.", "🚚 Your order #{order} is on its way. The courier will arrive soon."), placeholders: ["{order}", "{status}", "{name}"] },
+          { key: "msgDone", label: "Bajarilganda", type: "ltextarea", default: L("🏁 #{order} buyurtmangiz bajarildi. Xaridingiz uchun rahmat! 🤗", "🏁 Ваш заказ #{order} выполнен. Спасибо за покупку! 🤗", "🏁 Your order #{order} is completed. Thank you for your purchase! 🤗"), placeholders: ["{order}", "{status}", "{name}"] },
+          { key: "msgCanceled", label: "Bekor qilinganda", type: "ltextarea", default: L("❌ #{order} buyurtmangiz bekor qilindi. Savollar bo'lsa biz bilan bog'laning.", "❌ Ваш заказ #{order} отменён. Свяжитесь с нами при вопросах.", "❌ Your order #{order} was canceled. Contact us if you have questions."), placeholders: ["{order}", "{status}", "{name}"] },
+          { key: "msgOther", label: "Boshqa (maxsus) holatga o'tganda", type: "ltextarea", default: L("ℹ️ #{order} buyurtmangiz holati: {status}", "ℹ️ Статус заказа #{order}: {status}", "ℹ️ Order #{order} status: {status}"), placeholders: ["{order}", "{status}", "{name}"] },
+        ],
+      },
+    ],
+  },
+  {
+    key: "bot",
+    title: "Bot matnlari",
+    icon: "bot",
+    description: "Telegram botdagi barcha xabarlar va tugmalar (3 tilda)",
+    groups: [
+      {
+        title: "Ro'yxatdan o'tish",
+        fields: [
+          { key: "welcome", label: "Salomlashish (/start)", type: "ltextarea", default: L("Assalomu alaykum! \"Birlik\" kitoblar do'konining rasmiy telegram botiga xush kelibsiz 😊", "Здравствуйте! Добро пожаловать в официальный телеграм-бот книжного магазина \"Birlik\" 😊", "Hello! Welcome to the official Telegram bot of the \"Birlik\" bookstore 😊") },
+          { key: "askPhone", label: "Telefon so'rash", type: "ltextarea", default: L("Botdan foydalanish uchun iltimos telefon raqamingizni yuboring! 💌", "Для использования бота, пожалуйста, отправьте свой номер телефона! 💌", "To use the bot, please share your phone number! 💌") },
+          { key: "phoneButton", label: "Telefon ulashish tugmasi", type: "ltext", default: L("📱 Telefon raqamni ulashish", "📱 Поделиться номером", "📱 Share phone number") },
+          { key: "wrongContact", label: "Begona kontakt yuborilganda", type: "ltextarea", default: L("⚠️ Xavfsizlik uchun faqat o'zingizning raqamingizni pastdagi tugma orqali yuboring.", "⚠️ В целях безопасности отправьте только свой номер через кнопку ниже.", "⚠️ For security, please share only your own number using the button below.") },
+          { key: "askName", label: "Ism so'rash", type: "ltextarea", default: L("Sizni kim deb murojaat qilishimizni hohlaysiz? 😇", "Как к вам обращаться? 😇", "What should we call you? 😇") },
+          { key: "registered", label: "Ro'yxatdan o'tdi", type: "ltextarea", default: L("Ro'yxatdan muvaffaqiyatli o'tdingiz! Xaridni boshlashingiz mumkin 🤗", "Вы успешно зарегистрированы! Можете начать покупки 🤗", "You have registered successfully! You can start shopping 🤗") },
+          { key: "welcomeBack", label: "Qayta /start bosganda", type: "ltextarea", default: L("Xush kelibsiz, {name}! Buyurtma berish uchun pastdagi tugmani bosing 👇", "С возвращением, {name}! Нажмите кнопку ниже, чтобы сделать заказ 👇", "Welcome back, {name}! Tap the button below to order 👇"), placeholders: ["{name}"] },
+          { key: "openAppButton", label: "Mini App tugmasi", type: "ltext", default: L("🛍 Buyurtma berish", "🛍 Сделать заказ", "🛍 Place an order") },
+          { key: "menuButtonText", label: "Chat menyu tugmasi (pastki chap)", type: "ltext", default: L("Do'kon", "Магазин", "Shop") },
+        ],
+      },
+      {
+        title: "Asosiy menyu tugmalari",
+        fields: [
+          { key: "mOrders", label: "Buyurtmalar", type: "ltext", default: L("📦 Buyurtmalar", "📦 Заказы", "📦 Orders") },
+          { key: "mPurchases", label: "Xaridlar", type: "ltext", default: L("🧾 Xaridlar", "🧾 Покупки", "🧾 Purchases") },
+          { key: "mMyInfo", label: "Mening ma'lumotlarim", type: "ltext", default: L("👤 Mening ma'lumotlarim", "👤 Мои данные", "👤 My info") },
+          { key: "mSettings", label: "Sozlamalar", type: "ltext", default: L("⚙️ Sozlamalar", "⚙️ Настройки", "⚙️ Settings") },
+          { key: "mBalance", label: "Hozirgi balans", type: "ltext", default: L("💰 Hozirgi balans", "💰 Текущий баланс", "💰 Current balance") },
+          { key: "mCard", label: "Mening kartam", type: "ltext", default: L("💳 Mening kartam", "💳 Моя карта", "💳 My card") },
+          { key: "mAkt", label: "Akt sverka", type: "ltext", default: L("📑 Akt sverka", "📑 Акт сверки", "📑 Reconciliation act") },
+        ],
+      },
+      {
+        title: "Buyurtma xabarlari",
+        fields: [
+          { key: "orderReceived", label: "Buyurtma qabul qilindi (Mini App yopilgach)", type: "ltextarea", default: L("Buyurtmangiz muvaffaqiyatli qabul qilindi! Kuryerimiz tez orada bog'lanadi 🚚\n\nBuyurtma raqami: #{order}", "Ваш заказ успешно принят! Наш курьер скоро свяжется с вами 🚚\n\nНомер заказа: #{order}", "Your order has been received! Our courier will contact you soon 🚚\n\nOrder number: #{order}"), placeholders: ["{order}", "{name}", "{total}"] },
+          { key: "orderReceivedPickup", label: "Buyurtma qabul qilindi (olib ketish)", type: "ltextarea", default: L("Buyurtmangiz qabul qilindi! Tayyor bo'lganda xabar beramiz 🛍\n\nBuyurtma raqami: #{order}", "Ваш заказ принят! Сообщим, когда будет готов 🛍\n\nНомер заказа: #{order}", "Your order has been received! We'll notify you when it's ready 🛍\n\nOrder number: #{order}"), placeholders: ["{order}", "{name}", "{total}"] },
+          { key: "noOrders", label: "Buyurtmalar yo'q", type: "ltext", default: L("Sizda hali buyurtmalar yo'q.", "У вас пока нет заказов.", "You have no orders yet.") },
+          { key: "ordersTitle", label: "Buyurtmalar sarlavhasi", type: "ltext", default: L("📦 Sizning buyurtmalaringiz:", "📦 Ваши заказы:", "📦 Your orders:") },
+          { key: "noPurchases", label: "Xaridlar yo'q", type: "ltext", default: L("Xaridlar tarixi bo'sh.", "История покупок пуста.", "Purchase history is empty.") },
+          { key: "purchasesTitle", label: "Xaridlar sarlavhasi", type: "ltext", default: L("🧾 Xaridlar tarixi:", "🧾 История покупок:", "🧾 Purchase history:") },
+        ],
+      },
+      {
+        title: "Ma'lumotlar, balans, karta, akt",
+        fields: [
+          { key: "myInfo", label: "Mening ma'lumotlarim", type: "ltextarea", default: L("👤 Ism: {name}\n📱 Telefon: {phone}\n🆔 Telegram ID: {tg}", "👤 Имя: {name}\n📱 Телефон: {phone}\n🆔 Telegram ID: {tg}", "👤 Name: {name}\n📱 Phone: {phone}\n🆔 Telegram ID: {tg}"), placeholders: ["{name}", "{phone}", "{tg}"] },
+          { key: "balanceTitle", label: "Balans sarlavhasi", type: "ltext", default: L("💰 Hozirgi balansingiz:", "💰 Ваш текущий баланс:", "💰 Your current balance:") },
+          { key: "balanceDebt", label: "Qarzdorlik matni", type: "ltext", default: L("Qarzdorlik", "Задолженность", "Debt") },
+          { key: "balanceCredit", label: "Haqdorlik matni", type: "ltext", default: L("Haqdorlik", "Переплата", "Credit") },
+          { key: "balanceZero", label: "Balans nol", type: "ltext", default: L("Qarzdorlik yo'q ✅", "Задолженности нет ✅", "No debt ✅") },
+          { key: "cardCaption", label: "Karta rasmi ostidagi matn", type: "ltextarea", default: L("💳 Sizning sodiqlik kartangiz\nRaqam: {card}", "💳 Ваша карта лояльности\nНомер: {card}", "💳 Your loyalty card\nNumber: {card}"), placeholders: ["{card}", "{name}"] },
+          { key: "noCard", label: "Karta yo'q", type: "ltext", default: L("Sizga hali sodiqlik kartasi biriktirilmagan.", "Карта лояльности пока не привязана.", "No loyalty card is linked yet.") },
+          { key: "aktCaption", label: "Akt sverka fayli ostidagi matn", type: "ltextarea", default: L("📑 Oldi-berdi hisoboti (akt sverka)\nDavr: {from} — {to}", "📑 Акт сверки\nПериод: {from} — {to}", "📑 Reconciliation act\nPeriod: {from} — {to}"), placeholders: ["{from}", "{to}"] },
+          { key: "aktPreparing", label: "Akt tayyorlanmoqda", type: "ltext", default: L("⏳ Hisobot tayyorlanmoqda...", "⏳ Отчёт готовится...", "⏳ Preparing the report...") },
+          { key: "aktMonths", label: "Akt sverka davri (oy)", type: "number", default: 12, min: 1, max: 60 },
+          { key: "chooseLanguage", label: "Til tanlash", type: "ltext", default: L("🌐 Tilni tanlang:", "🌐 Выберите язык:", "🌐 Choose language:") },
+          { key: "languageChanged", label: "Til o'zgardi", type: "ltext", default: L("✅ Til o'zgartirildi", "✅ Язык изменён", "✅ Language changed") },
+          { key: "notLinked", label: "Bito'ga ulanmagan", type: "ltext", default: L("Ma'lumot topilmadi. Iltimos /start bosib qayta ro'yxatdan o'ting.", "Данные не найдены. Нажмите /start для повторной регистрации.", "No data found. Please press /start to register again.") },
+          { key: "errorGeneric", label: "Umumiy xato", type: "ltext", default: L("⚠️ Xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.", "⚠️ Произошла ошибка. Попробуйте позже.", "⚠️ Something went wrong. Please try again later.") },
+        ],
+      },
+      {
+        title: "Savdo cheki va to'lovlar (Bito'dan avtomatik)",
+        fields: [
+          { key: "notifyTrades", label: "Har bir savdoda mijozga chek yuborish", type: "boolean", default: true },
+          { key: "notifyPayments", label: "Har bir to'lov/balans to'ldirilganda xabar yuborish", type: "boolean", default: true },
+          { key: "notifyPaymentsWithTrade", label: "Savdo bilan birga qilingan to'lovni ham alohida yuborish", type: "boolean", default: false },
+          { key: "receiptTitle", label: "Chek sarlavhasi", type: "ltext", default: L("🧾 Xarid cheki", "🧾 Чек покупки", "🧾 Purchase receipt") },
+          { key: "lTime", label: "Vaqt", type: "ltext", default: L("Vaqt", "Время", "Time") },
+          { key: "lTrade", label: "Savdo", type: "ltext", default: L("Savdo", "Продажа", "Sale") },
+          { key: "lCustomer", label: "Mijoz", type: "ltext", default: L("Mijoz", "Клиент", "Customer") },
+          { key: "lSeller", label: "Sotuvchi", type: "ltext", default: L("Sotuvchi", "Продавец", "Seller") },
+          { key: "lProducts", label: "Mahsulotlar", type: "ltext", default: L("Mahsulotlar", "Товары", "Products") },
+          { key: "lTotalQty", label: "Jami miqdori", type: "ltext", default: L("Jami miqdori", "Общее количество", "Total quantity") },
+          { key: "lTotal", label: "Jami", type: "ltext", default: L("Jami", "Итого", "Total") },
+          { key: "lPayment", label: "To'lov usuli", type: "ltext", default: L("To'lov usuli", "Способ оплаты", "Payment method") },
+          { key: "lDebt", label: "Qarzga yozildi", type: "ltext", default: L("Qarzga yozildi", "Записано в долг", "Added to debt") },
+          { key: "lBefore", label: "Xariddan avvalgi balans", type: "ltext", default: L("Avvalgi balans", "Баланс до", "Balance before") },
+          { key: "lAfter", label: "Xariddan keyingi balans", type: "ltext", default: L("Hozirgi balans", "Баланс после", "Balance after") },
+          { key: "lRefund", label: "Qaytarish", type: "ltext", default: L("↩️ Qaytarish", "↩️ Возврат", "↩️ Refund") },
+          { key: "paymentTitle", label: "To'lov xabari sarlavhasi", type: "ltext", default: L("💸 To'lov qabul qilindi", "💸 Платёж принят", "💸 Payment received") },
+          { key: "lAmount", label: "Summa", type: "ltext", default: L("Summa", "Сумма", "Amount") },
+          { key: "lReceivedBy", label: "Qabul qildi", type: "ltext", default: L("Qabul qildi", "Принял", "Received by") },
+          { key: "lOrganization", label: "Tashkilot", type: "ltext", default: L("Tashkilot", "Организация", "Organization") },
+          { key: "lDueDate", label: "To'lov muddati", type: "ltext", default: L("To'lov muddati", "Срок оплаты", "Due date") },
+        ],
+      },
+      {
+        title: "Kelganda eslating",
+        fields: [
+          { key: "waitlistAdded", label: "Ro'yxatga qo'shildi (botga xabar)", type: "ltextarea", default: L("🔔 \"{product}\" sotuvga kelganda sizga xabar beramiz.", "🔔 Мы сообщим вам, когда \"{product}\" появится в продаже.", "🔔 We'll notify you when \"{product}\" is back in stock."), placeholders: ["{product}"] },
+          { key: "waitlistArrived", label: "Mahsulot keldi", type: "ltextarea", default: L("🎉 \"{product}\" nomli mahsulotni so'ragan edingiz — u sotuvga keldi! Bemalol xarid qilishingiz mumkin.", "🎉 Вы интересовались товаром \"{product}\" — он снова в продаже! Можете оформить заказ.", "🎉 You asked about \"{product}\" — it's back in stock! Feel free to order."), placeholders: ["{product}"] },
+          { key: "waitlistNotifyBot", label: "Ro'yxatga qo'shilganda botga ham xabar yuborish", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Guruh (adminlar) sozlamalari",
+        fields: [
+          { key: "staffMode", label: "Holatni kim o'zgartira oladi", type: "select", default: "group", options: [
+            { value: "group", label: "Ruxsat etilgan guruhning istalgan a'zosi" },
+            { value: "list", label: "Faqat 'Xodimlar' ro'yxatidagilar" },
+          ] },
+          { key: "groupNotAllowed", label: "Ruxsatsiz odam bosganda", type: "text", default: "⛔ Sizda bu amal uchun ruxsat yo'q" },
+          { key: "groupTitleNew", label: "Guruh xabari sarlavhasi", type: "text", default: "🆕 YANGI BUYURTMA" },
+          { key: "gTime", label: "Vaqt", type: "text", default: "🕒 Vaqt" },
+          { key: "gCustomer", label: "Mijoz", type: "text", default: "👤 Mijoz" },
+          { key: "gPhone", label: "Telefon", type: "text", default: "📱 Telefon" },
+          { key: "gType", label: "Turi", type: "text", default: "🚚 Turi" },
+          { key: "gDelivery", label: "Yetkazib berish (qiymat)", type: "text", default: "Yetkazib berish" },
+          { key: "gPickup", label: "Olib ketish (qiymat)", type: "text", default: "Olib ketish" },
+          { key: "gNumber", label: "Buyurtma raqami", type: "text", default: "🔢 Buyurtma raqami" },
+          { key: "gStatus", label: "Holati", type: "text", default: "📌 Holati" },
+          { key: "gAddress", label: "Manzil", type: "text", default: "📍 Manzil" },
+          { key: "gComment", label: "Izoh", type: "text", default: "💬 Izoh" },
+          { key: "gProducts", label: "Mahsulotlar", type: "text", default: "🛒 Mahsulotlar" },
+          { key: "gHistory", label: "Tarix", type: "text", default: "📜 Tarix" },
+          { key: "showTotalInGroup", label: "Guruhda jami summani ko'rsatish", type: "boolean", default: false },
+        ],
+      },
+    ],
+  },
+  {
+    key: "design",
+    title: "Mini App dizayni",
+    icon: "palette",
+    description: "Ranglar, logo, salomlashish, bloklar",
+    groups: [
+      {
+        title: "Ranglar va uslub",
+        fields: [
+          { key: "primaryColor", label: "Asosiy rang", type: "color", default: "#2563eb" },
+          { key: "accentColor", label: "Qo'shimcha rang (chegirma, belgilar)", type: "color", default: "#f97316" },
+          { key: "bgColor", label: "Fon rangi", type: "color", default: "#ffffff" },
+          { key: "textColor", label: "Matn rangi", type: "color", default: "#0f172a" },
+          { key: "radius", label: "Burchak yumaloqligi (px)", type: "number", default: 18, min: 0, max: 40 },
+          { key: "animations", label: "Animatsiyalar", type: "select", default: "full", options: [
+            { value: "full", label: "To'liq" }, { value: "reduced", label: "Kamaytirilgan" },
+          ] },
+        ],
+      },
+      {
+        title: "Salomlashish (header)",
+        fields: [
+          { key: "greetingShow", label: "Ko'rsatish", type: "boolean", default: true },
+          { key: "greetingText", label: "Matn", type: "ltext", default: L("Assalomu alaykum, {name}", "Здравствуйте, {name}", "Hello, {name}"), placeholders: ["{name}"] },
+          { key: "greetingSub", label: "Kichik matn", type: "ltext", default: L("Xush kelibsiz! 👋", "Добро пожаловать! 👋", "Welcome! 👋") },
+          { key: "greetingSize", label: "Shrift o'lchami (px)", type: "number", default: 20, min: 12, max: 40 },
+          { key: "greetingColor", label: "Rangi", type: "color", default: "#0f172a" },
+        ],
+      },
+      {
+        title: "Logo",
+        fields: [
+          { key: "logoShow", label: "Ko'rsatish", type: "boolean", default: true },
+          { key: "logoImage", label: "Logo rasmi", type: "image", default: "" },
+          { key: "logoSize", label: "O'lchami (px)", type: "number", default: 44, min: 24, max: 120 },
+          { key: "logoShape", label: "Shakli", type: "select", default: "circle", options: [
+            { value: "circle", label: "Doira" }, { value: "rounded", label: "Yumaloq burchak" }, { value: "square", label: "Kvadrat" },
+          ] },
+          { key: "logoPosition", label: "Joylashuvi", type: "select", default: "right", options: [
+            { value: "right", label: "O'ng tomonda" }, { value: "left", label: "Chap tomonda" },
+          ] },
+          { key: "logoBg", label: "Logo foni", type: "color", default: "#f1f5f9" },
+        ],
+      },
+      {
+        title: "Storis",
+        fields: [
+          { key: "storiesShow", label: "Ko'rsatish", type: "boolean", default: true },
+          { key: "storiesSize", label: "Doira o'lchami (px)", type: "number", default: 66, min: 44, max: 100 },
+          { key: "storiesRingColor", label: "Halqa rangi (ko'rilmagan)", type: "color", default: "#f97316" },
+          { key: "storiesDefaultDuration", label: "Standart davomiylik (soniya)", type: "number", default: 5, min: 2, max: 30 },
+        ],
+      },
+      {
+        title: "Bannerlar",
+        fields: [
+          { key: "bannersShow", label: "Ko'rsatish", type: "boolean", default: true },
+          { key: "bannersInterval", label: "Avto-aylanish oralig'i (soniya)", type: "number", default: 4, min: 2, max: 30 },
+          { key: "bannersHeight", label: "Balandligi (px)", type: "number", default: 160, min: 100, max: 320 },
+          { key: "bannersRadius", label: "Burchak (px)", type: "number", default: 20, min: 0, max: 40 },
+        ],
+      },
+      {
+        title: "Asosiy vidjet (Hero)",
+        fields: [
+          { key: "heroShow", label: "Ko'rsatish", type: "boolean", default: true },
+          { key: "heroTitle", label: "Sarlavha", type: "ltext", default: L("Yangi buyurtma berish", "Сделать новый заказ", "Place a new order") },
+          { key: "heroSubtitle", label: "Izoh", type: "ltext", default: L("Katalogdan tanlang — biz yetkazib beramiz", "Выберите из каталога — мы доставим", "Choose from the catalog — we deliver") },
+          { key: "heroButton", label: "Tugma matni", type: "ltext", default: L("Katalogga o'tish", "Перейти в каталог", "Open catalog") },
+          { key: "heroEmoji", label: "Emoji", type: "text", default: "🛍" },
+          { key: "heroColor", label: "Fon rangi", type: "color", default: "#2563eb" },
+          { key: "heroColor2", label: "Gradient ikkinchi rang", type: "color", default: "#7c3aed" },
+        ],
+      },
+      {
+        title: "Bosh sahifadagi bloklar",
+        fields: [
+          { key: "featuredShow", label: "Tavsiya etilgan mahsulotlar", type: "boolean", default: true },
+          { key: "featuredTitle", label: "Sarlavha", type: "ltext", default: L("Tavsiya etamiz", "Рекомендуем", "Recommended") },
+          { key: "categoriesShow", label: "Kategoriyalar bloki", type: "boolean", default: true },
+          { key: "categoriesTitle", label: "Sarlavha", type: "ltext", default: L("Kategoriyalar", "Категории", "Categories") },
+          { key: "newShow", label: "Yangi mahsulotlar", type: "boolean", default: false },
+          { key: "newTitle", label: "Sarlavha", type: "ltext", default: L("Yangi kelganlar", "Новинки", "New arrivals") },
+        ],
+      },
+      {
+        title: "Pastki navigatsiya",
+        fields: [
+          { key: "navHome", label: "Bosh sahifa", type: "ltext", default: L("Bosh sahifa", "Главная", "Home") },
+          { key: "navCatalog", label: "Katalog", type: "ltext", default: L("Katalog", "Каталог", "Catalog") },
+          { key: "navCart", label: "Savatcha", type: "ltext", default: L("Savatcha", "Корзина", "Cart") },
+          { key: "navProfile", label: "Profil", type: "ltext", default: L("Profil", "Профиль", "Profile") },
+        ],
+      },
+    ],
+  },
+  {
+    key: "catalog",
+    title: "Katalog",
+    icon: "layout-grid",
+    description: "Mahsulotlar qanday ko'rinishi, qoldiq, qidiruv, quti",
+    groups: [
+      {
+        title: "Qoldiq (miqdor) ko'rinishi",
+        fields: [
+          { key: "stockDisplay", label: "Qoldiqni ko'rsatish", type: "select", default: "range", options: [
+            { value: "exact", label: "Aniq miqdor (masalan 7 dona)" },
+            { value: "range", label: "Diapazon (10+, 50+)" },
+            { value: "available", label: "Faqat 'Mavjud' / 'Sotuvda yo'q'" },
+            { value: "hidden", label: "Ko'rsatilmasin" },
+          ] },
+          { key: "rangeSteps", label: "Diapazon chegaralari (vergul bilan)", type: "text", default: "10,50", help: "Masalan: 10,50 → 10+ va 50+" },
+          { key: "inStockLabel", label: "Mavjud matni", type: "ltext", default: L("Mavjud", "В наличии", "In stock") },
+          { key: "outOfStockLabel", label: "Sotuvda yo'q matni", type: "ltext", default: L("Sotuvda yo'q", "Нет в наличии", "Out of stock") },
+          { key: "showOutOfStock", label: "Sotuvda yo'q mahsulotlarni ko'rsatish", type: "boolean", default: true },
+          { key: "outOfStockLast", label: "Sotuvda yo'qlarni ro'yxat oxiriga qo'yish", type: "boolean", default: true },
+          { key: "allowOrderOutOfStock", label: "Qoldiq bo'lmasa ham buyurtma berishga ruxsat", type: "boolean", default: false },
+          { key: "checkStockOnCheckout", label: "Buyurtmada qoldiqdan ko'p miqdorni cheklash", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Kelganda eslating",
+        fields: [
+          { key: "notifyEnabled", label: "Funksiyani yoqish", type: "boolean", default: true },
+          { key: "notifyLabel", label: "Tugma matni", type: "ltext", default: L("🔔 Kelganda eslating", "🔔 Сообщить о поступлении", "🔔 Notify me") },
+          { key: "notifiedLabel", label: "Ro'yxatga qo'shilgandan keyingi matn", type: "ltext", default: L("✅ Xabar beramiz", "✅ Сообщим", "✅ We'll notify you") },
+        ],
+      },
+      {
+        title: "Tartib va ko'rinish",
+        fields: [
+          { key: "sortMode", label: "Mahsulotlar tartibi", type: "select", default: "manual", options: [
+            { value: "manual", label: "Qo'lda (Katalog boshqaruvi bo'limida)" },
+            { value: "name_asc", label: "Nomi A → Z" },
+            { value: "name_desc", label: "Nomi Z → A" },
+            { value: "price_asc", label: "Narx: arzondan" },
+            { value: "price_desc", label: "Narx: qimmatdan" },
+            { value: "newest", label: "Yangi qo'shilganlar avval" },
+          ] },
+          { key: "columns", label: "Ustunlar soni", type: "number", default: 2, min: 1, max: 3 },
+          { key: "showCategoryImages", label: "Kategoriya rasmlarini ko'rsatish", type: "boolean", default: true },
+          { key: "showSku", label: "Artikul (SKU) ko'rsatish", type: "boolean", default: false },
+          { key: "hideZeroPrice", label: "Narxi 0 bo'lgan mahsulotlarni yashirish", type: "boolean", default: true },
+          { key: "quickAddEnabled", label: "Kartochkada ➕ tezkor qo'shish", type: "boolean", default: true },
+          { key: "allCategoriesLabel", label: "'Barchasi' tegi", type: "ltext", default: L("Barchasi", "Все", "All") },
+          { key: "catalogTitle", label: "Katalog sarlavhasi", type: "ltext", default: L("Katalog", "Каталог", "Catalog") },
+          { key: "descriptionTitle", label: "Mahsulot izohi sarlavhasi", type: "ltext", default: L("Mahsulot haqida", "О товаре", "About the product") },
+          { key: "noDescription", label: "Izoh yo'q matni", type: "ltext", default: L("Qo'shimcha ma'lumot mavjud emas", "Дополнительная информация отсутствует", "No additional information") },
+          { key: "emptyCatalog", label: "Mahsulot topilmadi", type: "ltext", default: L("Hech narsa topilmadi 🙈", "Ничего не найдено 🙈", "Nothing found 🙈") },
+        ],
+      },
+      {
+        title: "Qidiruv",
+        fields: [
+          { key: "searchPlaceholder", label: "Qidiruv maydoni matni", type: "ltext", default: L("Mahsulot qidirish...", "Поиск товара...", "Search products...") },
+          { key: "searchMinChars", label: "Minimal harflar soni", type: "number", default: 3, min: 1, max: 5 },
+          { key: "searchFuzzy", label: "Aqlli (kirill/lotin, xatolarga chidamli) qidiruv", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Miqdor va quti",
+        fields: [
+          { key: "allowManualQty", label: "Miqdorni qo'lda kiritish katakchasi", type: "boolean", default: true },
+          { key: "maxQtyPerItem", label: "Bitta mahsulot uchun maksimal miqdor", type: "number", default: 1000, min: 1 },
+          { key: "boxModeEnabled", label: "Quti bilan buyurtma (Bito'da 'qutidagi soni' bo'lsa)", type: "boolean", default: true },
+          { key: "boxLabel", label: "Quti bo'limi nomi", type: "ltext", default: L("Quti", "Коробка", "Box") },
+          { key: "pieceLabel", label: "Dona bo'limi nomi", type: "ltext", default: L("Dona", "Штука", "Piece") },
+          { key: "boxHint", label: "Quti izohi", type: "ltext", default: L("qutidagi soni — {n}", "в коробке — {n}", "per box — {n}"), placeholders: ["{n}"] },
+          { key: "addToCart", label: "Savatchaga qo'shish tugmasi", type: "ltext", default: L("Savatchaga qo'shish", "Добавить в корзину", "Add to cart") },
+          { key: "inCartLabel", label: "Savatchada (kartochkada)", type: "ltext", default: L("Savatchada", "В корзине", "In cart") },
+        ],
+      },
+    ],
+  },
+  {
+    key: "checkout",
+    title: "Savatcha va buyurtma",
+    icon: "shopping-cart",
+    description: "Buyurtmani rasmiylashtirish jarayoni",
+    groups: [
+      {
+        title: "Turi",
+        fields: [
+          { key: "deliveryEnabled", label: "Yetkazib berish", type: "boolean", default: true },
+          { key: "pickupEnabled", label: "Olib ketish", type: "boolean", default: true },
+          { key: "defaultType", label: "Standart tur", type: "select", default: "delivery", options: [
+            { value: "delivery", label: "Yetkazib berish" }, { value: "pickup", label: "Olib ketish" },
+          ] },
+          { key: "deliveryLabel", label: "Yetkazib berish matni", type: "ltext", default: L("Yetkazib berish", "Доставка", "Delivery") },
+          { key: "pickupLabel", label: "Olib ketish matni", type: "ltext", default: L("Olib ketish", "Самовывоз", "Pickup") },
+          { key: "deliveryHint", label: "Yetkazib berish izohi", type: "ltext", default: L("Kuryer manzilingizga yetkazadi", "Курьер доставит по адресу", "Courier delivers to your address") },
+          { key: "pickupHint", label: "Olib ketish izohi", type: "ltext", default: L("Do'kondan o'zingiz olib ketasiz", "Заберёте сами из магазина", "You pick up from the store") },
+          { key: "pickupAddress", label: "Do'kon manzili (olib ketish uchun)", type: "ltext", default: L("Qo'qon sh., Istiqlol ko'chasi 1", "г. Коканд, ул. Истиклол 1", "Kokand, Istiqlol st. 1") },
+          { key: "deliveryFee", label: "Yetkazib berish narxi (0 = bepul)", type: "number", default: 0, min: 0 },
+          { key: "freeDeliveryFrom", label: "Shu summadan boshlab bepul (0 = o'chirilgan)", type: "number", default: 0, min: 0 },
+          { key: "minOrderTotal", label: "Minimal buyurtma summasi", type: "number", default: 0, min: 0 },
+        ],
+      },
+      {
+        title: "Manzil va xarita",
+        fields: [
+          { key: "requireLocation", label: "Yetkazib berishda xaritadan joylashuv majburiy", type: "boolean", default: true },
+          { key: "mapLat", label: "Xarita markazi — kenglik (lat)", type: "number", default: 40.5286, step: 0.0001 },
+          { key: "mapLng", label: "Xarita markazi — uzunlik (lng)", type: "number", default: 70.9425, step: 0.0001 },
+          { key: "mapZoom", label: "Xarita masshtabi", type: "number", default: 13, min: 5, max: 19 },
+          { key: "commentEnabled", label: "Izoh maydoni", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Matnlar",
+        fields: [
+          { key: "cartTitle", label: "Savatcha sarlavhasi", type: "ltext", default: L("Savatcha", "Корзина", "Cart") },
+          { key: "emptyCart", label: "Savatcha bo'sh", type: "ltext", default: L("Savatchangiz bo'sh", "Ваша корзина пуста", "Your cart is empty") },
+          { key: "emptyCartHint", label: "Bo'sh savatcha izohi", type: "ltext", default: L("Katalogdan mahsulot tanlang", "Выберите товары в каталоге", "Pick something from the catalog") },
+          { key: "goCatalog", label: "Katalogga o'tish tugmasi", type: "ltext", default: L("Katalogga o'tish", "В каталог", "Go to catalog") },
+          { key: "checkoutButton", label: "Rasmiylashtirish tugmasi", type: "ltext", default: L("Buyurtmani rasmiylashtirish", "Оформить заказ", "Checkout") },
+          { key: "confirmButton", label: "Tasdiqlash tugmasi", type: "ltext", default: L("Buyurtmani tasdiqlash", "Подтвердить заказ", "Confirm order") },
+          { key: "checkoutTitle", label: "Rasmiylashtirish sarlavhasi", type: "ltext", default: L("Buyurtmani rasmiylashtirish", "Оформление заказа", "Checkout") },
+          { key: "phoneLabel", label: "Telefon", type: "ltext", default: L("Telefon raqam", "Номер телефона", "Phone number") },
+          { key: "nameLabel", label: "Ism", type: "ltext", default: L("Ismingiz", "Ваше имя", "Your name") },
+          { key: "addressLabel", label: "Manzil", type: "ltext", default: L("Manzil", "Адрес", "Address") },
+          { key: "addressPlaceholder", label: "Manzil maydoni matni", type: "ltext", default: L("Ko'cha, uy, kvartira...", "Улица, дом, квартира...", "Street, building, apartment...") },
+          { key: "mapLabel", label: "Xarita sarlavhasi", type: "ltext", default: L("Joylashuvni belgilang", "Укажите местоположение", "Set your location") },
+          { key: "myLocation", label: "Mening joylashuvim tugmasi", type: "ltext", default: L("📍 Mening joylashuvim", "📍 Моё местоположение", "📍 My location") },
+          { key: "commentLabel", label: "Izoh", type: "ltext", default: L("Izoh (ixtiyoriy)", "Комментарий (необязательно)", "Comment (optional)") },
+          { key: "totalLabel", label: "Jami", type: "ltext", default: L("Jami", "Итого", "Total") },
+          { key: "itemsLabel", label: "Mahsulotlar", type: "ltext", default: L("Mahsulotlar", "Товары", "Items") },
+          { key: "deliveryFeeLabel", label: "Yetkazib berish (summa yonida)", type: "ltext", default: L("Yetkazib berish", "Доставка", "Delivery") },
+          { key: "freeLabel", label: "Bepul", type: "ltext", default: L("Bepul", "Бесплатно", "Free") },
+          { key: "clearCart", label: "Savatni tozalash", type: "ltext", default: L("Tozalash", "Очистить", "Clear") },
+          { key: "successTitle", label: "Muvaffaqiyat sarlavhasi", type: "ltext", default: L("Buyurtma qabul qilindi!", "Заказ принят!", "Order received!") },
+          { key: "successMessage", label: "Muvaffaqiyat matni", type: "ltextarea", default: L("Buyurtmangiz #{order} qabul qilindi. Kuryerimiz tez orada bog'lanadi 🚚", "Ваш заказ #{order} принят. Курьер скоро свяжется с вами 🚚", "Your order #{order} has been received. Our courier will contact you soon 🚚"), placeholders: ["{order}"] },
+          { key: "successMessagePickup", label: "Muvaffaqiyat matni (olib ketish)", type: "ltextarea", default: L("Buyurtmangiz #{order} qabul qilindi. Tayyor bo'lganda xabar beramiz 🛍", "Ваш заказ #{order} принят. Сообщим, когда будет готов 🛍", "Your order #{order} has been received. We'll notify you when it's ready 🛍"), placeholders: ["{order}"] },
+          { key: "autoCloseSec", label: "Necha soniyadan keyin Mini App yopilsin (0 = yopilmasin)", type: "number", default: 3, min: 0, max: 30 },
+          { key: "errorStock", label: "Qoldiq yetarli emas xabari", type: "ltext", default: L("\"{product}\" uchun qoldiq yetarli emas (mavjud: {stock})", "Недостаточно остатка для \"{product}\" (доступно: {stock})", "Not enough stock for \"{product}\" (available: {stock})"), placeholders: ["{product}", "{stock}"] },
+          { key: "errorMin", label: "Minimal summa xabari", type: "ltext", default: L("Minimal buyurtma summasi: {min}", "Минимальная сумма заказа: {min}", "Minimum order amount: {min}"), placeholders: ["{min}"] },
+        ],
+      },
+    ],
+  },
+  {
+    key: "profile",
+    title: "Profil",
+    icon: "user",
+    description: "Profil bo'limidagi bloklar va matnlar",
+    groups: [
+      {
+        title: "Bloklar",
+        fields: [
+          { key: "showBalance", label: "Balansni ko'rsatish", type: "boolean", default: true },
+          { key: "showPurchases", label: "Xaridlar tarixini ko'rsatish", type: "boolean", default: true },
+          { key: "showCard", label: "Sodiqlik kartasini ko'rsatish", type: "boolean", default: true },
+          { key: "showLanguage", label: "Til tanlashni ko'rsatish", type: "boolean", default: true },
+          { key: "showAddress", label: "Saqlangan manzilni ko'rsatish", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Matnlar",
+        fields: [
+          { key: "title", label: "Sarlavha", type: "ltext", default: L("Profil", "Профиль", "Profile") },
+          { key: "myOrders", label: "Mening buyurtmalarim", type: "ltext", default: L("📜 Mening buyurtmalarim", "📜 Мои заказы", "📜 My orders") },
+          { key: "purchases", label: "Xaridlar tarixi", type: "ltext", default: L("🧾 Xaridlar tarixi", "🧾 История покупок", "🧾 Purchase history") },
+          { key: "balance", label: "Balans", type: "ltext", default: L("💰 Balans", "💰 Баланс", "💰 Balance") },
+          { key: "card", label: "Sodiqlik kartasi", type: "ltext", default: L("💳 Sodiqlik kartasi", "💳 Карта лояльности", "💳 Loyalty card") },
+          { key: "language", label: "Til", type: "ltext", default: L("🌐 Til", "🌐 Язык", "🌐 Language") },
+          { key: "address", label: "Manzil", type: "ltext", default: L("📍 Saqlangan manzil", "📍 Сохранённый адрес", "📍 Saved address") },
+          { key: "reorder", label: "Yana buyurtma qilish tugmasi", type: "ltext", default: L("🔁 Yana shundan buyurtma qilish", "🔁 Заказать снова", "🔁 Order again") },
+          { key: "reorderDone", label: "Savatga qo'shildi", type: "ltext", default: L("Mahsulotlar savatchaga qo'shildi", "Товары добавлены в корзину", "Items added to cart") },
+          { key: "noOrders", label: "Buyurtmalar yo'q", type: "ltext", default: L("Hali buyurtmalar yo'q", "Заказов пока нет", "No orders yet") },
+          { key: "noPurchases", label: "Xaridlar yo'q", type: "ltext", default: L("Xaridlar tarixi bo'sh", "История покупок пуста", "No purchases yet") },
+          { key: "debt", label: "Qarzdorlik", type: "ltext", default: L("Qarzdorlik", "Задолженность", "Debt") },
+          { key: "credit", label: "Haqdorlik", type: "ltext", default: L("Haqdorlik", "Переплата", "Credit") },
+          { key: "noDebt", label: "Qarz yo'q", type: "ltext", default: L("Qarzdorlik yo'q", "Задолженности нет", "No debt") },
+          { key: "orderDetails", label: "Buyurtma tafsiloti", type: "ltext", default: L("Buyurtma tafsilotlari", "Детали заказа", "Order details") },
+          { key: "save", label: "Saqlash", type: "ltext", default: L("Saqlash", "Сохранить", "Save") },
+          { key: "saved", label: "Saqlandi", type: "ltext", default: L("Saqlandi ✅", "Сохранено ✅", "Saved ✅") },
+          { key: "support", label: "Yordam", type: "ltext", default: L("🆘 Yordam", "🆘 Помощь", "🆘 Support") },
+        ],
+      },
+    ],
+  },
+];
+
+/** Sxemadan standart qiymatlar obyektini yasash */
+export function buildDefaults(): Record<string, Record<string, unknown>> {
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const s of settingsSchema) {
+    out[s.key] = {};
+    for (const g of s.groups) for (const f of g.fields) out[s.key][f.key] = f.default;
+  }
+  return out;
+}
+
+export function fieldDef(section: string, key: string): FieldDef | undefined {
+  const s = settingsSchema.find((x) => x.key === section);
+  if (!s) return undefined;
+  for (const g of s.groups) {
+    const f = g.fields.find((x) => x.key === key);
+    if (f) return f;
+  }
+  return undefined;
+}

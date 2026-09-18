@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Telegram orqali ro'yxatdan o'tgan mijoz. Bito'dagi mijoz bilan bitoCustomerId orqali bog'lanadi.
+model User {
+  id             Int      @id @default(autoincrement())
+  telegramId     BigInt   @unique
+  tgUsername     String?
+  tgFirstName    String?
+  name           String?
+  phone          String?
+  bitoCustomerId String?  @unique
+  language       String   @default("uz")
+  address        String?
+  lat            Float?
+  lng            Float?
+  step           String   @default("new") // new | phone | name | done
+  isBlocked      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders   Order[]
+  waitlist Waitlist[]
+}
+
+/// Bito'dan sinxronlanadigan mahsulot keshi. Qo'lda qo'shilmaydi — faqat Bito manba.
+model Product {
+  id             Int      @id @default(autoincrement())
+  bitoId         String   @unique
+  name           String
+  searchKey      String   @default("")
+  image          String?
+  images         Json     @default("[]")
+  price          Float    @default(0)
+  priceId        String?
+  currencyId     String?
+  stock          Float    @default(0)
+  boxItem        Float    @default(0)
+  measure        String?
+  measureDecimals Int     @default(0)
+  sku            String?
+  barcode        String?
+  note           String?
+  customFields   Json     @default("[]")
+  categoryBitoId String?
+  categoryName   String?
+  isAvailableForSale Boolean @default(true)
+  isDeleted      Boolean  @default(false)
+  // Admin boshqaruvi
+  hidden         Boolean  @default(false)
+  featured       Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  bitoUpdatedAt  DateTime?
+  syncedAt       DateTime @default(now())
+
+  waitlist Waitlist[]
+
+  @@index([categoryBitoId])
+  @@index([hidden, sortOrder])
+}
+
+/// Bito kategoriyalari keshi
+model Category {
+  id         Int     @id @default(autoincrement())
+  bitoId     String  @unique
+  name       String
+  parentId   String?
+  image      String?
+  itemCount  Int     @default(0)
+  hidden     Boolean @default(false)
+  sortOrder  Int     @default(0)
+  isDeleted  Boolean @default(false)
+  syncedAt   DateTime @default(now())
+}
+
+/// Mini App orqali berilgan buyurtma (Bito'da ham yaratiladi)
+model Order {
+  id               Int      @id @default(autoincrement())
+  bitoId           String?  @unique
+  number           String?
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id])
+  type             String   // delivery | pickup
+  stateId          String?
+  stateKey         String?  // new | in_progress | done | canceled | custom
+  stateName        String?
+  items            Json
+  total            Float    @default(0)
+  itemsCount       Float    @default(0)
+  phone            String?
+  customerName     String?
+  address          String?
+  lat              Float?
+  lng              Float?
+  comment          String?
+  groupChatId      String?
+  groupMessageId   Int?
+  customerMessageId Int?
+  history          Json     @default("[]")
+  bitoPayload      Json?
+  error            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([stateKey])
+}
+
+/// "Kelganda eslating" — kutilayotgan mahsulotlar
+model Waitlist {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+  productId  Int
+  product    Product   @relation(fields: [productId], references: [id])
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, productId])
+}
+
+/// Instagram uslubidagi storis (doira). Har birida bir nechta slayd bo'lishi mumkin.
+model Story {
+  id        Int      @id @default(autoincrement())
+  title     String
+  cover     String
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  slides    StorySlide[]
+}
+
+model StorySlide {
+  id        Int     @id @default(autoincrement())
+  storyId   Int
+  story     Story   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  image     String
+  caption   String?
+  link      String?
+  duration  Int     @default(5)
+  sortOrder Int     @default(0)
+}
+
+/// Bosh sahifadagi aylanma bannerlar
+model Banner {
+  id        Int      @id @default(autoincrement())
+  image     String
+  title     String?
+  subtitle  String?
+  link      String?
+  textColor String   @default("#ffffff")
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+/// Admin paneldan boshqariladigan barcha sozlamalar (bo'limlar bo'yicha JSON)
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Buyurtmalar tushadigan Telegram guruhlari
+model AdminGroup {
+  id        Int      @id @default(autoincrement())
+  chatId    String   @unique
+  title     String?
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+/// Buyurtma holatini o'zgartira oladigan xodimlar
+model Staff {
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  name       String?
+  username   String?
+  role       String   @default("staff") // admin | staff
+  createdAt  DateTime @default(now())
+}
+
+/// Takroriy bildirishnomalarni oldini olish (savdo cheki, to'lov va h.k.)
+model SentEvent {
+  key       String   @id
+  createdAt DateTime @default(now())
+}
+
+/// Sinxronizatsiya holati (oxirgi vaqtlar va h.k.)
+model SyncState {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Bot faoliyati jurnali (admin panelda ko'rish uchun)
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  type      String
+  message   String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

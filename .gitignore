@@ -1,0 +1,57 @@
+# ===== MAXFIY MA'LUMOTLAR (hech qachon git'ga qo'shilmasin) =====
+.env
+.env.*
+!.env.example
+backend/.env
+ngrok.yml
+ngrok.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+*secret*
+*token*
+!**/src/**/token*.ts
+
+# ngrok
+ngrok.exe
+ngrok-domain.txt
+ngrok*.zip
+
+# ===== Paketlar va build =====
+node_modules/
+dist/
+build/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Prisma (generatsiya qilingan klient)
+backend/prisma/generated/
+node_modules/.prisma/
+
+# ===== Yuklangan fayllar (rasm, bannerlar) =====
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/sample-banner.svg
+
+# ===== Loglar va vaqtinchalik =====
+*.log
+logs/
+npm-debug.log*
+tmp/
+temp/
+*.tmp
+*.bak
+
+# ===== Tizim va muharrir =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/

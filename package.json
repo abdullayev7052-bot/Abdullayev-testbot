@@ -1,0 +1,32 @@
+{
+  "name": "bito-telegram-shop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bito ERP bilan to'liq integratsiyalangan Telegram Mini App, bot va admin panel",
+  "workspaces": [
+    "backend",
+    "miniapp",
+    "admin"
+  ],
+  "scripts": {
+    "setup": "npm install && npm run db:generate && npm run db:push && npm run db:seed && npm run build",
+    "db:generate": "npm run generate -w backend",
+    "db:push": "npm run db:push -w backend",
+    "db:seed": "npm run db:seed -w backend",
+    "db:studio": "npm run db:studio -w backend",
+    "build": "npm run build -w miniapp && npm run build -w admin",
+    "start": "npm run start -w backend",
+    "dev": "npm run dev -w backend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w miniapp && npm run typecheck -w admin",
+    "db:check": "npm run db:check -w backend"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true
+  }
+}
