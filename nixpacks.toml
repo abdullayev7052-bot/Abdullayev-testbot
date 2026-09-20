@@ -6,7 +6,7 @@ NODE_ENV = "production"
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["npm install --include=dev --no-audit --no-fund"]
+cmds = ["rm -f package-lock.json", "npm install --include=dev --no-audit --no-fund"]
 
 [phases.build]
 cmds = ["npm run db:generate", "npm run build"]
