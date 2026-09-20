@@ -67,7 +67,9 @@ export async function startPublicUrlWatcher() {
   setInterval(tick, 15000);
 }
 
-/** Admin paneldan qo'lda o'rnatish */
+/** Admin paneldan qo'lda o'rnatish (bazada saqlanadi) */
 export function setPublicUrlManually(url: string) {
-  setUrl(url.replace(/\/+$/, ""));
+  const u = url.replace(/[/]+$/, "");
+  setUrl(u);
+  prisma.syncState.upsert({ where: { key: "publicUrl" }, create: { key: "publicUrl", value: { url: u } }, update: { value: { url: u } } }).catch(() => {});
 }
