@@ -1,107 +1,65 @@
-# ☁️ Render.com'ga backend deploy qilish
+# ☁️ Railway.com — asosiy server
 
-Backend (`backend/`) bot + API + Mini App + Admin panelni **bitta** server sifatida ishga tushiradi.
-Render'da deploy qilingach `https://<nom>.onrender.com/app/` — Mini App, `/admin/` — admin panel bo'ladi.
-ngrok kerak emas.
+Backend (`backend/`) bot + API + Mini App + Admin panelni **bitta** xizmat sifatida ishga tushiradi.
+Railway manzili: `https://<nom>.up.railway.app` → Mini App `/app/`, Admin panel `/admin/`.
+ngrok, Vercel, Render kerak emas.
 
-## 1. Render'da xizmat yaratish
+## 1. Railway'da bir marta sozlash
 
-1. https://render.com → **Sign up** (GitHub bilan kiring).
-2. **New +** → **Blueprint** → GitHub'dan `Abdullayev-testbot` repozitoriyasini tanlang.
-   Render `render.yaml` faylini o'zi o'qiydi (build/start buyruqlari tayyor).
-   *(Blueprint o'rniga **New + → Web Service** ham bo'ladi — u holda pastdagi qiymatlarni qo'lda kiriting.)*
-3. **Environment** bo'limida so'ralgan qiymatlarni kiriting (`.env` faylingizdan nusxalang):
+1. https://railway.com → **New Project → Deploy from GitHub repo** → `Abdullayev-testbot`.
+   Railway `railway.json` faylini o'zi o'qiydi (build/start buyruqlari tayyor).
+2. Xizmat → **Variables** → **Raw Editor** → quyidagini qo'yib, qiymatlarni `.env` faylingizdan to'ldiring:
 
-| Kalit | Qiymat |
-|---|---|
-| `DATABASE_URL` | Neon manzili (`postgresql://...neon.tech/neondb?sslmode=require`) |
-| `BOT_TOKEN` | BotFather tokeni |
-| `ADMIN_TELEGRAM_ID` | `5246953735` |
-| `ADMIN_PASSWORD` | admin panel paroli |
-| `BITO_API_KEY` | `login:secret` |
-| `PUBLIC_URL` | **hozircha bo'sh qoldiring** — 5-qadamda to'ldirasiz |
-
-4. **Apply / Create Web Service** → 3–5 daqiqa build bo'ladi. Loglarda `🤖 Bot ishga tushdi` chiqsa — tayyor.
-5. Xizmat manzilini oling (masalan `https://bito-telegram-shop.onrender.com`) → **Environment** → `PUBLIC_URL` ga shu manzilni yozing → **Save** (xizmat qayta ishga tushadi).
-   Shundan keyin bot Mini App tugmasini va Bito webhook'ini avtomatik shu manzilga ulaydi.
-
-## 2. Qo'lda Web Service yaratsangiz (Blueprint'siz)
-
-| Maydon | Qiymat |
-|---|---|
-| Runtime | Node |
-| Build Command | `npm install --no-audit --no-fund && npm run db:generate && npm run build` |
-| Start Command | `npm run db:check && npm start` |
-| Health Check Path | `/api/health` |
-| Env: `NODE_VERSION` | `22` |
-| Env: `TUNNEL` | `none` |
-| Env: `ALLOW_DEV_AUTH` | `false` |
-| Env: `JWT_SECRET` | istalgan uzun tasodifiy matn |
-
-Port kiritish shart emas — Render `PORT` ni o'zi beradi, backend uni o'qiydi.
-
-## 3. Muhim: Free tarif haqida
-
-Render **Free** tarifida server 15 daqiqa so'rov bo'lmasa **uxlab qoladi** — bot xabarlarga javob bermay qoladi,
-Bito webhook'lari yo'qoladi. Ikki yo'l:
-
-- **Starter** tarif (~$7/oy) — doim ishlaydi (tavsiya etiladi, `render.yaml`da shu tanlangan).
-- Free'da qolsangiz — https://uptimerobot.com (bepul) da monitor yarating:
-  `https://<nom>.onrender.com/api/health` manzilini har **5 daqiqada** tekshirsin. Server uxlamaydi.
-
-## 4. Vercel'dagi frontend haqida
-
-Backend Render'da Mini App va Admin panelni **o'zi** beradi (`/app/`, `/admin/`) — Vercel shart emas.
-BotFather / Mini App manzili sifatida **Render manzilini** ishlating: `https://<nom>.onrender.com/app/`.
-
-Agar baribir Vercel'dan foydalanmoqchi bo'lsangiz, Vercel loyihasi ildiziga `vercel.json` qo'shing
-(API so'rovlarini Render'ga yo'naltiradi):
-
-```json
-{
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "https://<nom>.onrender.com/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "https://<nom>.onrender.com/uploads/:path*" }
-  ]
-}
+```
+DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require
+BOT_TOKEN=123456:ABC...
+ADMIN_TELEGRAM_ID=5246953735
+ADMIN_PASSWORD=admin123
+JWT_SECRET=uzun-tasodifiy-matn
+BITO_API_KEY=login:secret
+TUNNEL=none
+ALLOW_DEV_AUTH=false
+PUBLIC_URL=
 ```
 
-va Mini App `miniapp/vite.config.ts` da `base: "/app/"` ni `base: "/"` ga o'zgartiring (Vercel'da ildizda ochilishi uchun).
-Lekin eng oddiy va ishonchli yo'l — hammasini Render'da qoldirish.
+3. Xizmat → **Settings → Networking → Generate Domain** → manzil chiqadi (masalan `https://abdullayev-testbot-production.up.railway.app`).
+4. **Variables** → `PUBLIC_URL` ga shu manzilni yozing (oxirida `/` siz) → saqlang. Xizmat qayta ishga tushadi va bot Mini App tugmasini + Bito webhook'ini avtomatik shu manzilga ulaydi.
+5. **Deployments** → loglarda `🤖 Bot ishga tushdi` va `🔘 Menu tugmasi Mini App'ga ulandi` chiqsa — tayyor.
 
-## 5. Yangilash
+> `PORT` kiritish shart emas — Railway o'zi beradi.
 
-Kod o'zgarsa:
+## 2. Avtomatik yangilanish (GitHub → Railway)
+
+Railway GitHub'ga ulangan: `main` branch'ga har **push** bo'lganda 2–4 daqiqada avtomatik qayta build qilib ishga tushiradi.
+Tekshirish: xizmat → **Settings → Source** → *Branch: main*, *Auto deploy: yoqilgan* (standart yoqilgan).
+
+Kompyuterdan yangilanish yuborish — bitta usul:
+
+**`deploy.bat`** ni ikki marta bosing (commit + push, Railway o'zi deploy qiladi).
+
+Yoki terminalda:
 
 ```bash
 git add -A && git commit -m "yangilanish" && git push
 ```
 
-Render har `push`dan keyin avtomatik qayta build qiladi (Auto-Deploy).
+## 3. Tekshirish
 
-## 6. Tekshirish
+- `https://<nom>.up.railway.app/api/health` → `{"ok":true}`
+- `https://<nom>.up.railway.app/admin/` → admin panel; Boshqaruv panelida "Ommaviy manzil" = Railway manzili, "Webhook: ulangan"
+- Botda `/start` → "🛍 Buyurtma berish" Mini App'ni ochadi
 
-- `https://<nom>.onrender.com/api/health` → `{"ok":true}`
-- `https://<nom>.onrender.com/admin/` → admin panel (Boshqaruv panelida "Ommaviy manzil" Render manzili bo'lishi kerak)
-- Botga `/start` → "🛍 Buyurtma berish" tugmasi Mini App'ni ochadi
-- Admin panel → Boshqaruv paneli → **Webhook: ulangan** bo'lishi kerak
-
-## 7. Muammolar
+## 4. Muammolar
 
 | Muammo | Yechim |
 |---|---|
-| Build'da `prisma generate` xatosi | Env'da `DATABASE_URL` borligini tekshiring |
-| Bot javob bermayapti | Free tarif uxlagan → 3-bo'lim; yoki lokal kompyuterda ham `npm start` ishlab turibdi (bitta token bilan 2 ta bot polling bo'lmaydi — lokalni to'xtating) |
-| Mini App tugmasi eski ngrok manzilini ochyapti | `PUBLIC_URL` ni Render manziliga o'zgartirib, Save qiling |
-| Webhook "ulanmagan" | Admin panel → Bito integratsiyasi → **Webhookni ulash** tugmasi |
+| Build xatosi `prisma generate` | Variables'da `DATABASE_URL` borligini tekshiring |
+| Bot javob bermayapti / 409 Conflict | Bitta bot tokeni bilan **faqat bitta** server ishlashi kerak. Lokal `start.bat`, Render, boshqa nusxalar o'chirilgan bo'lsin |
+| Mini App tugmasi eski manzilni ochyapti | `PUBLIC_URL` Railway manzili ekanini tekshiring, Redeploy qiling |
+| Webhook "ulanmagan" | Admin panel → Bito integratsiyasi → **Webhookni ulash** |
+| Deploy tushmadi | Railway → Deployments → loglar; GitHub'da push bo'lganini tekshiring (`git log origin/main -1`) |
 
-## 8. Vercel uchun `VITE_BASE`
+## 5. Lokal test (ixtiyoriy)
 
-Mini App standart holatda `/app/` yo'lida ishlaydi (Render/lokal). Vercel'da ildizda (`/`) ochilishi uchun
-Vercel loyihasi → **Settings → Environment Variables** ga qo'shing:
-
-| Kalit | Qiymat |
-|---|---|
-| `VITE_BASE` | `/` |
-
-Kodda hech narsa o'zgartirish shart emas — `miniapp/vite.config.ts` bu qiymatni o'zi o'qiydi.
+Kompyuterda sinash uchun `start.bat` — lekin Railway ishlab turganda **botni** ikki joyda ishlatib bo'lmaydi.
+Lokalda faqat Mini App/admin'ni ko'rmoqchi bo'lsangiz, `.env` ga vaqtincha boshqa test-bot tokenini qo'ying.
