@@ -1,7 +1,7 @@
 import type { Bot } from "grammy";
 import type { MyContext } from "../context.ts";
 import { setUserStep } from "../context.ts";
-import { contactKeyboard, mainKeyboard } from "../keyboards.ts";
+import { contactKeyboard, mainKeyboard, openAppInline } from "../keyboards.ts";
 import { linkOrCreateCustomer } from "../../bito/customers.ts";
 import { normalizePhone } from "../../utils/format.ts";
 import { activity, errMsg, log } from "../../logger.ts";
@@ -10,6 +10,8 @@ import { prisma } from "../../db.ts";
 export async function sendMainMenu(ctx: MyContext, text?: string) {
   const name = ctx.user.name || ctx.user.tgFirstName || "";
   await ctx.reply(text || ctx.t("welcomeBack", { name }), { reply_markup: mainKeyboard(ctx.lang), parse_mode: "HTML" });
+  const inline = openAppInline(ctx.lang);
+  if (inline) await ctx.reply(ctx.t("openAppButton"), { reply_markup: inline });
 }
 
 export function registerStart(bot: Bot<MyContext>) {
@@ -47,6 +49,7 @@ export function registerStart(bot: Bot<MyContext>) {
       if (existing) {
         await setUserStep(ctx, "done");
         await ctx.reply(ctx.t("registered"), { reply_markup: mainKeyboard(ctx.lang), parse_mode: "HTML" });
+      { const inline = openAppInline(ctx.lang); if (inline) await ctx.reply(ctx.t("openAppButton"), { reply_markup: inline }); }
         return;
       }
     } catch (e) {
@@ -72,6 +75,7 @@ export function registerStart(bot: Bot<MyContext>) {
       }
       await setUserStep(ctx, "done");
       await ctx.reply(ctx.t("registered"), { reply_markup: mainKeyboard(ctx.lang), parse_mode: "HTML" });
+      { const inline = openAppInline(ctx.lang); if (inline) await ctx.reply(ctx.t("openAppButton"), { reply_markup: inline }); }
       return;
     }
     if (ctx.user.step !== "done") {

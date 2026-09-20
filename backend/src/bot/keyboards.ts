@@ -20,9 +20,8 @@ export function contactKeyboard(lang: Lang): Keyboard {
 export function mainKeyboard(lang: Lang): Keyboard {
   const b = getSettings().bot;
   const kb = new Keyboard();
-  const url = appUrl();
-  if (url) kb.webApp(lt(b.openAppButton, lang), url).row();
-  else kb.text(lt(b.openAppButton, lang)).row();
+  // Pastki klaviaturadagi web_app tugmasi initData bermaydi — matnli tugma, bosilganda inline tugma yuboriladi
+  kb.text(lt(b.openAppButton, lang)).row();
   kb.text(lt(b.mOrders, lang)).text(lt(b.mPurchases, lang)).row();
   kb.text(lt(b.mMyInfo, lang)).text(lt(b.mSettings, lang)).row();
   kb.text(lt(b.mBalance, lang)).text(lt(b.mCard, lang)).row();
