@@ -18,7 +18,8 @@
     "start": "npm run start -w backend",
     "dev": "npm run dev -w backend",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w miniapp && npm run typecheck -w admin",
-    "db:check": "npm run db:check -w backend"
+    "db:check": "npm run db:check -w backend",
+    "railway:build": "npm run db:generate && npm run build"
   },
   "engines": {
     "node": ">=20"
