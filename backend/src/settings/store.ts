@@ -76,9 +76,14 @@ export async function loadSettings(): Promise<AppSettings> {
     const row = rows.find((r) => r.key === section.key);
     merged[section.key] = deepMerge(defaults[section.key], (row?.value as Record<string, unknown>) || {});
   }
-  // .env dagi boshlang'ich Bito qiymatlari (faqat baza bo'sh bo'lsa)
+  // .env dagi boshlang'ich Bito qiymatlari (faqat baza bo'sh bo'lsa) — bazaga ham yoziladi
   const bito = merged.bito as AppSettings["bito"];
-  if (!bito.apiKey && env.BITO_API_KEY) bito.apiKey = env.BITO_API_KEY;
+  if (!bito.apiKey && env.BITO_API_KEY) {
+    bito.apiKey = env.BITO_API_KEY;
+    const row = rows.find((r) => r.key === "bito");
+    const cur = (row?.value as Record<string, unknown>) || {};
+    await prisma.setting.upsert({ where: { key: "bito" }, create: { key: "bito", value: { ...cur, apiKey: env.BITO_API_KEY } as object }, update: { value: { ...cur, apiKey: env.BITO_API_KEY } as object } });
+  }
   if (!bito.apiUrl) bito.apiUrl = env.BITO_API_URL;
   if (!bito.filesUrl) bito.filesUrl = env.BITO_FILES_URL;
   cache = merged as unknown as AppSettings;
