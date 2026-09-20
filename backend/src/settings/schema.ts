@@ -292,7 +292,7 @@ export const settingsSchema: SectionDef[] = [
         fields: [
           { key: "notifyTrades", label: "Har bir savdoda mijozga chek yuborish", type: "boolean", default: true },
           { key: "notifyPayments", label: "Har bir to'lov/balans to'ldirilganda xabar yuborish", type: "boolean", default: true },
-          { key: "notifyPaymentsWithTrade", label: "Savdo bilan birga qilingan to'lovni ham alohida yuborish", type: "boolean", default: false },
+          { key: "notifyPaymentsWithTrade", label: "Savdo bilan BIR VAQTDA qilingan to'lovni ham alohida yuborish (chekdan tashqari)", type: "boolean", default: false, help: "Keyinroq qilingan qarz to'lovlari bu sozlamadan qat'i nazar har doim yuboriladi" },
           { key: "receiptTitle", label: "Chek sarlavhasi", type: "ltext", default: L("🧾 Xarid cheki", "🧾 Чек покупки", "🧾 Purchase receipt") },
           { key: "rShowTime", label: "Chekda: Vaqt", type: "boolean", default: true },
           { key: "rShowTrade", label: "Chekda: Savdo raqami", type: "boolean", default: true },
@@ -324,6 +324,7 @@ export const settingsSchema: SectionDef[] = [
           { key: "lCashbox", label: "Kassa", type: "ltext", default: L("Kassa", "Касса", "Cashbox") },
           { key: "pShowTime", label: "To'lovda: Vaqt", type: "boolean", default: true },
           { key: "pShowNumber", label: "To'lovda: Raqam", type: "boolean", default: false },
+          { key: "pShowTrade", label: "To'lovda: Qaysi savdo uchun (savdo raqami)", type: "boolean", default: true },
           { key: "pShowAmount", label: "To'lovda: Summa", type: "boolean", default: true },
           { key: "pShowMethod", label: "To'lovda: To'lov usuli", type: "boolean", default: true },
           { key: "pShowType", label: "To'lovda: To'lov turi", type: "boolean", default: false },

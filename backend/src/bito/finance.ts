@@ -120,7 +120,7 @@ function moneyCur(amount: number, symbol: string | undefined, lang: Lang): strin
 }
 
 /** To'lov xabari matni */
-export async function paymentText(tx: BitoTransaction, lang: Lang): Promise<string> {
+export async function paymentText(tx: BitoTransaction, lang: Lang, tradeNumber?: string): Promise<string> {
   const b = getSettings().bot;
   const L = (k: keyof typeof b) => lt(b[k] as never, lang);
   const on = (k: string) => b[k] !== false;
@@ -131,6 +131,7 @@ export async function paymentText(tx: BitoTransaction, lang: Lang): Promise<stri
   lines.push(`<b>${esc(isRefund ? L("lRefund") : L("paymentTitle"))}</b>`);
   if (on("pShowTime")) lines.push(`🕒 ${esc(L("lTime"))}: ${fmtDate(tx.date || tx.created_at, lang)}`);
   if (on("pShowNumber") && tx.number) lines.push(`🔢 №${esc(tx.number)}`);
+  if (on("pShowTrade") && tradeNumber) lines.push(`🧾 ${esc(L("lTrade"))}: №${esc(tradeNumber)}`);
   if (on("pShowAmount")) lines.push(`💰 <b>${esc(L("lAmount"))}: ${moneyCur(tx.amount ?? tx.amount_in_main ?? 0, sym, lang)}</b>`);
   if (on("pShowMethod") && tx.payment_method?.name) lines.push(`💳 ${esc(L("lPayment"))}: ${esc(tx.payment_method.name)}`);
   if (on("pShowType") && tx.payment_type?.name) lines.push(`📂 ${esc(tx.payment_type.name)}`);
@@ -181,11 +182,24 @@ export async function processTransaction(txId: string, preloaded?: BitoTransacti
   if (tx.state && tx.state !== "done") return;
   const custId = tx.customer?._id || tx.customer_id;
   if (!custId) return;
-  if (tx.trade_id && !s.bot.notifyPaymentsWithTrade) return;
+  // Bito'da qarz to'lovi ham savdoga bog'lanadi (trade_id). Savdo bilan BIR VAQTDA qilingan to'lovgina
+  // "savdo bilan birga" hisoblanadi; keyinroq qilingani — alohida to'lov, u har doim yuboriladi.
+  let tradeNumber: string | undefined;
+  if (tx.trade_id) {
+    let withSale = false;
+    try {
+      const tr = await bito.tradeForBot(tx.trade_id);
+      tradeNumber = tr?.number;
+      const tradeAt = new Date(tr?.sold_at || tr?.date || tr?.created_at || 0).getTime();
+      const txAt = new Date(tx.date || tx.created_at || 0).getTime();
+      withSale = !!tradeAt && !!txAt && Math.abs(txAt - tradeAt) < 3 * 60 * 1000;
+    } catch (e) { log.warn("tradeForBot (tx)", errMsg(e)); }
+    if (withSale && !s.bot.notifyPaymentsWithTrade) return;
+  }
   const user = await userByCustomer(custId);
   if (!user) return;
   if (await alreadySent(`tx:${tx._id}`)) return;
-  const text = await paymentText(tx, user.language as Lang);
+  const text = await paymentText(tx, user.language as Lang, tradeNumber);
   await sendToUser(user.telegramId, text);
   await activity("payment_sent", `To'lov xabari: №${tx.number} → ${user.name || user.phone}`);
 }
