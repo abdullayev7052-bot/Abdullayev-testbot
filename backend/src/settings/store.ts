@@ -6,8 +6,9 @@ import { log } from "../logger.ts";
 export interface AppSettings {
   general: {
     shopName: LText; supportPhone: string; supportTelegram: string; defaultLanguage: Lang;
-    enabledLanguages: Lang[]; currencySuffix: LText; priceDecimals: number; adminPassword: string;
+    enabledLanguages: Lang[]; currencySuffix: LText; priceDecimals: number; adminPassword: string; languageMode: "default" | "telegram"; botToken: string;
   };
+  adminPanel: Record<string, unknown>;
   bito: {
     apiKey: string; apiUrl: string; filesUrl: string; webBaseUrl: string;
     organizationId: string; warehouseId: string; priceId: string; currencyId: string; responsibleId: string;
@@ -33,6 +34,8 @@ export interface AppSettings {
     waitlistAdded: LText; waitlistArrived: LText; waitlistNotifyBot: boolean;
     staffMode: "group" | "list"; groupNotAllowed: string; groupTitleNew: string; gTime: string; gCustomer: string; gPhone: string; gType: string;
     gDelivery: string; gPickup: string; gNumber: string; gStatus: string; gAddress: string; gComment: string; gProducts: string; gHistory: string; showTotalInGroup: boolean;
+    gProductsChanged: string; gTraded: string; gButtonsEnabled: boolean;
+    [key: string]: unknown;
   };
   design: Record<string, unknown>;
   catalog: {

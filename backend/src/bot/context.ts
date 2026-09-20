@@ -23,7 +23,7 @@ export async function userMiddleware(ctx: MyContext, next: NextFunction) {
     user = await prisma.user.create({
       data: {
         telegramId: tgId, tgUsername: from.username || null, tgFirstName: from.first_name || null,
-        language: normalizeLang(from.language_code?.slice(0, 2)),
+        language: getSettings().general.languageMode === "telegram" ? normalizeLang(from.language_code?.slice(0, 2)) : normalizeLang(undefined),
       },
     });
   } else if (user.tgUsername !== (from.username || null) || user.tgFirstName !== (from.first_name || null) || user.isBlocked) {

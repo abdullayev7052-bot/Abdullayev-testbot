@@ -26,6 +26,8 @@ interface TgWebApp {
   version: string;
   platform: string;
   safeAreaInset?: { top: number; bottom: number };
+  onEvent?(event: string, cb: () => void): void;
+  offEvent?(event: string, cb: () => void): void;
   contentSafeAreaInset?: { top: number; bottom: number };
 }
 
@@ -41,8 +43,6 @@ export function initTelegram() {
   try {
     tg.ready();
     tg.expand();
-    tg.setHeaderColor("#ffffff");
-    tg.setBackgroundColor("#ffffff");
     tg.disableVerticalSwipes?.();
   } catch { /* eski versiyalar */ }
 }
@@ -75,4 +75,14 @@ export function devUserId(): string | null {
   const v = p.get("dev_user");
   if (v) { localStorage.setItem("dev_user", v); return v; }
   return localStorage.getItem("dev_user");
+}
+
+/** Banner/storis/xabar havolasi: product:ID | category:ID | /yo'l | https://... */
+export function resolveTarget(target: string): { path?: string; url?: string } {
+  const s = (target || "").trim();
+  if (!s) return {};
+  if (s.startsWith("product:")) return { path: `/catalog?product=${encodeURIComponent(s.slice(8))}` };
+  if (s.startsWith("category:")) return { path: `/catalog?category=${encodeURIComponent(s.slice(9))}` };
+  if (s.startsWith("/")) return { path: s };
+  return { url: s };
 }

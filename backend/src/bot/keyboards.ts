@@ -45,24 +45,31 @@ export function languageKeyboard(): InlineKeyboard {
 }
 
 /** Guruhdagi buyurtma xabari tugmalari */
-export function groupOrderKeyboard(order: Order): InlineKeyboard {
-  const st = getSettings().statuses;
+export function groupOrderKeyboard(order: Order): InlineKeyboard | undefined {
+  const s = getSettings();
+  const st = s.statuses;
+  const b = s.bot;
+  const on = (k: string) => b[k] !== false;
+  if (!b.gButtonsEnabled) return undefined;
   const kb = new InlineKeyboard();
-  if (order.bitoId) kb.url(st.btnBito, bito.webOrderUrl(order.bitoId));
-  if (order.type === "delivery" && order.lat && order.lng) {
+  let any = false;
+  if (on("gBtnBito") && order.bitoId) { kb.url(st.btnBito, bito.webOrderUrl(order.bitoId)); any = true; }
+  if (on("gBtnLocation") && order.type === "delivery" && order.lat && order.lng) {
     kb.url(st.btnLocation, `https://maps.google.com/?q=${order.lat},${order.lng}`);
     kb.url("🗺 Yandex", `https://yandex.uz/maps/?pt=${order.lng},${order.lat}&z=16&l=map`);
+    any = true;
   }
-  kb.row();
+  if (any) kb.row();
   const stage = (order.stateKey || "new") as Stage;
   const labels: Record<Stage, string> = {
     new: "", accepted: st.btnAccept, ready: st.btnReady, delivering: st.btnDispatch,
     done: order.type === "pickup" ? st.btnPickedUp : st.btnDelivered, canceled: st.btnCancel, other: "",
   };
-  const next = nextStages(stage, order.type);
+  const allowed: Record<Stage, boolean> = { new: true, accepted: on("gBtnAccept"), ready: on("gBtnReady"), delivering: on("gBtnDispatch"), done: on("gBtnDone"), canceled: on("gBtnCancel"), other: true };
+  const next = nextStages(stage, order.type).filter((x) => allowed[x]);
   const main = next.filter((x) => x !== "canceled");
-  for (const n of main) kb.text(labels[n], `st:${order.id}:${n}`);
+  for (const n of main) { kb.text(labels[n], `st:${order.id}:${n}`); any = true; }
   if (main.length) kb.row();
-  if (next.includes("canceled")) kb.text(st.btnCancel, `st:${order.id}:canceled`);
-  return kb;
+  if (next.includes("canceled")) { kb.text(st.btnCancel, `st:${order.id}:canceled`); any = true; }
+  return any ? kb : undefined;
 }

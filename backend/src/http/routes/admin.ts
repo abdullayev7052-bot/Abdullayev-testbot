@@ -15,13 +15,14 @@ import { ensureWebhookSubscription, getWebhookState } from "../../bito/webhook.t
 import { getPublicUrl, setPublicUrlManually } from "../../utils/publicUrl.ts";
 import { activity, errMsg, log } from "../../logger.ts";
 import { bot } from "../../bot/instance.ts";
-import { updateMenuButton } from "../../bot/index.ts";
+import { updateMenuButton, restartBot } from "../../bot/index.ts";
 import { sendToUser } from "../../bot/send.ts";
 import { invalidateProductCache } from "./app.ts";
-import { InputFile } from "grammy";
+import { InputFile, InlineKeyboard } from "grammy";
 
 export const adminRouter = Router();
 
+adminRouter.get("/branding", (_req, res) => { res.json(getSettings().adminPanel); });
 adminRouter.post("/login", adminLogin);
 adminRouter.post("/logout", adminLogout);
 adminRouter.use(adminAuth);
@@ -31,18 +32,23 @@ adminRouter.get("/me", (_req, res) => { res.json({ ok: true }); });
 adminRouter.get("/schema", (_req, res) => { res.json(settingsSchema); });
 adminRouter.get("/settings", (_req, res) => {
   const s = getSettings() as unknown as Record<string, Record<string, unknown>>;
-  const out = { ...s, general: { ...s.general, adminPassword: "" } };
+  const out = { ...s, general: { ...s.general, adminPassword: "", botToken: s.general.botToken ? "••••••••" + String(s.general.botToken).slice(-6) : "" } };
   res.json(out);
 });
 adminRouter.put("/settings/:section", async (req, res) => {
   const section = String(req.params.section);
   const patch = (req.body || {}) as Record<string, unknown>;
   const before = getSettings();
+  if (section === "general" && typeof patch.botToken === "string" && patch.botToken.startsWith("••••")) delete patch.botToken;
   if (section === "general" && typeof patch.adminPassword === "string" && patch.adminPassword.trim()) {
     await setAdminPassword(patch.adminPassword.trim());
     await activity("admin", "Admin paroli o'zgartirildi");
   }
   if (section === "general") patch.adminPassword = "";
+  if (section === "general" && typeof patch.botToken === "string" && patch.botToken.trim() !== (before.general.botToken || "").trim()) {
+    try { const me = await restartBot(patch.botToken); await activity("admin", `Bot almashtirildi: @${me.username}`); }
+    catch (e) { res.status(400).json({ error: "Bot tokeni noto'g'ri: " + errMsg(e) }); return; }
+  }
   try {
     await updateSection(section, patch);
   } catch (e) { res.status(400).json({ error: errMsg(e) }); return; }
@@ -67,7 +73,7 @@ adminRouter.put("/settings/:section", async (req, res) => {
   }
   if (section === "bot" || section === "general") void updateMenuButton();
   invalidateProductCache();
-  res.json({ ok: true, settings: { ...(getSettings() as unknown as Record<string, unknown>), general: { ...getSettings().general, adminPassword: "" } } });
+  res.json({ ok: true, settings: { ...(getSettings() as unknown as Record<string, unknown>), general: { ...getSettings().general, adminPassword: "", botToken: getSettings().general.botToken ? "••••••••" + String(getSettings().general.botToken).slice(-6) : "" } } });
 });
 
 // ---------- Bito ----------
@@ -154,20 +160,17 @@ adminRouter.get("/activity", async (req, res) => {
 // ---------- Fayl yuklash ----------
 fs.mkdirSync(env.UPLOADS_DIR, { recursive: true });
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: env.UPLOADS_DIR,
-    filename: (_req, file, cb) => {
-      const ext = (path.extname(file.originalname) || ".png").toLowerCase().slice(0, 8);
-      cb(null, `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`);
-    },
-  }),
-  limits: { fileSize: 15 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|jpe?g|webp|gif|svg\+xml)$|^video\/mp4$/.test(file.mimetype)),
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 60 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image[/](png|jpe?g|webp|gif|svg[+]xml)$|^video[/](mp4|webm|quicktime)$/.test(file.mimetype)),
 });
-adminRouter.post("/upload", upload.single("file"), (req, res) => {
+adminRouter.post("/upload", upload.single("file"), async (req, res) => {
   const f = (req as Request & { file?: Express.Multer.File }).file;
-  if (!f) { res.status(400).json({ error: "Fayl tanlanmadi (faqat rasm)" }); return; }
-  res.json({ ok: true, path: `/uploads/${f.filename}`, url: `/uploads/${f.filename}` });
+  if (!f) { res.status(400).json({ error: "Fayl tanlanmadi (rasm yoki video: mp4/webm/gif)" }); return; }
+  const ext = (path.extname(f.originalname) || (f.mimetype.startsWith("video/") ? ".mp4" : ".png")).toLowerCase().slice(0, 8);
+  const name = `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`;
+  await prisma.upload.create({ data: { name, mime: f.mimetype, size: f.size, data: new Uint8Array(f.buffer) as never } });
+  res.json({ ok: true, path: `/uploads/${name}`, url: `/uploads/${name}`, mime: f.mimetype, size: f.size });
 });
 
 // ---------- Storis ----------
@@ -259,7 +262,8 @@ adminRouter.post("/catalog/products/bulk", async (req, res) => {
 });
 adminRouter.post("/catalog/products/reorder", async (req, res) => {
   const ids = z.array(z.number()).parse((req.body as { ids?: number[] })?.ids);
-  await prisma.$transaction(ids.map((id, i) => prisma.product.update({ where: { id }, data: { sortOrder: i + 1 } })));
+  const orders = ids.map((_, i) => i + 1);
+  await prisma.$executeRaw`UPDATE "Product" AS p SET "sortOrder" = v.ord FROM unnest(${ids}::int[], ${orders}::int[]) AS v(id, ord) WHERE p.id = v.id`;
   invalidateProductCache();
   res.json({ ok: true });
 });
@@ -270,7 +274,8 @@ adminRouter.put("/catalog/categories/:id", async (req, res) => {
 });
 adminRouter.post("/catalog/categories/reorder", async (req, res) => {
   const ids = z.array(z.number()).parse((req.body as { ids?: number[] })?.ids);
-  await prisma.$transaction(ids.map((id, i) => prisma.category.update({ where: { id }, data: { sortOrder: i + 1 } })));
+  const orders = ids.map((_, i) => i + 1);
+  await prisma.$executeRaw`UPDATE "Category" AS c SET "sortOrder" = v.ord FROM unnest(${ids}::int[], ${orders}::int[]) AS v(id, ord) WHERE c.id = v.id`;
   res.json({ ok: true });
 });
 
@@ -312,23 +317,65 @@ adminRouter.delete("/staff/:id", async (req, res) => { await prisma.staff.delete
 
 // ---------- Xabar tarqatish ----------
 adminRouter.post("/broadcast", async (req, res) => {
-  const b = z.object({ text: z.string().trim().min(1).max(3500), image: z.string().optional(), language: z.enum(["all", "uz", "ru", "en"]).optional() }).parse(req.body);
+  const b = z.object({
+    text: z.string().trim().min(1).max(3500),
+    media: z.string().optional(),
+    mediaType: z.enum(["photo", "video", "document", "animation"]).optional(),
+    hd: z.boolean().optional(),
+    language: z.enum(["all", "uz", "ru", "en"]).optional(),
+    buttonText: z.string().trim().max(60).optional(),
+    buttonTarget: z.string().trim().max(300).optional(),
+  }).parse(req.body);
   const users = await prisma.user.findMany({ where: { step: "done", isBlocked: false, ...(b.language && b.language !== "all" ? { language: b.language } : {}) } });
   res.json({ ok: true, total: users.length });
+  // Tugma: url / product:ID / category:ID → Mini App ichida ochiladi
+  const pub = getPublicUrl();
+  let markup: InlineKeyboard | undefined;
+  if (b.buttonText && b.buttonTarget) {
+    const t = b.buttonTarget;
+    const kb = new InlineKeyboard();
+    if (/^https?:\/\//.test(t)) kb.url(b.buttonText, t);
+    else if (pub) kb.webApp(b.buttonText, `${pub}/app/?go=${encodeURIComponent(t)}`);
+    if (kb.inline_keyboard.length) markup = kb;
+  }
+  const mediaName = b.media ? path.basename(b.media) : null;
+  const dbFile = mediaName ? await prisma.upload.findUnique({ where: { name: mediaName } }) : null;
+  const diskPath = mediaName ? path.join(env.UPLOADS_DIR, mediaName) : null;
+  const file: InputFile | null = dbFile ? new InputFile(Buffer.from(dbFile.data), dbFile.name) : diskPath && fs.existsSync(diskPath) ? new InputFile(diskPath) : null;
+  const isVideo = mediaName ? /[.](mp4|webm|mov)$/i.test(mediaName) : false;
+  const isGif = mediaName ? /[.]gif$/i.test(mediaName) : false;
+  const type = b.mediaType || (isVideo ? "video" : isGif ? "animation" : b.hd ? "document" : "photo");
   let sent = 0;
+  let fileId: string | null = null;
   (async () => {
     for (const usr of users) {
       try {
-        if (b.image) {
-          const file = path.join(env.UPLOADS_DIR, path.basename(b.image));
-          await bot.api.sendPhoto(String(usr.telegramId), new InputFile(file), { caption: b.text, parse_mode: "HTML" });
-        } else await sendToUser(usr.telegramId, b.text);
+        const chat = String(usr.telegramId);
+        const media = fileId || file;
+        const opts = { caption: b.text, parse_mode: "HTML" as const, reply_markup: markup };
+        let m: { photo?: { file_id: string }[]; video?: { file_id: string }; document?: { file_id: string }; animation?: { file_id: string } } | null = null;
+        if (!media) await bot.api.sendMessage(chat, b.text, { parse_mode: "HTML", reply_markup: markup, link_preview_options: { is_disabled: true } });
+        else if (type === "video") m = await bot.api.sendVideo(chat, media, { ...opts, supports_streaming: true });
+        else if (type === "animation") m = await bot.api.sendAnimation(chat, media, opts);
+        else if (type === "document") m = await bot.api.sendDocument(chat, media, opts);
+        else m = await bot.api.sendPhoto(chat, media, opts);
+        // Telegram'ga bir marta yuklab, keyin file_id bilan yuborish (tez va sifatli)
+        if (m && !fileId) fileId = m.video?.file_id || m.document?.file_id || m.animation?.file_id || m.photo?.[m.photo.length - 1]?.file_id || null;
         sent++;
       } catch (e) { log.warn("broadcast", errMsg(e)); }
-      await new Promise((r) => setTimeout(r, 60));
+      await new Promise((r) => setTimeout(r, 50));
     }
     await activity("broadcast", `Xabar tarqatildi: ${sent}/${users.length}`);
   })().catch(() => {});
+});
+
+/** Havola tanlash uchun mahsulot/kategoriya ro'yxati (id + nom) */
+adminRouter.get("/picker", async (_req, res) => {
+  const [products, categories] = await Promise.all([
+    prisma.product.findMany({ where: { isDeleted: false }, select: { id: true, name: true, bitoId: true, categoryName: true }, orderBy: { name: "asc" } }),
+    prisma.category.findMany({ where: { isDeleted: false }, select: { bitoId: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
+  res.json({ products: products.map((p) => ({ id: p.id, name: p.name, category: p.categoryName })), categories: categories.map((c) => ({ id: c.bitoId, name: c.name })) });
 });
 
 // ---------- Foydalanuvchilar statistikasi ----------

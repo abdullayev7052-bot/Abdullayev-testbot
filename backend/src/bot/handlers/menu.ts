@@ -1,5 +1,5 @@
 import type { Bot } from "grammy";
-import { InputFile } from "grammy";
+import { InputFile, InlineKeyboard } from "grammy";
 import type { MyContext, BotTextKey } from "../context.ts";
 import { languageKeyboard, mainKeyboard, openAppInline } from "../keyboards.ts";
 import { getSettings, lt, normalizeLang } from "../../settings/store.ts";
@@ -45,50 +45,95 @@ async function requireLinked(ctx: MyContext): Promise<string | null> {
 
 export async function showOrders(ctx: MyContext) {
   const lang = ctx.lang;
-  const local = await prisma.order.findMany({ where: { userId: ctx.user.id }, orderBy: { createdAt: "desc" }, take: 15 });
-  const lines: string[] = [];
+  const limit = Math.max(3, Number(getSettings().bot.listLimit || 10));
+  const local = await prisma.order.findMany({ where: { userId: ctx.user.id }, orderBy: { createdAt: "desc" }, take: limit });
+  const rows: { key: string; number: string; date: string | Date; total: number; status: string }[] = [];
   const seen = new Set<string>();
   for (const o of local) {
     if (o.bitoId) seen.add(o.bitoId);
-    const st = stageName((o.stateKey || "new") as Stage, lang, o.stateName);
-    lines.push(`• <b>#${esc(o.number || o.id)}</b> — ${fmtDate(o.createdAt, lang)} — ${money(o.total, lang)}\n   ${esc(st)}`);
+    rows.push({ key: `od:l:${o.id}`, number: String(o.number || o.id), date: o.createdAt, total: o.total, status: stageName((o.stateKey || "new") as Stage, lang, o.stateName) });
   }
-  // Bito'da xodimlar tomonidan yaratilgan buyurtmalar
   const customerId = ctx.user.bitoCustomerId;
-  if (customerId) {
+  if (customerId && rows.length < limit) {
     try {
-      const r = await bito.ordersByCustomer(customerId, 1, 20);
+      const r = await bito.ordersByCustomer(customerId, 1, limit);
       for (const o of r.list || []) {
         if (seen.has(o._id)) continue;
         const stage = stageOf(o.state_id, o.dynamic_state || { default_key: o.state });
-        const st = stageName(stage, lang, o.dynamic_state?.name || o.state);
-        lines.push(`• <b>#${esc(o.number || o.uuid || "")}</b> — ${fmtDate(o.date || o.created_at, lang)} — ${money(o.total_to_pay ?? o.total_price ?? 0, lang)}\n   ${esc(st)}`);
-        if (lines.length >= 20) break;
+        rows.push({ key: `od:b:${o._id}`, number: String(o.number || o.uuid || ""), date: o.date || o.created_at || "", total: o.total_to_pay ?? o.total_price ?? 0, status: stageName(stage, lang, o.dynamic_state?.name || o.state) });
+        if (rows.length >= limit) break;
       }
     } catch (e) { log.warn("ordersByCustomer", errMsg(e)); }
   }
-  if (!lines.length) { await ctx.reply(ctx.t("noOrders"), { reply_markup: openAppInline(lang) }); return; }
-  await ctx.reply(`<b>${esc(ctx.t("ordersTitle"))}</b>\n\n${lines.join("\n")}`, { parse_mode: "HTML" });
+  if (!rows.length) { await ctx.reply(ctx.t("noOrders"), { reply_markup: openAppInline(lang) }); return; }
+  const lines = rows.map((r) => `• <b>#${esc(r.number)}</b> — ${fmtDate(r.date, lang, false)} — ${money(r.total, lang)} · ${esc(r.status)}`);
+  const kb = new InlineKeyboard();
+  rows.forEach((r, i) => { kb.text(`#${r.number}`, r.key); if (i % 3 === 2) kb.row(); });
+  await ctx.reply(`<b>${esc(ctx.t("ordersTitle"))}</b>\n\n${lines.join("\n")}\n\n${esc(ctx.t("listHint"))}`, { parse_mode: "HTML", reply_markup: kb });
+}
+
+/** Bitta buyurtma tafsiloti (mijoz uchun) */
+export async function sendOrderDetail(ctx: MyContext, key: string) {
+  const lang = ctx.lang;
+  const b = getSettings().bot;
+  const L = (k: keyof typeof b) => lt(b[k] as never, lang);
+  const [, src, id] = key.split(":");
+  let number = "", date: string | Date = "", status = "", type = "", address = "", total = 0;
+  let items: { name: string; qty: number; price: number; measure?: string | null }[] = [];
+  if (src === "l") {
+    const o = await prisma.order.findFirst({ where: { id: Number(id), userId: ctx.user.id } });
+    if (!o) { await ctx.reply(ctx.t("noOrders")); return; }
+    number = String(o.number || o.id); date = o.createdAt; status = stageName((o.stateKey || "new") as Stage, lang, o.stateName);
+    type = o.type === "pickup" ? lt(getSettings().checkout.pickupLabel, lang) : lt(getSettings().checkout.deliveryLabel, lang);
+    address = o.address || ""; total = o.total;
+    items = ((o.items as unknown as { name: string; qty: number; price: number; measure?: string | null }[]) || []);
+  } else {
+    try {
+      const o = await bito.orderByIdForBot(id);
+      if (!o || (o.customer?._id && o.customer._id !== ctx.user.bitoCustomerId)) { await ctx.reply(ctx.t("noOrders")); return; }
+      number = String(o.number || o.uuid || ""); date = o.date || o.created_at || "";
+      status = stageName(stageOf(o.state_id, o.dynamic_state || { default_key: o.state }), lang, o.dynamic_state?.name || o.state);
+      total = o.total_to_pay ?? o.total_price ?? 0;
+      items = (o.products || []).map((p) => ({ name: p.name || "", qty: p.amount, price: p.price, measure: p.measure?.short_name }));
+    } catch (e) { log.warn("orderByIdForBot", errMsg(e)); await ctx.reply(ctx.t("errorGeneric")); return; }
+  }
+  const lines = [`<b>${esc(L("orderDetailTitle"))} #${esc(number)}</b>`, `🕒 ${esc(L("lTime"))}: ${fmtDate(date, lang)}`, `📌 ${esc(L("lStatus"))}: <b>${esc(status)}</b>`];
+  if (type) lines.push(`🚚 ${esc(L("lType"))}: ${esc(type)}`);
+  if (address) lines.push(`📍 ${esc(L("lAddress"))}: ${esc(address)}`);
+  lines.push("", `🛒 <b>${esc(L("lProducts"))}:</b>`);
+  let tq = 0;
+  items.forEach((it, i) => { tq += Number(it.qty || 0); lines.push(`${i + 1}. ${esc(it.name)} — ${qty(it.qty)} ${esc(it.measure || "")} × ${money(it.price, lang, { suffix: false })} = ${money(it.price * it.qty, lang, { suffix: false })}`); });
+  lines.push("", `📦 ${esc(L("lTotalQty"))}: ${qty(tq)}`, `💰 <b>${esc(L("lTotal"))}: ${money(total, lang)}</b>`);
+  await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
 }
 
 export async function showPurchases(ctx: MyContext) {
   const customerId = await requireLinked(ctx);
   if (!customerId) return;
   const lang = ctx.lang;
+  const limit = Math.max(3, Number(getSettings().bot.listLimit || 10));
   try {
-    const r = await bito.tradesPage({ page: 1, limit: 20, customer_id: customerId });
+    const r = await bito.tradesPage({ page: 1, limit, customer_id: customerId });
     const list = (r.data || []).filter((t) => t.state !== "canceled");
     if (!list.length) { await ctx.reply(ctx.t("noPurchases")); return; }
-    const lines = list.map((t) => {
-      const seller = t.responsible?.full_name || t.created_by?.full_name || "";
-      const dbt = Number(t.debt || 0);
-      return `• <b>№${esc(t.number || t.uuid || "")}</b> — ${fmtDate(t.sold_at || t.date || t.created_at, lang)}\n   ${money(t.total_to_pay ?? t.total_price ?? 0, lang)}${dbt > 0 ? ` (${esc(ctx.t("lDebt"))}: ${money(dbt, lang)})` : ""}${seller ? ` · ${esc(seller)}` : ""}${t.is_refund ? " ↩️" : ""}`;
-    });
-    await ctx.reply(`<b>${esc(ctx.t("purchasesTitle"))}</b>\n\n${lines.join("\n")}`, { parse_mode: "HTML" });
+    const lines = list.map((t) => `• <b>№${esc(t.number || t.uuid || "")}</b> — ${fmtDate(t.sold_at || t.date || t.created_at, lang, false)} — ${money(t.total_to_pay ?? t.total_price ?? 0, lang)}${t.is_refund ? " ↩️" : ""}`);
+    const kb = new InlineKeyboard();
+    list.forEach((t, i) => { kb.text(`№${t.number || ""}`, `tr:${t._id}`); if (i % 3 === 2) kb.row(); });
+    await ctx.reply(`<b>${esc(ctx.t("purchasesTitle"))}</b>\n\n${lines.join("\n")}\n\n${esc(ctx.t("listHint"))}`, { parse_mode: "HTML", reply_markup: kb });
   } catch (e) {
     log.warn("showPurchases", errMsg(e));
     await ctx.reply(ctx.t("errorGeneric"));
   }
+}
+
+/** Bitta xarid cheki (tugma bosilganda) */
+export async function sendTradeDetail(ctx: MyContext, tradeId: string) {
+  try {
+    const t = await bito.tradeForBot(tradeId);
+    if (!t || (t.customer?._id || t.customer_id) !== ctx.user.bitoCustomerId) { await ctx.reply(ctx.t("noPurchases")); return; }
+    const { receiptText } = await import("../../bito/finance.ts");
+    await ctx.reply(receiptText(t, ctx.lang), { parse_mode: "HTML" });
+  } catch (e) { log.warn("tradeForBot", errMsg(e)); await ctx.reply(ctx.t("errorGeneric")); }
 }
 
 export async function showMyInfo(ctx: MyContext) {
@@ -182,6 +227,17 @@ export function registerMenu(bot: Bot<MyContext>) {
   bot.command(["kartam", "card"], only(showCard));
   bot.command(["akt", "sverka"], only(showAkt));
   bot.command("menu", only(async (ctx) => { await ctx.reply("👇", { reply_markup: mainKeyboard(ctx.lang) }); }));
+
+  bot.callbackQuery(/^tr:([a-f0-9]{24})$/, async (ctx) => {
+    await ctx.answerCallbackQuery().catch(() => {});
+    if (ctx.user?.step !== "done") return;
+    await sendTradeDetail(ctx, ctx.match[1]);
+  });
+  bot.callbackQuery(/^od:(l|b):([a-zA-Z0-9]+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery().catch(() => {});
+    if (ctx.user?.step !== "done") return;
+    await sendOrderDetail(ctx, `od:${ctx.match[1]}:${ctx.match[2]}`);
+  });
 
   bot.callbackQuery(/^lang:(uz|ru|en)$/, async (ctx) => {
     const lang = normalizeLang(ctx.match[1]);

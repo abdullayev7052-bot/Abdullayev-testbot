@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { api, type Bootstrap, type Lang, type LText } from "../lib/api.ts";
 import { cacheDesign } from "../lib/motion.ts";
-import { setHapticEnabled } from "../lib/telegram.ts";
+import { setHapticEnabled, tg } from "../lib/telegram.ts";
+import { applyTheme as applyDark, resolveTheme, setUserPref, type ThemeMode } from "../lib/theme.ts";
 
 interface AppState {
   data: Bootstrap | null;
@@ -11,6 +12,9 @@ interface AppState {
   load: () => Promise<void>;
   setLang: (l: Lang) => void;
   patchUser: (p: Partial<Bootstrap["user"]>) => void;
+  theme: "light" | "dark";
+  setTheme: (t: "light" | "dark") => void;
+  syncTheme: () => void;
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -18,6 +22,24 @@ export const useApp = create<AppState>((set, get) => ({
   lang: (localStorage.getItem("lang") as Lang) || "uz",
   loading: true,
   error: null,
+  theme: "light",
+  setTheme(t) {
+    setUserPref(t);
+    get().syncTheme();
+  },
+  syncTheme() {
+    const d = (get().data?.settings.design || {}) as Record<string, unknown>;
+    const mode = (["off", "on", "auto", "user"].includes(String(d.darkMode)) ? String(d.darkMode) : "user") as ThemeMode;
+    const theme = resolveTheme(mode);
+    const r = document.documentElement.style;
+    if (theme === "dark") {
+      r.setProperty("--bg", String(d.darkBg || "#0f172a")); r.setProperty("--card", String(d.darkCard || "#1e293b")); r.setProperty("--text", String(d.darkText || "#f1f5f9"));
+    } else {
+      r.setProperty("--bg", String(d.bgColor || "#ffffff")); r.setProperty("--card", "#ffffff"); r.setProperty("--text", String(d.textColor || "#0f172a"));
+    }
+    applyDark(theme, { bg: d.darkBg as string, card: d.darkCard as string, text: d.darkText as string });
+    set({ theme });
+  },
   async load() {
     set({ loading: true, error: null });
     try {
@@ -28,6 +50,8 @@ export const useApp = create<AppState>((set, get) => ({
       applyTheme(data.settings.design as Record<string, unknown>);
       cacheDesign(data.settings.design as Record<string, unknown>);
       setHapticEnabled((data.settings.design as Record<string, unknown>).hapticEnabled !== false);
+      get().syncTheme();
+      tg?.onEvent?.("themeChanged", () => get().syncTheme());
     } catch (e) {
       set({ loading: false, error: (e as Error).message });
     }

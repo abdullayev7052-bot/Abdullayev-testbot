@@ -58,71 +58,99 @@ function sumBalances(list?: { amount: number; organization_id?: string }[], orgI
 export function receiptText(t: BitoTrade, lang: Lang): string {
   const b = getSettings().bot;
   const L = (k: keyof typeof b) => lt(b[k] as never, lang);
+  const on = (k: string) => b[k] !== false;
   const lines: string[] = [];
   lines.push(`<b>${esc(t.is_refund ? L("lRefund") : L("receiptTitle"))}</b>`);
-  lines.push(`🕒 ${esc(L("lTime"))}: ${fmtDate(t.sold_at || t.date || t.created_at, lang)}`);
-  lines.push(`🔢 ${esc(L("lTrade"))}: №${esc(t.number || t.uuid || "")}`);
-  if (t.customer?.name) lines.push(`👤 ${esc(L("lCustomer"))}: ${esc(t.customer.name)}`);
+  if (on("rShowTime")) lines.push(`🕒 ${esc(L("lTime"))}: ${fmtDate(t.sold_at || t.date || t.created_at, lang)}`);
+  if (on("rShowTrade")) lines.push(`🔢 ${esc(L("lTrade"))}: №${esc(t.number || t.uuid || "")}`);
+  if (on("rShowCustomer") && t.customer?.name) lines.push(`👤 ${esc(L("lCustomer"))}: ${esc(t.customer.name)}`);
   const seller = t.responsible?.full_name || t.created_by?.full_name;
-  if (seller) lines.push(`🧑‍💼 ${esc(L("lSeller"))}: ${esc(seller)}`);
-  lines.push("");
-  lines.push(`🛒 <b>${esc(L("lProducts"))}:</b>`);
+  if (on("rShowSeller") && seller) lines.push(`🧑‍💼 ${esc(L("lSeller"))}: ${esc(seller)}`);
   let totalQty = 0;
-  (t.products || []).forEach((p, i) => {
-    const unit = p.measure?.short_name || p.measure?.name || "";
-    totalQty += Number(p.amount || 0);
-    const sum = p.total_to_pay ?? p.total_price ?? p.price * p.amount;
-    lines.push(`${i + 1}. ${esc(p.name || "")} — ${qty(p.amount)} ${esc(unit)} × ${money(p.price, lang, { suffix: false })} = ${money(sum, lang, { suffix: false })}`);
-  });
+  for (const p of t.products || []) totalQty += Number(p.amount || 0);
+  if (on("rShowProducts")) {
+    lines.push("");
+    lines.push(`🛒 <b>${esc(L("lProducts"))}:</b>`);
+    (t.products || []).forEach((p, i) => {
+      const unit = p.measure?.short_name || p.measure?.name || "";
+      const sum = p.total_to_pay ?? p.total_price ?? p.price * p.amount;
+      lines.push(`${i + 1}. ${esc(p.name || "")} — ${qty(p.amount)} ${esc(unit)} × ${money(p.price, lang, { suffix: false })} = ${money(sum, lang, { suffix: false })}`);
+    });
+  }
   lines.push("");
-  lines.push(`📦 ${esc(L("lTotalQty"))}: ${qty(totalQty || t.total_amount || 0)}`);
-  if (t.total_discount) lines.push(`🏷 ${lang === "ru" ? "Скидка" : lang === "en" ? "Discount" : "Chegirma"}: ${money(t.total_discount, lang)}`);
-  lines.push(`💰 <b>${esc(L("lTotal"))}: ${money(t.total_to_pay ?? t.total_price ?? 0, lang)}</b>`);
+  if (on("rShowTotalQty")) lines.push(`📦 ${esc(L("lTotalQty"))}: ${qty(totalQty || t.total_amount || 0)}`);
+  if (on("rShowDiscount") && t.total_discount) lines.push(`🏷 ${lang === "ru" ? "Скидка" : lang === "en" ? "Discount" : "Chegirma"}: ${money(t.total_discount, lang)}`);
+  if (on("rShowTotal")) lines.push(`💰 <b>${esc(L("lTotal"))}: ${money(t.total_to_pay ?? t.total_price ?? 0, lang)}</b>`);
   const pays = (t.payments || []).filter((p) => Number(p.amount || p.paid || 0) > 0);
-  if (pays.length) {
+  if (on("rShowPayment") && pays.length) {
     const parts = pays.map((p) => `${esc(p.payment_method?.name || "")} — ${money(Number(p.amount || p.paid || 0), lang)}`);
     lines.push(`💳 ${esc(L("lPayment"))}: ${parts.join("; ")}`);
   }
   const byBalance = (t.by_balance || []).reduce((a, x) => a + Number(x.amount || x.paid || 0), 0);
-  if (byBalance > 0) lines.push(`💼 ${lang === "ru" ? "С баланса" : lang === "en" ? "From balance" : "Balansdan"}: ${money(byBalance, lang)}`);
+  if (on("rShowPayment") && byBalance > 0) lines.push(`💼 ${lang === "ru" ? "С баланса" : lang === "en" ? "From balance" : "Balansdan"}: ${money(byBalance, lang)}`);
   const debt = Number(t.debt || 0);
-  if (debt > 0 && !t.is_refund) lines.push(`📝 ${esc(L("lDebt"))}: ${money(debt, lang)}`);
-  if (t.is_installment_plan && t.installment_plan?.length) {
+  if (on("rShowDebt") && debt > 0 && !t.is_refund) lines.push(`📝 ${esc(L("lDebt"))}: ${money(debt, lang)}`);
+  if (on("rShowDueDate") && t.is_installment_plan && t.installment_plan?.length) {
     const next = t.installment_plan.find((x) => x.date);
     if (next?.date) lines.push(`📅 ${esc(L("lDueDate"))}: ${fmtDate(next.date, lang, false)}`);
   }
   const before = sumBalances(t.customer_before_balance);
   const after = sumBalances(t.customer_after_balance);
-  if (before !== null || after !== null) {
+  if ((on("rShowBefore") && before !== null) || (on("rShowAfter") && after !== null)) {
     lines.push("");
-    if (before !== null) lines.push(`📊 ${esc(L("lBefore"))}: ${balanceText(before, lang)}`);
-    if (after !== null) lines.push(`📊 <b>${esc(L("lAfter"))}: ${balanceText(after, lang)}</b>`);
+    if (on("rShowBefore") && before !== null) lines.push(`📊 ${esc(L("lBefore"))}: ${balanceText(before, lang)}`);
+    if (on("rShowAfter") && after !== null) lines.push(`📊 <b>${esc(L("lAfter"))}: ${balanceText(after, lang)}</b>`);
   }
-  return lines.join("\n");
+  return lines.filter((l, i, a) => !(l === "" && (i === a.length - 1 || a[i + 1] === ""))).join("\n");
+}
+
+let curCache: { at: number; map: Map<string, { name: string; symbol: string }> } | null = null;
+async function currencyMap(): Promise<Map<string, { name: string; symbol: string }>> {
+  if (!curCache || Date.now() - curCache.at > 10 * 60 * 1000) {
+    try { const list = await bito.currencies(); curCache = { at: Date.now(), map: new Map(list.map((c) => [c._id, { name: c.name, symbol: c.symbol || c.code || c.name }])) }; }
+    catch { curCache = { at: Date.now(), map: new Map() }; }
+  }
+  return curCache.map;
+}
+
+/** Valyuta bilan summa: "1 500 000 so'm" / "120 $" */
+function moneyCur(amount: number, symbol: string | undefined, lang: Lang): string {
+  if (!symbol || /^(uzs|so'?m|сум|sum)$/i.test(symbol)) return money(amount, lang);
+  return money(amount, lang, { suffix: false }) + " " + symbol;
 }
 
 /** To'lov xabari matni */
 export async function paymentText(tx: BitoTransaction, lang: Lang): Promise<string> {
   const b = getSettings().bot;
   const L = (k: keyof typeof b) => lt(b[k] as never, lang);
+  const on = (k: string) => b[k] !== false;
   const isRefund = tx.type === "expense";
+  const cur = await currencyMap();
+  const sym = tx.currency?.symbol || tx.currency?.name || "";
   const lines: string[] = [];
   lines.push(`<b>${esc(isRefund ? L("lRefund") : L("paymentTitle"))}</b>`);
-  lines.push(`🕒 ${esc(L("lTime"))}: ${fmtDate(tx.date || tx.created_at, lang)}`);
-  if (tx.number) lines.push(`🔢 №${esc(tx.number)}`);
-  lines.push(`💰 <b>${esc(L("lAmount"))}: ${money(tx.amount ?? tx.amount_in_main ?? 0, lang)}</b>`);
-  if (tx.payment_method?.name) lines.push(`💳 ${esc(L("lPayment"))}: ${esc(tx.payment_method.name)}`);
-  if (tx.payment_type?.name) lines.push(`📂 ${esc(tx.payment_type.name)}`);
-  if (tx.created_by?.full_name) lines.push(`🧑‍💼 ${esc(L("lReceivedBy"))}: ${esc(tx.created_by.full_name)}`);
+  if (on("pShowTime")) lines.push(`🕒 ${esc(L("lTime"))}: ${fmtDate(tx.date || tx.created_at, lang)}`);
+  if (on("pShowNumber") && tx.number) lines.push(`🔢 №${esc(tx.number)}`);
+  if (on("pShowAmount")) lines.push(`💰 <b>${esc(L("lAmount"))}: ${moneyCur(tx.amount ?? tx.amount_in_main ?? 0, sym, lang)}</b>`);
+  if (on("pShowMethod") && tx.payment_method?.name) lines.push(`💳 ${esc(L("lPayment"))}: ${esc(tx.payment_method.name)}`);
+  if (on("pShowType") && tx.payment_type?.name) lines.push(`📂 ${esc(tx.payment_type.name)}`);
+  if (on("pShowReceivedBy") && tx.created_by?.full_name) lines.push(`🧑‍💼 ${esc(L("lReceivedBy"))}: ${esc(tx.created_by.full_name)}`);
+  if (on("pShowCashbox") && tx.cashbox?.name) lines.push(`🏦 ${esc(L("lCashbox"))}: ${esc(tx.cashbox.name)}`);
   const org = await orgName(tx.organization_id);
-  if (org) lines.push(`🏢 ${esc(L("lOrganization"))}: ${esc(org)}`);
-  if (tx.description) lines.push(`💬 ${esc(tx.description)}`);
-  const before = sumBalances(tx.human_before_balance);
-  const after = sumBalances(tx.human_after_balance);
-  if (before !== null || after !== null) {
+  if (on("pShowOrganization") && org) lines.push(`🏢 ${esc(L("lOrganization"))}: ${esc(org)}`);
+  if (on("pShowDescription") && tx.description) lines.push(`💬 ${esc(tx.description)}`);
+  const perCurrency = (rows?: { currency_id?: string; amount: number; organization_id?: string }[]) => {
+    const list = (rows || []).filter((r) => !tx.organization_id || !r.organization_id || r.organization_id === tx.organization_id);
+    return list.map((r) => { const c = r.currency_id ? cur.get(r.currency_id) : undefined; const a = Number(r.amount || 0);
+      const label = a < 0 ? L("balanceDebt") : a > 0 ? L("balanceCredit") : L("balanceZero");
+      return a === 0 ? esc(label) : `${esc(label)}: ${moneyCur(Math.abs(a), c?.symbol, lang)}`; });
+  };
+  const before = perCurrency(tx.human_before_balance);
+  const after = perCurrency(tx.human_after_balance);
+  if ((on("pShowBefore") && before.length) || (on("pShowAfter") && after.length)) {
     lines.push("");
-    if (before !== null) lines.push(`📊 ${esc(L("lBefore"))}: ${balanceText(before, lang)}`);
-    if (after !== null) lines.push(`📊 <b>${esc(L("lAfter"))}: ${balanceText(after, lang)}</b>`);
+    if (on("pShowBefore") && before.length) lines.push(`📊 ${esc(L("lBefore"))}: ${before.join(" · ")}`);
+    if (on("pShowAfter") && after.length) lines.push(`📊 <b>${esc(L("lAfter"))}: ${after.join(" · ")}</b>`);
   }
   return lines.join("\n");
 }

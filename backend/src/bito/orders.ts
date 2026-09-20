@@ -32,6 +32,7 @@ export interface HistoryEntry {
   stage: Stage;
   stateName?: string;
   by: StageActor;
+  kind?: "stage" | "products" | "traded";
 }
 
 /** Bito holat ID'sidan bizning bosqichni aniqlash */
@@ -239,12 +240,50 @@ function verifyPushLater(bitoId: string, stateId: string, attempt = 1) {
   }, 20_000);
 }
 
+/** Bito'da mahsulotlar o'zgargan yoki savdoga o'tkazilgan bo'lsa — tarixga yozib, guruh xabarini yangilash */
+async function syncOrderExtras(order: Order, r: BitoSaleOrder): Promise<Order> {
+  const history = ((order.history as unknown as HistoryEntry[]) || []).slice(-30);
+  const items = (order.items as unknown as OrderItemSnapshot[]) || [];
+  let changed = false;
+  // 1) mahsulotlar
+  if (Array.isArray(r.products) && r.products.length) {
+    const sig = (list: { bitoId?: string; product_id?: string; qty?: number; amount?: number; price?: number }[]) =>
+      list.map((x) => `${x.bitoId || x.product_id}:${Number(x.qty ?? x.amount ?? 0)}:${Number(x.price ?? 0)}`).sort().join("|");
+    if (sig(items) !== sig(r.products)) {
+      const localById = new Map(items.map((i) => [i.bitoId, i]));
+      const products = await prisma.product.findMany({ where: { bitoId: { in: r.products.map((p) => p.product_id) } } });
+      const byBito = new Map(products.map((p) => [p.bitoId, p]));
+      const next: OrderItemSnapshot[] = r.products.map((p) => {
+        const loc = localById.get(p.product_id); const db = byBito.get(p.product_id);
+        return { productId: loc?.productId ?? db?.id ?? 0, bitoId: p.product_id, name: p.name || loc?.name || db?.name || "", price: Number(p.price || 0), qty: Number(p.amount || 0),
+          boxCount: p.box_count || 0, boxItem: loc?.boxItem ?? db?.boxItem ?? 0, measure: p.measure?.short_name || loc?.measure || db?.measure || null, image: loc?.image ?? db?.image ?? null };
+      });
+      const total = next.reduce((a, x) => a + x.price * x.qty, 0);
+      history.push({ at: new Date().toISOString(), stage: (order.stateKey || "new") as Stage, by: { type: "bito" }, kind: "products" });
+      order = await prisma.order.update({ where: { id: order.id }, data: { items: next as unknown as object, total, itemsCount: next.reduce((a, x) => a + x.qty, 0), history: history as unknown as object } });
+      changed = true;
+    }
+  }
+  // 2) savdoga o'tkazildi
+  if (Array.isArray(r.trades) && r.trades.length && !history.some((h) => h.kind === "traded")) {
+    history.push({ at: new Date().toISOString(), stage: (order.stateKey || "new") as Stage, by: { type: "bito" }, kind: "traded" });
+    order = await prisma.order.update({ where: { id: order.id }, data: { history: history as unknown as object } });
+    changed = true;
+  }
+  if (changed) {
+    await activity("order_updated", `Buyurtma #${order.number}: Bito'dan yangilandi`);
+    events.emitApp("order:updated", order);
+  }
+  return order;
+}
+
 /** Bito'dagi holat bizdagidan farq qilsa — yangilash */
 export async function reconcileOrder(order: Order, remote?: BitoSaleOrder): Promise<Order> {
   if (!order.bitoId) return order;
   const r = remote || (await bito.orderById(order.bitoId));
   if (!r) return order;
   if (!order.number && (r.number || r.uuid)) order = await prisma.order.update({ where: { id: order.id }, data: { number: r.number || r.uuid } });
+  order = await syncOrderExtras(order, r);
   if (r.state_id && r.state_id !== order.stateId) {
     // Biz yaqinda Bito'ga holat yuborgan bo'lsak (bulk yangilanish asinxron) — Bito ulgurishini kutamiz
     const hist = (order.history as unknown as HistoryEntry[]) || [];

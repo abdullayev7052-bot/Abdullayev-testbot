@@ -1,5 +1,6 @@
-import type { Bot } from "grammy";
-import { bot as rawBot } from "./instance.ts";
+import { Bot } from "grammy";
+import { bot as rawBot, createBot, botToken } from "./instance.ts";
+import * as instance from "./instance.ts";
 import { userMiddleware, type MyContext } from "./context.ts";
 import { registerStart } from "./handlers/start.ts";
 import { registerMenu } from "./handlers/menu.ts";
@@ -11,7 +12,8 @@ import { getPublicUrl, onPublicUrlChange } from "../utils/publicUrl.ts";
 import { activity, errMsg, log } from "../logger.ts";
 import { appUrl } from "./keyboards.ts";
 
-export const bot = rawBot as unknown as Bot<MyContext>;
+export let bot = rawBot as unknown as Bot<MyContext>;
+void botToken;
 
 export async function setupBotCommands() {
   const cmds = [
@@ -46,17 +48,19 @@ export async function updateMenuButton() {
 }
 
 let handlersReady = false;
+let notificationsReady = false;
 /** Handlerlarni ro'yxatdan o'tkazish (polling siz) */
 export function setupBot() {
   if (handlersReady) return;
   handlersReady = true;
+  bot = instance.bot as unknown as Bot<MyContext>;
   bot.use(async (ctx, next) => {
     // Guruhlarda foydalanuvchini bazaga yozmaymiz, faqat shaxsiy chatda
     if (ctx.chat?.type === "private") return userMiddleware(ctx, next);
     return next();
   });
 
-  registerNotifications();
+  if (!notificationsReady) { registerNotifications(); notificationsReady = true; }
   registerGroup(bot);
   // Bosh admin uchun admin panel havolasi
   bot.command("admin", async (ctx) => {
@@ -81,9 +85,15 @@ export function setupBot() {
 }
 
 export async function startBot() {
+  const tokenFromSettings = (getSettings().general.botToken || "").trim();
+  if (tokenFromSettings && tokenFromSettings !== instance.botToken) { createBot(tokenFromSettings); handlersReady = false; }
   setupBot();
   await bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => {});
-  const me = await bot.api.getMe();
+  let me: { username?: string } = {};
+  try { me = await bot.api.getMe(); } catch (e) {
+    log.error("Bot tokeni ishlamadi (server bot'siz davom etadi):", errMsg(e));
+    return me;
+  }
   log.info(`🤖 Bot ishga tushdi: @${me.username}`);
   await setupBotCommands();
   onPublicUrlChange(() => { void updateMenuButton(); });
@@ -101,5 +111,19 @@ export async function startBot() {
     });
   };
   startPolling();
+  return me;
+}
+
+/** Admin paneldan token o'zgartirilganda botni qayta ishga tushirish */
+export async function restartBot(token: string): Promise<{ username: string }> {
+  const t = token.trim() || env.BOT_TOKEN;
+  if (t === instance.botToken) return bot.api.getMe();
+  const probe = new Bot(t);
+  const me = await probe.api.getMe(); // noto'g'ri token bo'lsa shu yerda xato beradi
+  try { await bot.stop(); } catch { /* ishlamayotgan bo'lishi mumkin */ }
+  createBot(t);
+  handlersReady = false;
+  await startBot();
+  log.info(`🔁 Bot almashtirildi: @${me.username}`);
   return me;
 }

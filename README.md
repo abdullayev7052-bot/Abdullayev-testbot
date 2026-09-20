@@ -222,3 +222,27 @@ Bazani brauzerda ko'rish (Prisma Studio).
 ## 13. Eslatma: Bito "Kutilayotgan tovarlar"
 
 Bito'ning Integration API'sida Marketing → "Kutilayotgan tovarlar" bo'limi uchun endpoint yo'q (rasmiy OpenAPI'da mavjud emas). Shuning uchun "Kelganda eslating" ro'yxati **admin panelda** (Kutilayotgan mahsulotlar) yuritiladi va xabar Bito'dagi qoldiq o'zgarishi asosida avtomatik yuboriladi. Bito API'da bu bo'lim paydo bo'lsa, `backend/src/http/routes/app.ts` dagi `/waitlist` yo'nalishiga bitta chaqiruv qo'shish kifoya.
+
+## 14. Mahsulot / kategoriya ID'sini qayerdan olish mumkin?
+
+Banner, storis slaydi yoki tarqatiladigan xabar tugmasiga havola qo'yishda **ID yozish shart emas** — admin panelda
+"Havola" maydonida **Mahsulot** yoki **Kategoriya** tugmasini bosib, ro'yxatdan tanlaysiz (qidiruv bor). Tizim o'zi
+`product:21` yoki `category:6a84...` ko'rinishida saqlaydi va mijoz bosganda Mini App ichida o'sha mahsulot/kategoriya ochiladi.
+
+ID'ni qo'lda ko'rmoqchi bo'lsangiz: Admin panel → **Katalog boshqaruvi** → har bir mahsulot ostida `ID 21` (bosilsa nusxalanadi),
+kategoriyalarda **ID nusxalash** tugmasi.
+
+## 15. Yangi imkoniyatlar (2026-09-20)
+
+- **Admin panel ko'rinishi** bo'limi: panel nomi, logo, emoji, biznes nomi, rang, tungi rejim (foydalanuvchi tanlaydi / avto / doim)
+- Admin panel telefonga moslashgan; brauzerda "Bosh ekranga qo'shish" qilsa — ilova kabi ochiladi (PWA)
+- Mini App'da tungi rejim: Dizayn → "Tungi rejim" (o'chirilgan / doim / Telegram mavzusi / mijoz tanlaydi — Profil'da tugma)
+- **Umumiy → Telegram bot**: bot tokenini almashtirish (saqlangach bot darhol yangi tokenda ishlaydi)
+- **Umumiy → Yangi foydalanuvchi tili**: har doim standart til yoki Telegram tiliga qarab
+- Storis va bannerlarga **GIF / ovozsiz video** (mp4) yuklash; xabar tarqatishga video, katta rasm (asl sifatda) va **tugma** (mahsulot/kategoriya/havola)
+- Yuklangan fayllar bazada saqlanadi — server qayta deploy bo'lsa ham yo'qolmaydi
+- Bot: "Xaridlar" va "Buyurtmalar" — qisqa ro'yxat + raqamli tugmalar, tugma bosilganda batafsil chek/buyurtma
+- To'lov xabari: summa (valyuta bilan), kassa, tashkilot, har valyuta bo'yicha balans — har bir qator yoqish/o'chirish
+- Chek qatorlari va guruh xabaridagi har bir qator/tugma — yoqish/o'chirish (Bot matnlari bo'limi)
+- Guruh xabari: tarix Telegram "quote" ko'rinishida; ismlar profil havolasi bilan (username ko'rsatilmaydi); Bito'da mahsulotlar o'zgarsa yoki buyurtma savdoga o'tkazilsa — tarixga yoziladi va xabar yangilanadi
+- Holat o'zgarganda mijozga xabar — faqat bir marta

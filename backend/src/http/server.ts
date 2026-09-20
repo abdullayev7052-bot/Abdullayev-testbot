@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import path from "node:path";
 import fs from "node:fs";
 import { env } from "../env.ts";
+import { prisma } from "../db.ts";
 import { log } from "../logger.ts";
 import { appRouter } from "./routes/app.ts";
 import { adminRouter } from "./routes/admin.ts";
@@ -16,7 +17,7 @@ export function createServer() {
   // Bito webhook — xom (raw) tana imzo tekshiruvi uchun
   app.post("/api/bito/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => { void webhookHandler(req, res); });
 
-  app.use(express.json({ limit: "2mb" }));
+  app.use(express.json({ limit: "5mb" }));
   app.use(cookieParser());
 
   // ngrok brauzer ogohlantirishini o'tkazib yuborish uchun sarlavha (mini app so'rovlari)
@@ -26,8 +27,17 @@ export function createServer() {
   app.use("/api/app", appRouter);
   app.use("/api/admin", adminRouter);
 
-  // Yuklangan fayllar
+  // Yuklangan fayllar: avval disk, keyin baza
   app.use("/uploads", express.static(env.UPLOADS_DIR, { maxAge: "7d", immutable: true }));
+  app.get("/uploads/:name", async (req, res) => {
+    const name = path.basename(String(req.params.name));
+    const f = await prisma.upload.findUnique({ where: { name } }).catch(() => null);
+    if (!f) { res.status(404).end(); return; }
+    res.setHeader("Content-Type", f.mime);
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    res.setHeader("Content-Length", String(f.size));
+    res.end(Buffer.from(f.data));
+  });
 
   // Mini App va Admin panel (build qilingan)
   const miniDist = path.join(env.ROOT_DIR, "miniapp", "dist");

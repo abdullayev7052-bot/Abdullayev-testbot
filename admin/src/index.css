@@ -18,3 +18,36 @@ body { margin: 0; background: #f4f6fa; color: #0f172a; font-family: -apple-syste
   .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
 }
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+
+/* ===== Tungi rejim ===== */
+html.dark body { background: #0b1220; color: #e2e8f0; }
+html.dark .card { background: #111a2e; border-color: #1f2b45; }
+html.dark .input { background: #0f172a; border-color: #2b3a55; color: #e2e8f0; }
+html.dark .btn-ghost { background: #111a2e; border-color: #2b3a55; color: #e2e8f0; }
+html.dark .btn-ghost:hover { background: #172236; }
+html.dark .label { color: #cbd5e1; }
+html.dark .help { color: #94a3b8; }
+html.dark .bg-white { background-color: #111a2e !important; }
+html.dark .bg-slate-50 { background-color: #0f172a !important; }
+html.dark .bg-slate-100 { background-color: #1e293b !important; }
+html.dark .bg-blue-50 { background-color: rgba(37,99,235,.18) !important; }
+html.dark .bg-amber-50 { background-color: rgba(245,158,11,.18) !important; }
+html.dark .bg-emerald-50 { background-color: rgba(16,185,129,.18) !important; }
+html.dark .bg-red-50 { background-color: rgba(239,68,68,.18) !important; }
+html.dark .text-slate-900, html.dark .text-slate-800, html.dark .text-slate-700 { color: #e2e8f0 !important; }
+html.dark .text-slate-600, html.dark .text-slate-500 { color: #a9b6c8 !important; }
+html.dark .text-slate-400, html.dark .text-slate-300 { color: #7c8aa3 !important; }
+html.dark .border-slate-100, html.dark .border-slate-200 { border-color: #1f2b45 !important; }
+html.dark .divide-slate-100 > * + * { border-color: #1f2b45 !important; }
+html.dark .hover\:bg-slate-100:hover, html.dark .hover\:bg-slate-50:hover { background-color: #172236 !important; }
+html.dark select.input option { background: #0f172a; }
+html.dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+/* ===== Mobil ===== */
+@media (max-width: 767px) {
+  .input { font-size: 16px; }
+  .btn { padding: 10px 12px; }
+  main { padding-bottom: 24px; }
+  .card { border-radius: 14px; }
+  .max-w-xs, .max-w-md { max-width: 100% !important; }
+}

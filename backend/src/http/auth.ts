@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 import type { User } from "@prisma/client";
 import { env } from "../env.ts";
 import { prisma } from "../db.ts";
-import { normalizeLang } from "../settings/store.ts";
+import { normalizeLang, getSettings } from "../settings/store.ts";
+import * as botInstance from "../bot/instance.ts";
 
 export interface TgInitUser { id: number; first_name?: string; last_name?: string; username?: string; language_code?: string }
 
@@ -17,7 +18,7 @@ export function verifyInitData(initData: string): TgInitUser | null {
     if (!hash) return null;
     params.delete("hash");
     const pairs = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`);
-    const secret = createHmac("sha256", "WebAppData").update(env.BOT_TOKEN).digest();
+    const secret = createHmac("sha256", "WebAppData").update(botInstance.botToken).digest();
     const calc = createHmac("sha256", secret).update(pairs.join("\n")).digest("hex");
     const a = Buffer.from(calc, "hex"), b = Buffer.from(hash, "hex");
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
@@ -49,7 +50,7 @@ export async function appAuth(req: Request, res: Response, next: NextFunction) {
   let user = await prisma.user.findUnique({ where: { telegramId: tgId } });
   if (!user) {
     user = await prisma.user.create({
-      data: { telegramId: tgId, tgUsername: tg.username || null, tgFirstName: tg.first_name || null, language: normalizeLang(tg.language_code?.slice(0, 2)) },
+      data: { telegramId: tgId, tgUsername: tg.username || null, tgFirstName: tg.first_name || null, language: getSettings().general.languageMode === "telegram" ? normalizeLang(tg.language_code?.slice(0, 2)) : normalizeLang(undefined) },
     });
   }
   (req as AppRequest).user = user;

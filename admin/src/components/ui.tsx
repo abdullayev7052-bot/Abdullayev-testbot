@@ -34,7 +34,8 @@ export function Toggle({ value, onChange, label }: { value: boolean; onChange: (
   );
 }
 
-export function ImageUpload({ value, onChange, aspect = "auto", hint }: { value: string; onChange: (v: string) => void; aspect?: string; hint?: string }) {
+export const isVideoUrl = (s: string) => /\.(mp4|webm|mov)(\?|$)/i.test(s || "");
+export function ImageUpload({ value, onChange, aspect = "auto", hint, video = false }: { value: string; onChange: (v: string) => void; aspect?: string; hint?: string; video?: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast((s) => s.show);
@@ -47,16 +48,16 @@ export function ImageUpload({ value, onChange, aspect = "auto", hint }: { value:
     <div>
       <div className="flex items-start gap-3">
         <div className="w-32 h-32 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: aspect }}>
-          {value ? <img src={value} className="w-full h-full object-cover" /> : <Upload className="text-slate-300" />}
+          {value ? (isVideoUrl(value) ? <video src={value} className="w-full h-full object-cover" muted autoPlay loop playsInline /> : <img src={value} className="w-full h-full object-cover" />) : <Upload className="text-slate-300" />}
           {busy && <div className="absolute inset-0 bg-white/70 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}
         </div>
         <div className="space-y-2">
-          <button type="button" className="btn btn-ghost" onClick={() => ref.current?.click()}><Upload size={16} /> Rasm yuklash</button>
+          <button type="button" className="btn btn-ghost" onClick={() => ref.current?.click()}><Upload size={16} /> {video ? "Rasm / video / GIF yuklash" : "Rasm yuklash"}</button>
           {value && <button type="button" className="btn btn-ghost text-red-600" onClick={() => onChange("")}><X size={16} /> O'chirish</button>}
           {hint && <div className="help">{hint}</div>}
         </div>
       </div>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
+      <input ref={ref} type="file" accept={video ? "image/*,video/mp4,video/webm,video/quicktime,.gif" : "image/*"} className="hidden" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
     </div>
   );
 }

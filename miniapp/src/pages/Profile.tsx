@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw } from "lucide-react";
+import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw, Moon, Sun } from "lucide-react";
 import { api, type BalanceLine, type Lang, type OrderRow, type Purchase, type Product } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
@@ -60,6 +60,9 @@ export function Profile() {
     { icon: <MapPin size={20} />, label: t("profile", "address"), onClick: () => setSheet("address"), show: v<boolean>("profile", "showAddress", true) },
     { icon: <Globe size={20} />, label: `${t("profile", "language")} · ${LANG_NAMES[lang]}`, onClick: () => setSheet("language"), show: v<boolean>("profile", "showLanguage", true) },
   ];
+  const themeMode = v<string>("design", "darkMode", "user");
+  const theme = useApp((s) => s.theme);
+  const setTheme = useApp((s) => s.setTheme);
   const supportTg = v<string>("general", "supportTelegram", "");
   const supportPhone = v<string>("general", "supportPhone", "");
 
@@ -92,6 +95,12 @@ export function Profile() {
               <span className="text-[var(--primary)]">{r.icon}</span><span className="flex-1 font-medium">{r.label}</span><ChevronRight size={18} className="text-slate-300" />
             </motion.button>
           ))}
+          {themeMode === "user" && (
+            <button onClick={() => { haptic.select(); setTheme(theme === "dark" ? "light" : "dark"); }} className="w-full flex items-center gap-3 px-4 py-3.5 border-t border-slate-100 text-left">
+              <span className="text-[var(--primary)]">{theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}</span><span className="flex-1 font-medium">{t("design", "darkToggleLabel")}</span>
+              <span className={`relative w-11 h-6 rounded-full transition-colors ${theme === "dark" ? "bg-[var(--primary)]" : "bg-slate-300"}`}><span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${theme === "dark" ? "left-[22px]" : "left-0.5"}`} /></span>
+            </button>
+          )}
           {(supportTg || supportPhone) && (
             <button onClick={() => openLink(supportTg ? `https://t.me/${supportTg.replace("@", "")}` : `tel:${supportPhone}`)} className="w-full flex items-center gap-3 px-4 py-3.5 border-t border-slate-100 text-left">
               <span className="text-[var(--primary)]"><LifeBuoy size={20} /></span><span className="flex-1 font-medium">{t("profile", "support")}</span><span className="text-sm text-slate-400">{supportTg ? `@${supportTg.replace("@", "")}` : supportPhone}</span>

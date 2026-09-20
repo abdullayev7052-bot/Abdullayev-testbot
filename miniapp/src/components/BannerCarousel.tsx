@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import type { Banner } from "../lib/api.ts";
 import { useT } from "../store/app.ts";
-import { openLink, haptic } from "../lib/telegram.ts";
+import { openLink, haptic, resolveTarget } from "../lib/telegram.ts";
+import { Media } from "./ui.tsx";
 
 export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { v } = useT();
@@ -27,10 +28,8 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const onClick = () => {
     if (!b.link) return;
     haptic.light();
-    if (b.link.startsWith("category:")) nav(`/catalog?category=${b.link.slice(9)}`);
-    else if (b.link.startsWith("product:")) nav(`/catalog?product=${b.link.slice(8)}`);
-    else if (b.link.startsWith("/")) nav(b.link);
-    else openLink(b.link);
+    const r = resolveTarget(b.link);
+    if (r.path) nav(r.path); else if (r.url) openLink(r.url);
   };
   return (
     <div className="wrap my-2">
@@ -42,7 +41,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
             drag={banners.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2}
             onDragEnd={(_, info) => { if (info.offset.x < -60) go(i + 1); else if (info.offset.x > 60) go(i - 1); }}
             onClick={onClick}>
-            <img src={b.image} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
+            <Media src={b.image} className="w-full h-full object-cover pointer-events-none" />
             {(b.title || b.subtitle) && (
               <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/10 to-transparent p-5 flex flex-col justify-center" style={{ color: b.textColor || "#fff" }}>
                 {b.title && <div className="text-xl font-bold drop-shadow leading-tight">{b.title}</div>}

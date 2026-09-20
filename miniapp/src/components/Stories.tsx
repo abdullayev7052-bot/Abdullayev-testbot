@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import type { Story } from "../lib/api.ts";
 import { useT } from "../store/app.ts";
-import { haptic, openLink } from "../lib/telegram.ts";
+import { haptic, openLink, resolveTarget } from "../lib/telegram.ts";
+import { useNavigate } from "react-router-dom";
+import { isVideo } from "./ui.tsx";
 
 const SEEN_KEY = "stories-seen";
 function seenSet(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch { return new Set(); } }
@@ -40,6 +42,8 @@ export function Stories({ stories }: { stories: Story[] }) {
 
 /* Instagram uslubidagi to'liq ekran ko'ruvchi */
 function StoryViewer({ stories, start, onClose }: { stories: Story[]; start: number; onClose: () => void }) {
+  const nav = useNavigate();
+  const go = (link: string) => { const r = resolveTarget(link); onClose(); if (r.path) nav(r.path); else if (r.url) openLink(r.url); };
   const [si, setSi] = useState(start);   // story index
   const [sl, setSl] = useState(0);       // slide index
   const [progress, setProgress] = useState(0);
@@ -99,7 +103,9 @@ function StoryViewer({ stories, start, onClose }: { stories: Story[]; start: num
   return (
     <motion.div className="fixed inset-0 z-[800] bg-black" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.22 }}>
       <AnimatePresence mode="wait">
-        <motion.img key={`${si}-${sl}`} src={slide.image} className="absolute inset-0 w-full h-full object-cover" initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} draggable={false} />
+        {isVideo(slide.image)
+          ? <motion.video key={`${si}-${sl}`} src={slide.image} className="absolute inset-0 w-full h-full object-cover" autoPlay muted playsInline loop initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} />
+          : <motion.img key={`${si}-${sl}`} src={slide.image} className="absolute inset-0 w-full h-full object-cover" initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} draggable={false} />}
       </AnimatePresence>
       <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/60 to-transparent h-32 pointer-events-none" />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent h-40 pointer-events-none" />
@@ -123,7 +129,7 @@ function StoryViewer({ stories, start, onClose }: { stories: Story[]; start: num
         <div className="absolute left-4 right-4 text-white" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
           {slide.caption && <div className="text-base font-medium drop-shadow mb-3">{slide.caption}</div>}
           {slide.link && (
-            <button onClick={() => openLink(slide.link!)} className="w-full py-3 rounded-2xl bg-white text-slate-900 font-semibold">→</button>
+            <button onClick={() => go(slide.link!)} className="w-full py-3 rounded-2xl bg-white text-slate-900 font-semibold">→</button>
           )}
         </div>
       )}

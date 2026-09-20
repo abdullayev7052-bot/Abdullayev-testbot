@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useApp } from "./store/app.ts";
 import { BottomNav } from "./components/BottomNav.tsx";
 import { Toaster } from "./components/ui.tsx";
@@ -9,7 +9,7 @@ import { Home } from "./pages/Home.tsx";
 import { Catalog } from "./pages/Catalog.tsx";
 import { Cart } from "./pages/Cart.tsx";
 import { Profile } from "./pages/Profile.tsx";
-import { initTelegram, tg, inTelegram } from "./lib/telegram.ts";
+import { initTelegram, tg, inTelegram, resolveTarget, openLink } from "./lib/telegram.ts";
 import { cachedDesign } from "./lib/motion.ts";
 
 const BASENAME = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL.slice(0, -1) : import.meta.env.BASE_URL;
@@ -39,6 +39,20 @@ function Shell() {
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [loc.pathname]);
 
+  // Chuqur havola: ?go=product:ID | category:ID | https://...  (yoki Telegram start_param)
+  useEffect(() => {
+    if (!data) return;
+    const p = new URLSearchParams(window.location.search);
+    const raw = p.get("go") || tg?.initDataUnsafe?.start_param || "";
+    if (!raw) return;
+    const go = raw.replace(/^(product|category)_/, "$1:");
+    if (p.has("go")) { p.delete("go"); const q = p.toString(); window.history.replaceState({}, "", window.location.pathname + (q ? "?" + q : "")); }
+    const r = resolveTarget(go);
+    if (r.path) setTimeout(() => nav(r.path!, { replace: true }), 50);
+    else if (r.url) openLink(r.url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!data]);
+
   if ((loading && !data) || !splashDone) return <Splash />;
   if (error && !data) return (
     <div className="min-h-dvh flex flex-col items-center justify-center text-center p-8">
@@ -51,15 +65,15 @@ function Shell() {
   if (!data) return null;
   return (
     <>
-      <AnimatePresence mode="wait" initial={false}>
-        <Routes location={loc} key={loc.pathname}>
+      <div key={loc.pathname}>
+        <Routes location={loc}>
           <Route path="/" element={<Home />} />
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Home />} />
         </Routes>
-      </AnimatePresence>
+      </div>
       <BottomNav />
       <Toaster />
     </>

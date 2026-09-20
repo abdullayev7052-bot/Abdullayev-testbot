@@ -22,7 +22,7 @@ export function usePresence(open: boolean, ms = 220): { mounted: boolean; visibl
 export function Page({ children, className = "" }: { children: ReactNode; className?: string }) {
   const v = pageVariants();
   return (
-    <motion.div className={`page ${className}`} initial={v.initial as never} animate={v.animate as never} exit={v.exit as never} transition={spring("page")}>
+    <motion.div className={`page ${className}`} initial={v.initial as never} animate={v.animate as never} transition={spring("page")}>
       {children}
     </motion.div>
   );
@@ -224,4 +224,13 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
       })}
     </div>
   );
+}
+
+/* ---------- Rasm yoki video (banner/storis) ---------- */
+export function isVideo(src: string | null | undefined): boolean {
+  return !!src && /\.(mp4|webm|mov)(\?|$)/i.test(src);
+}
+export function Media({ src, className = "" }: { src: string; className?: string }) {
+  if (isVideo(src)) return <video src={src} className={className} autoPlay muted loop playsInline preload="metadata" />;
+  return <img src={src} alt="" className={className} draggable={false} />;
 }

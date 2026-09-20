@@ -13,7 +13,7 @@ import { onStockArrived } from "../bito/sync.ts";
 import { activity, errMsg, log } from "../logger.ts";
 
 function actorLabel(by: StageActor): string {
-  if (by.type === "staff") return by.username ? `@${by.username}` + (by.name ? ` (${by.name})` : "") : by.name;
+  if (by.type === "staff") return by.telegramId ? `<a href="tg://user?id=${by.telegramId}">${esc(by.name || "Xodim")}</a>` : esc(by.name || "Xodim");
   if (by.type === "bito") return "Bito";
   if (by.type === "customer") return "mijoz";
   return "tizim";
@@ -23,32 +23,38 @@ function actorLabel(by: StageActor): string {
 export function groupOrderText(order: Order, user?: User | null): string {
   const s = getSettings();
   const b = s.bot;
+  const on = (k: string) => b[k] !== false;
   const stage = (order.stateKey || "new") as Stage;
   const items = (order.items as unknown as OrderItemSnapshot[]) || [];
   const history = (order.history as unknown as HistoryEntry[]) || [];
   const title = stage === "new" ? b.groupTitleNew : `📋 BUYURTMA #${order.number || order.id}`;
   const lines: string[] = [`<b>${esc(title)}</b>`, ""];
-  lines.push(`${esc(b.gTime)}: ${fmtDate(order.createdAt, "uz")}`);
-  lines.push(`${esc(b.gCustomer)}: ${esc(order.customerName || user?.name || user?.tgFirstName || "—")}${user?.tgUsername ? ` (@${esc(user.tgUsername)})` : ""}`);
-  lines.push(`${esc(b.gPhone)}: ${prettyPhone(order.phone)}`);
-  lines.push(`${esc(b.gType)}: ${esc(order.type === "pickup" ? b.gPickup : b.gDelivery)}`);
-  lines.push(`${esc(b.gNumber)}: <b>#${esc(order.number || order.id)}</b>`);
-  lines.push(`${esc(b.gStatus)}: <b>${esc(stageName(stage, "uz", order.stateName))}</b>`);
-  if (order.type === "delivery" && order.address) lines.push(`${esc(b.gAddress)}: ${esc(order.address)}`);
-  if (order.comment) lines.push(`${esc(b.gComment)}: ${esc(order.comment)}`);
-  lines.push("", `<b>${esc(b.gProducts)}:</b>`);
-  items.forEach((it, i) => {
-    const box = it.boxCount && it.boxItem ? ` (${it.boxCount} quti × ${qty(it.boxItem)})` : "";
-    lines.push(`${i + 1}. ${esc(it.name)} — <b>${qty(it.qty)}</b> ${esc(it.measure || "dona")}${box}`);
-  });
-  const totalQty = items.reduce((a, x) => a + Number(x.qty || 0), 0);
-  lines.push(`Jami: <b>${qty(totalQty)}</b> dona`);
-  if (b.showTotalInGroup) lines.push(`Summa: <b>${money(order.total, "uz")}</b>`);
-  if (history.length) {
-    lines.push("", `<b>${esc(b.gHistory)}:</b>`);
-    for (const h of history.slice(-12)) {
-      lines.push(`• ${fmtDate(h.at, "uz")} — ${esc(stageName(h.stage, "uz", h.stateName))} — ${esc(actorLabel(h.by))}`);
-    }
+  const custName = esc(order.customerName || user?.name || user?.tgFirstName || "—");
+  const custLink = user?.telegramId ? `<a href="tg://user?id=${user.telegramId}">${custName}</a>` : custName;
+  if (on("gShowTime")) lines.push(`${esc(b.gTime)}: ${fmtDate(order.createdAt, "uz")}`);
+  if (on("gShowCustomer")) lines.push(`${esc(b.gCustomer)}: ${custLink}`);
+  if (on("gShowPhone")) lines.push(`${esc(b.gPhone)}: ${prettyPhone(order.phone)}`);
+  if (on("gShowType")) lines.push(`${esc(b.gType)}: ${esc(order.type === "pickup" ? b.gPickup : b.gDelivery)}`);
+  if (on("gShowNumber")) lines.push(`${esc(b.gNumber)}: <b>#${esc(order.number || order.id)}</b>`);
+  if (on("gShowStatus")) lines.push(`${esc(b.gStatus)}: <b>${esc(stageName(stage, "uz", order.stateName))}</b>`);
+  if (on("gShowAddress") && order.type === "delivery" && order.address) lines.push(`${esc(b.gAddress)}: ${esc(order.address)}`);
+  if (on("gShowComment") && order.comment) lines.push(`${esc(b.gComment)}: ${esc(order.comment)}`);
+  if (on("gShowProducts")) {
+    lines.push("", `<b>${esc(b.gProducts)}:</b>`);
+    items.forEach((it, i) => {
+      const box = it.boxCount && it.boxItem ? ` (${it.boxCount} quti × ${qty(it.boxItem)})` : "";
+      lines.push(`${i + 1}. ${esc(it.name)} — <b>${qty(it.qty)}</b> ${esc(it.measure || "dona")}${box}`);
+    });
+    const totalQty = items.reduce((a, x) => a + Number(x.qty || 0), 0);
+    lines.push(`Jami: <b>${qty(totalQty)}</b> dona`);
+    if (b.showTotalInGroup) lines.push(`Summa: <b>${money(order.total, "uz")}</b>`);
+  }
+  if (on("gShowHistory") && history.length) {
+    const rows = history.slice(-12).map((h) => {
+      const what = h.kind === "products" ? esc(b.gProductsChanged) : h.kind === "traded" ? esc(b.gTraded) : esc(stageName(h.stage, "uz", h.stateName));
+      return `${fmtDate(h.at, "uz")} — ${what} — ${actorLabel(h.by)}`;
+    });
+    lines.push("", `<b>${esc(b.gHistory)}:</b>`, `<blockquote>${rows.join("\n")}</blockquote>`);
   }
   return lines.join("\n");
 }
@@ -109,7 +115,10 @@ async function onOrderStage(order: Order, prev: string | null, _by: StageActor) 
   if (!user || user.isBlocked) return;
   const lang = user.language as Lang;
   const msg = stageMessage(stage, lang, { order: order.number || String(order.id), status: stageName(stage, lang, order.stateName), name: user.name || "" });
-  if (msg) await sendToUser(user.telegramId, esc(msg));
+  if (!msg) return;
+  // Bir xil holat haqida faqat bir marta xabar (bir nechta server/webhook/polling bo'lsa ham)
+  try { await prisma.sentEvent.create({ data: { key: `stage:${order.id}:${stage}:${order.stateId || ""}` } }); } catch { return; }
+  await sendToUser(user.telegramId, esc(msg));
 }
 
 /** "Kelganda eslating": mahsulot qoldig'i paydo bo'ldi */
@@ -129,5 +138,6 @@ async function notifyWaitlist(productIds: number[]) {
 export function registerNotifications() {
   events.onApp("order:created", onOrderCreated);
   events.onApp("order:stage", onOrderStage);
+  events.onApp("order:updated", (order) => refreshGroupMessage(order));
   onStockArrived(notifyWaitlist);
 }

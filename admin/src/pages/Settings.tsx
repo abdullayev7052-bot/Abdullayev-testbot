@@ -40,6 +40,7 @@ export function SettingsPage() {
       setDirty(false);
       toast("Saqlandi ✅");
       if (section === "bito") { await qc.invalidateQueries({ queryKey: ["bito-options"] }); await qc.invalidateQueries({ queryKey: ["status"] }); }
+      if (section === "adminPanel") await qc.invalidateQueries({ queryKey: ["branding"] });
     } catch (e) { toast((e as Error).message, "err"); } finally { setSaving(false); }
   };
 

@@ -5,6 +5,7 @@ import type { Order, User } from "@prisma/client";
 export interface AppEvents {
   "order:created": [order: Order, user: User];
   "order:stage": [order: Order, prev: string | null, by: StageActor];
+  "order:updated": [order: Order];
   "webhook": [payload: { collection_name: string; action: string; id: string; organization_id?: string }];
 }
 

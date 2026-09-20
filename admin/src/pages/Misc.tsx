@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Send, MessageSquare, Users } from "lucide-react";
 import { api } from "../lib/api.ts";
 import { ImageUpload, PageTitle, Spinner, Toggle, useToast, confirmDialog } from "../components/ui.tsx";
+import { LinkPicker } from "../components/LinkPicker.tsx";
 
 /* ============ Kutilayotgan mahsulotlar ============ */
 interface W { id: number; createdAt: string; notifiedAt: string | null; product: { id: number; name: string; stock: number; image: string | null }; user: { id: number; name: string | null; phone: string | null; username: string | null; telegramId: string } }
@@ -87,22 +88,35 @@ export function GroupsPage() {
 export function BroadcastPage() {
   const toast = useToast((s) => s.show);
   const [text, setText] = useState("");
-  const [image, setImage] = useState("");
+  const [media, setMedia] = useState("");
+  const [hd, setHd] = useState(false);
   const [language, setLanguage] = useState("all");
+  const [buttonText, setButtonText] = useState("");
+  const [buttonTarget, setButtonTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const send = async () => {
     if (!text.trim()) return;
+    if (buttonText.trim() && (!buttonTarget || buttonTarget === "product:" || buttonTarget === "category:" || buttonTarget === "https://")) { toast("Tugma uchun havola/mahsulot/kategoriyani tanlang", "err"); return; }
     if (!confirmDialog("Barcha ro'yxatdan o'tgan mijozlarga yuborilsinmi?")) return;
     setBusy(true);
-    try { const r = await api.post<{ total: number }>("/broadcast", { text, image: image || undefined, language }); toast(`Yuborilmoqda: ${r.total} ta mijoz`); setText(""); setImage(""); }
-    catch (e) { toast((e as Error).message, "err"); } finally { setBusy(false); }
+    try {
+      const r = await api.post<{ total: number }>("/broadcast", { text, media: media || undefined, hd, language, buttonText: buttonText.trim() || undefined, buttonTarget: buttonText.trim() ? buttonTarget : undefined });
+      toast(`Yuborilmoqda: ${r.total} ta mijoz`); setText(""); setMedia(""); setButtonText(""); setButtonTarget("");
+    } catch (e) { toast((e as Error).message, "err"); } finally { setBusy(false); }
   };
   return (
     <div className="max-w-2xl">
       <PageTitle title="Xabar tarqatish" description="Barcha ro'yxatdan o'tgan mijozlarga bot orqali xabar (aksiya, yangilik) yuborish" />
       <div className="card p-5 space-y-4">
         <div><label className="label">Matn (HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;)</label><textarea className="input" rows={6} value={text} onChange={(e) => setText(e.target.value)} /></div>
-        <div><label className="label">Rasm (ixtiyoriy)</label><ImageUpload value={image} onChange={setImage} /></div>
+        <div><label className="label">Rasm / video / GIF (ixtiyoriy, 60 MB gacha)</label><ImageUpload video value={media} onChange={setMedia} hint="Video — mp4 tavsiya etiladi. Telegram'ga bir marta yuklanadi, keyin hammaga tez tarqatiladi." /></div>
+        {media && !/\.(mp4|webm|mov|gif)$/i.test(media) && <Toggle value={hd} onChange={setHd} label="Rasmni siqmasdan, asl sifatda (fayl sifatida) yuborish" />}
+        <div className="card p-4 space-y-3 bg-slate-50">
+          <div className="font-semibold text-sm">Xabar ostidagi tugma (ixtiyoriy)</div>
+          <div><label className="label">Tugma matni</label><input className="input" placeholder="Masalan: 🛍 Buyurtma berish" value={buttonText} onChange={(e) => setButtonText(e.target.value)} /></div>
+          <div><label className="label">Tugma qayerga olib boradi</label><LinkPicker value={buttonTarget} onChange={setButtonTarget} /></div>
+          <div className="help">Mahsulot yoki kategoriya tanlansa — mijoz tugmani bosganda Mini App ochilib, to'g'ridan-to'g'ri o'sha mahsulot/kategoriya ko'rsatiladi.</div>
+        </div>
         <div><label className="label">Kimlarga</label><select className="input max-w-xs" value={language} onChange={(e) => setLanguage(e.target.value)}><option value="all">Barchaga</option><option value="uz">Faqat o'zbek tilidagilarga</option><option value="ru">Faqat rus tilidagilarga</option><option value="en">Faqat ingliz tilidagilarga</option></select></div>
         <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={() => { void send(); }}><Send size={16} /> Yuborish</button>
       </div>

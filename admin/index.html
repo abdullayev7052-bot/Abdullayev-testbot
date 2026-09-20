@@ -2,12 +2,22 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin panel — Bito Telegram Shop</title>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Admin" />
+    <link rel="manifest" href="/admin/manifest.json" />
+    <link rel="icon" href="/admin/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/admin/icon.svg" />
+    <title>Admin panel</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script>try{if(localStorage.getItem("admin-theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/admin/sw.js").catch(function(){})}</script>
   </body>
 </html>

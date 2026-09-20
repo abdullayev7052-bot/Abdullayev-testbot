@@ -55,3 +55,35 @@ img { display: block; }
 .progress-bar > div { height: 100%; background: #fff; }
 .safe-top { padding-top: env(safe-area-inset-top, 0px); }
 .reduced * { transition: none !important; animation: none !important; }
+
+/* ===== Tungi rejim ===== */
+:root { --dark-bg: #0f172a; --dark-card: #1e293b; --dark-text: #f1f5f9; }
+[data-theme="dark"] {
+  --bg: var(--dark-bg);
+  --card: var(--dark-card);
+  --text: var(--dark-text);
+  --muted: #94a3b8;
+  --line: #334155;
+  --soft: #1e293b;
+  --primary-soft: color-mix(in srgb, var(--primary) 22%, var(--dark-card));
+}
+[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .card { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5); }
+[data-theme="dark"] .input { background: var(--card); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .chip { background: var(--card); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+[data-theme="dark"] .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 37%, #1e293b 63%); background-size: 400% 100%; }
+[data-theme="dark"] .bg-white, [data-theme="dark"] .bg-white\/95, [data-theme="dark"] .bg-white\/90 { background-color: var(--card) !important; }
+[data-theme="dark"] .bg-slate-50, [data-theme="dark"] .bg-slate-100 { background-color: #0f172a !important; }
+[data-theme="dark"] .bg-slate-200 { background-color: #334155 !important; }
+[data-theme="dark"] .text-slate-900, [data-theme="dark"] .text-slate-800, [data-theme="dark"] .text-slate-700 { color: var(--text) !important; }
+[data-theme="dark"] .text-slate-600, [data-theme="dark"] .text-slate-500 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-400, [data-theme="dark"] .text-slate-300 { color: #94a3b8 !important; }
+[data-theme="dark"] .border-slate-100, [data-theme="dark"] .border-slate-200 { border-color: var(--line) !important; }
+[data-theme="dark"] .bg-\[var\(--primary-soft\)\] { background-color: var(--primary-soft) !important; }
+[data-theme="dark"] .active\:bg-slate-50:active { background-color: #0f172a !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: rgba(16,185,129,.15) !important; }
+[data-theme="dark"] .bg-red-50 { background-color: rgba(239,68,68,.15) !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: rgba(245,158,11,.15) !important; }
+[data-theme="dark"] .bg-blue-50, [data-theme="dark"] .bg-indigo-50, [data-theme="dark"] .bg-purple-50 { background-color: rgba(99,102,241,.18) !important; }
+[data-theme="dark"] .leaflet-container { filter: brightness(.85) contrast(1.05); }

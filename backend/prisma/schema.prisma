@@ -210,3 +210,12 @@ model ActivityLog {
 
   @@index([createdAt])
 }
+
+/// Admin paneldan yuklangan fayllar (rasm/video) — serverda disk vaqtinchalik bo'lgani uchun bazada
+model Upload {
+  name      String   @id
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+}
