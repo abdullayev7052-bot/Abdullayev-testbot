@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FieldDef, Lang, LText, Options } from "../lib/api.ts";
 import { ImageUpload, Toggle } from "./ui.tsx";
+import { LatLngPicker } from "./LatLngPicker.tsx";
 
 const LANGS: { k: Lang; label: string }[] = [{ k: "uz", label: "🇺🇿 UZ" }, { k: "ru", label: "🇷🇺 RU" }, { k: "en", label: "🇬🇧 EN" }];
 
@@ -34,6 +35,8 @@ export function Field({ def, value, onChange, options }: { def: FieldDef; value:
         </div>
       );
     }
+    case "latlng":
+      return <div><label className="label">{def.label}</label><LatLngPicker value={(value as { lat: number; lng: number }) || { lat: 41.311, lng: 69.279 }} onChange={onChange} />{help}</div>;
     case "image":
       return <div><label className="label">{def.label}</label><ImageUpload value={String(value || "")} onChange={onChange} hint={def.help} /></div>;
     case "password":

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, MapPin, CheckCircle2 } from "lucide-react";
-import { api, ApiError } from "../lib/api.ts";
+import { ArrowLeft, Trash2, MapPin, CheckCircle2, Navigation } from "lucide-react";
+import { api, ApiError, type Product } from "../lib/api.ts";
+import { ProductSheet } from "../components/ProductSheet.tsx";
+import { useWaitlist } from "../store/waitlist.ts";
+import { openLink } from "../lib/telegram.ts";
 import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
-import { Page, QtyStepper, Empty, Img, Segmented } from "../components/ui.tsx";
+import { Page, QtyStepper, Empty, Img, Segmented, ConfirmDialog, SwipeToDelete, useToast } from "../components/ui.tsx";
 import { MapPicker } from "../components/MapPicker.tsx";
 import { useCatalogFmt } from "../components/ProductCard.tsx";
 import { qty as fq } from "../lib/format.ts";
@@ -36,6 +39,23 @@ export function Cart() {
   const [error, setError] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState("");
   const [doneType, setDoneType] = useState<"delivery" | "pickup">("delivery");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [openProduct, setOpenProduct] = useState<Product | null>(null);
+  const [addrAuto, setAddrAuto] = useState(false);
+  const wl = useWaitlist();
+  const toast = useToast((s) => s.show);
+  const swipeDelete = v<boolean>("checkout", "swipeDelete", true);
+  const itemTap = v<boolean>("checkout", "cartItemTap", true);
+  const pickupLoc = v<{ lat: number; lng: number } | null>("checkout", "pickupLocation", null);
+  const clearAll = () => {
+    if (v<boolean>("checkout", "confirmClear", true)) setConfirmOpen(true);
+    else { haptic.medium(); cart.clear(); }
+  };
+  const openItem = async (productId: number) => {
+    if (!itemTap) return;
+    try { haptic.light(); setOpenProduct(await api.get<Product>(`/products/${productId}`)); } catch { /* o'chirilgan mahsulot */ }
+  };
+  const onWaitlist = async (p: Product) => { const next = await wl.toggle(p); toast(next ? t("catalog", "notifiedLabel") : t("catalog", "notifyLabel")); setOpenProduct({ ...p, inWaitlist: next }); };
 
   // Savatchadagi narx/qoldiqni yangilash
   useEffect(() => {
@@ -59,7 +79,13 @@ export function Cart() {
 
   const onPick = async (la: number, ln: number) => {
     setLat(la); setLng(ln);
-    try { const r = await api.get<{ address: string }>(`/geocode?lat=${la}&lng=${ln}&lang=${f.lang}`); if (r.address && !address.trim()) setAddress(r.address); } catch { /* ignore */ }
+    if (!v<boolean>("checkout", "autoAddress", true)) return;
+    try {
+      const r = await api.get<{ address: string }>(`/geocode?lat=${la}&lng=${ln}&lang=${f.lang}`);
+      if (!r.address) return;
+      const overwrite = v<boolean>("checkout", "autoAddressOverwrite", false);
+      if (overwrite || addrAuto || !address.trim()) { setAddress(r.address); setAddrAuto(true); }
+    } catch { /* ignore */ }
   };
 
   const submit = async () => {
@@ -116,23 +142,27 @@ export function Cart() {
       <div className="wrap safe-top pt-4 flex items-center gap-2">
         {step === "checkout" && <button onClick={() => setStep("cart")} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center"><ArrowLeft size={18} /></button>}
         <div className="text-2xl font-bold flex-1">{step === "cart" ? t("checkout", "cartTitle") : t("checkout", "checkoutTitle")}</div>
-        {step === "cart" && <button onClick={() => { haptic.medium(); cart.clear(); }} className="text-sm text-slate-400 flex items-center gap-1"><Trash2 size={14} />{t("checkout", "clearCart")}</button>}
+        {step === "cart" && <button onClick={clearAll} className="text-sm text-slate-400 flex items-center gap-1"><Trash2 size={14} />{t("checkout", "clearCart")}</button>}
       </div>
 
       {step === "cart" ? (
           <motion.div key="cart" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="wrap mt-3 space-y-2.5">
             <AnimatePresence initial={false}>
               {cart.items.map((it) => (
-                <motion.div key={it.productId} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0, x: 40 }} className="card p-3 flex gap-3 overflow-hidden">
-                  <Img src={it.image} className="w-20 h-20 rounded-xl shrink-0" />
+                <motion.div key={it.productId} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0, x: 40 }}>
+                <SwipeToDelete enabled={swipeDelete} label={t("checkout", "deleteLabel")} onDelete={() => cart.remove(it.productId)} className="card">
+                <div className="p-3 flex gap-3">
+                  <button onClick={() => { void openItem(it.productId); }} className="shrink-0"><Img src={it.image} className="w-20 h-20 rounded-xl" /></button>
                   <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="text-sm font-medium line-clamp-2">{it.name}</div>
+                    <button onClick={() => { void openItem(it.productId); }} className="text-left text-sm font-medium line-clamp-2">{it.name}</button>
                     <div className="text-xs text-slate-400 mt-0.5">{f.price(it.price)} × {fq(it.qty)}{it.boxCount ? ` (${it.boxCount} ${t("catalog", "boxLabel").toLowerCase()})` : ""}{it.stock < it.qty ? ` · ⚠️ ${fq(it.stock)}` : ""}</div>
                     <div className="mt-auto flex items-center justify-between pt-1">
                       <div className="font-bold">{f.price(it.price * it.qty)}</div>
                       <QtyStepper size="sm" value={it.qty} onChange={(q) => cart.setQty(it.productId, q)} step={it.boxCount && it.boxItem ? it.boxItem : 1} />
                     </div>
                   </div>
+                </div>
+                </SwipeToDelete>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -147,14 +177,22 @@ export function Cart() {
               ]} />
             )}
             {type === "pickup" && (
-              <div className="card p-4 flex gap-3 items-start"><MapPin className="shrink-0 text-[var(--primary)]" size={20} /><div><div className="text-sm font-semibold">{t("checkout", "pickupLabel")}</div><div className="text-sm text-slate-500">{t("checkout", "pickupAddress")}</div></div></div>
+              <div className="card p-4">
+                <div className="flex gap-3 items-start"><MapPin className="shrink-0 text-[var(--primary)]" size={20} /><div><div className="text-sm font-semibold">{t("checkout", "pickupLabel")}</div><div className="text-sm text-slate-500">{t("checkout", "pickupAddress")}</div></div></div>
+                {v<boolean>("checkout", "pickupShowMap", true) && pickupLoc && pickupLoc.lat && pickupLoc.lng && (
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button onClick={() => { haptic.light(); openLink(`https://www.google.com/maps/dir/?api=1&destination=${pickupLoc.lat},${pickupLoc.lng}`); }} className="py-2.5 rounded-xl bg-slate-100 text-sm font-semibold flex items-center justify-center gap-1.5"><Navigation size={15} /> Google — {t("checkout", "pickupRouteLabel")}</button>
+                    <button onClick={() => { haptic.light(); openLink(`https://yandex.uz/maps/?rtext=~${pickupLoc.lat},${pickupLoc.lng}&rtt=auto`); }} className="py-2.5 rounded-xl bg-slate-100 text-sm font-semibold flex items-center justify-center gap-1.5"><Navigation size={15} /> Yandex — {t("checkout", "pickupRouteLabel")}</button>
+                  </div>
+                )}
+              </div>
             )}
             <div className="card p-4 space-y-3">
               <Field label={t("checkout", "nameLabel")}><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></Field>
               <Field label={t("checkout", "phoneLabel")}><input className="input" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 90 123 45 67" /></Field>
               {type === "delivery" && (
                 <>
-                  <Field label={t("checkout", "addressLabel")}><input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("checkout", "addressPlaceholder")} /></Field>
+                  <Field label={t("checkout", "addressLabel")}><input className="input" value={address} onChange={(e) => { setAddress(e.target.value); setAddrAuto(false); }} placeholder={t("checkout", "addressPlaceholder")} /></Field>
                   <div>
                     <div className="text-xs font-semibold text-slate-500 mb-1.5 flex items-center justify-between">
                       <span>{t("checkout", "mapLabel")}{requireLocation && <span className="text-red-500"> *</span>}</span>
@@ -171,7 +209,7 @@ export function Cart() {
             <Summary itemsLabel={t("checkout", "itemsLabel")} subtotal={f.price(subtotal)} count={cart.count()}
               fee={type === "delivery" ? { label: t("checkout", "deliveryFeeLabel"), value: fee > 0 ? f.price(fee) : t("checkout", "freeLabel") } : undefined}
               total={{ label: t("checkout", "totalLabel"), value: f.price(total) }} />
-            <AnimatePresence>{error && <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-xl bg-red-50 text-red-600 text-sm p-3">{error}</motion.div>}</AnimatePresence>
+            {error && <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-red-50 text-red-600 text-sm p-3">{error}</motion.div>}
           </motion.div>
         )}
 
@@ -184,6 +222,9 @@ export function Cart() {
         )}
       </div>
       <div className="h-24" />
+      <ConfirmDialog open={confirmOpen} title={t("checkout", "confirmClearTitle")} text={t("checkout", "confirmClearText")} yes={t("checkout", "yesLabel")} no={t("checkout", "noLabel")}
+        onNo={() => setConfirmOpen(false)} onYes={() => { setConfirmOpen(false); haptic.medium(); cart.clear(); }} />
+      <ProductSheet product={openProduct} onClose={() => setOpenProduct(null)} onWaitlist={onWaitlist} />
     </Page>
   );
 }

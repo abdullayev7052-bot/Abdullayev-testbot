@@ -94,3 +94,14 @@ Render har `push`dan keyin avtomatik qayta build qiladi (Auto-Deploy).
 | Bot javob bermayapti | Free tarif uxlagan → 3-bo'lim; yoki lokal kompyuterda ham `npm start` ishlab turibdi (bitta token bilan 2 ta bot polling bo'lmaydi — lokalni to'xtating) |
 | Mini App tugmasi eski ngrok manzilini ochyapti | `PUBLIC_URL` ni Render manziliga o'zgartirib, Save qiling |
 | Webhook "ulanmagan" | Admin panel → Bito integratsiyasi → **Webhookni ulash** tugmasi |
+
+## 8. Vercel uchun `VITE_BASE`
+
+Mini App standart holatda `/app/` yo'lida ishlaydi (Render/lokal). Vercel'da ildizda (`/`) ochilishi uchun
+Vercel loyihasi → **Settings → Environment Variables** ga qo'shing:
+
+| Kalit | Qiymat |
+|---|---|
+| `VITE_BASE` | `/` |
+
+Kodda hech narsa o'zgartirish shart emas — `miniapp/vite.config.ts` bu qiymatni o'zi o'qiydi.

@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { api, type Bootstrap, type Lang, type LText } from "../lib/api.ts";
+import { cacheDesign } from "../lib/motion.ts";
+import { setHapticEnabled } from "../lib/telegram.ts";
 
 interface AppState {
   data: Bootstrap | null;
@@ -24,6 +26,8 @@ export const useApp = create<AppState>((set, get) => ({
       localStorage.setItem("lang", lang);
       set({ data, lang, loading: false });
       applyTheme(data.settings.design as Record<string, unknown>);
+      cacheDesign(data.settings.design as Record<string, unknown>);
+      setHapticEnabled((data.settings.design as Record<string, unknown>).hapticEnabled !== false);
     } catch (e) {
       set({ loading: false, error: (e as Error).message });
     }
@@ -47,7 +51,7 @@ function applyTheme(d: Record<string, unknown>) {
   if (d.textColor) r.setProperty("--text", String(d.textColor));
   if (d.radius !== undefined) r.setProperty("--radius", `${Number(d.radius)}px`);
   if (d.storiesRingColor) r.setProperty("--ring", String(d.storiesRingColor));
-  document.body.classList.toggle("reduced", d.animations === "reduced");
+  document.body.classList.toggle("reduced", d.animations === "reduced" || d.animations === "off");
 }
 
 /** Sozlamalardagi ko'p tilli matn */

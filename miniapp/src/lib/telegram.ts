@@ -47,12 +47,15 @@ export function initTelegram() {
   } catch { /* eski versiyalar */ }
 }
 
+let hapticOn = true;
+export function setHapticEnabled(v: boolean) { hapticOn = v; }
+const h = () => (hapticOn ? tg?.HapticFeedback : undefined);
 export const haptic = {
-  light: () => tg?.HapticFeedback?.impactOccurred("light"),
-  medium: () => tg?.HapticFeedback?.impactOccurred("medium"),
-  success: () => tg?.HapticFeedback?.notificationOccurred("success"),
-  error: () => tg?.HapticFeedback?.notificationOccurred("error"),
-  select: () => tg?.HapticFeedback?.selectionChanged(),
+  light: () => h()?.impactOccurred("light"),
+  medium: () => h()?.impactOccurred("medium"),
+  success: () => h()?.notificationOccurred("success"),
+  error: () => h()?.notificationOccurred("error"),
+  select: () => h()?.selectionChanged(),
 };
 
 export function closeApp() {

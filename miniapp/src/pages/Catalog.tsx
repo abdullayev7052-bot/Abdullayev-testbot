@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { Search, X } from "lucide-react";
 import { api, type Product, type ProductPage } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
@@ -83,11 +83,9 @@ export function Catalog() {
           <div className="relative">
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("catalog", "searchPlaceholder")} className="input pl-10 pr-10 py-3 rounded-2xl bg-slate-50 border-transparent" />
-            <AnimatePresence>
               {q && (
-                <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center"><X size={14} /></motion.button>
+                <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center"><X size={14} /></motion.button>
               )}
-            </AnimatePresence>
           </div>
         </div>
         <div className="flex gap-2 overflow-x-auto px-4 pb-3 hide-scroll">

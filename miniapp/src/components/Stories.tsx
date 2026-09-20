@@ -31,11 +31,9 @@ export function Stories({ stories }: { stories: Story[] }) {
           </motion.button>
         ))}
       </div>
-      <AnimatePresence>
-        {open !== null && (
-          <StoryViewer stories={stories} start={open} onClose={() => { setOpen(null); force((x) => x + 1); }} />
-        )}
-      </AnimatePresence>
+      {open !== null && (
+        <StoryViewer stories={stories} start={open} onClose={() => { setOpen(null); force((x) => x + 1); }} />
+      )}
     </>
   );
 }

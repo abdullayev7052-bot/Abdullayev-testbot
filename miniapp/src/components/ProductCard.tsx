@@ -6,6 +6,7 @@ import { useCart } from "../store/cart.ts";
 import { money, stockLabel } from "../lib/format.ts";
 import { haptic } from "../lib/telegram.ts";
 import { Img, QtyStepper } from "./ui.tsx";
+import { cardVariants, tapScale } from "../lib/motion.ts";
 
 export function useCatalogFmt() {
   const { t, v, lang } = useT();
@@ -32,9 +33,8 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
   const st = f.stock(p);
   const out = p.stock <= 0 && !f.canOrderOut;
   return (
-    <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.25 }}
-      className="card overflow-hidden flex flex-col">
-      <button onClick={() => { haptic.light(); onOpen(p); }} className="text-left">
+    <motion.div layout {...cardVariants(index)} className="card overflow-hidden flex flex-col">
+      <motion.button whileTap={{ scale: tapScale() }} onClick={() => { haptic.light(); onOpen(p); }} className="text-left">
         <div className="relative">
           <Img src={p.image} alt={p.name} className={`aspect-square w-full ${out ? "opacity-60 grayscale-[35%]" : ""}`} />
           {st && (
@@ -47,7 +47,7 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
           {f.showSku && p.sku && <div className="text-[11px] text-slate-400 mt-0.5">#{p.sku}</div>}
           <div className="font-bold mt-1">{f.price(p.price)}</div>
         </div>
-      </button>
+      </motion.button>
       <div className="px-3 pb-3 pt-2 mt-auto">
         {out ? (
           f.notifyEnabled ? (

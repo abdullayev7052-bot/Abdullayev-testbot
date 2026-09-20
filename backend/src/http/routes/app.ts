@@ -307,7 +307,10 @@ appRouter.get("/geocode", async (req, res) => {
     });
     const j = (await r.json()) as { display_name?: string; address?: Record<string, string> };
     const a = j.address || {};
-    const short = [a.road || a.pedestrian || a.neighbourhood || a.suburb, a.house_number, a.city || a.town || a.village || a.county].filter(Boolean).join(", ");
+    const street = [a.road || a.pedestrian || a.residential, a.house_number].filter(Boolean).join(" ");
+    const district = a.city_district || a.suburb || a.borough || a.district || a.neighbourhood;
+    const city = a.city || a.town || a.village || a.county;
+    const short = [district, street || a.neighbourhood, city && city !== district ? city : ""].filter(Boolean).join(", ");
     res.json({ address: short || j.display_name || "" });
   } catch {
     res.json({ address: "" });

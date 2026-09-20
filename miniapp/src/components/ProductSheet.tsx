@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Bell, BellRing, Check } from "lucide-react";
+import { Bell, BellRing, Check, X, Expand } from "lucide-react";
 import type { Product } from "../lib/api.ts";
 import { useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
@@ -19,6 +19,7 @@ export function ProductSheet({ product, onClose, onWaitlist }: { product: Produc
   const [count, setCount] = useState(1);
   const [img, setImg] = useState(0);
   const [added, setAdded] = useState(false);
+  const [full, setFull] = useState(false);
   useEffect(() => { setMode("piece"); setCount(1); setImg(0); setAdded(false); }, [product?.id]);
 
   const boxEnabled = v<boolean>("catalog", "boxModeEnabled", true) && (product?.boxItem || 0) > 0;
@@ -58,17 +59,50 @@ export function ProductSheet({ product, onClose, onWaitlist }: { product: Produc
             <AnimatePresence mode="wait">
               <motion.div key={img} initial={{ opacity: 0, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
                 drag={images.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15}
-                onDragEnd={(_, i) => { if (i.offset.x < -50) setImg((x) => (x + 1) % images.length); else if (i.offset.x > 50) setImg((x) => (x - 1 + images.length) % images.length); }}>
+                onDragEnd={(_, i) => { if (i.offset.x < -50) setImg((x) => (x + 1) % images.length); else if (i.offset.x > 50) setImg((x) => (x - 1 + images.length) % images.length); }}
+                onClick={() => { if (images.length) { haptic.light(); setFull(true); } }}>
                 <Img src={images[img] || product.image} className="w-full aspect-[4/3]" fallback="🛍" />
               </motion.div>
             </AnimatePresence>
+            {images.length > 0 && <button onClick={() => setFull(true)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/35 text-white flex items-center justify-center"><Expand size={15} /></button>}
             {images.length > 1 && (
               <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
                 {images.map((_, n) => <span key={n} className={`h-1.5 rounded-full transition-all ${n === img ? "w-5 bg-slate-800" : "w-1.5 bg-slate-400/60"}`} />)}
               </div>
             )}
+            {images.length > 1 && <span className="absolute bottom-2 right-3 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-black/40 text-white">{img + 1}/{images.length}</span>}
             {st && <span className={`absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full ${st.out ? "bg-slate-800 text-white" : "bg-white/90 text-slate-700"}`}>{st.text}</span>}
           </div>
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto px-4 mt-2 hide-scroll">
+              {images.map((src, n) => (
+                <button key={n} onClick={() => { haptic.select(); setImg(n); }} className={`shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-colors ${n === img ? "border-[var(--primary)]" : "border-transparent"}`}>
+                  <Img src={src} className="w-full h-full" />
+                </button>
+              ))}
+            </div>
+          )}
+          {full && (
+              <motion.div className="fixed inset-0 z-[900] bg-black flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                <div className="flex items-center justify-between px-4 text-white" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
+                  <span className="text-sm font-semibold">{img + 1} / {images.length}</span>
+                  <button onClick={() => setFull(false)} className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><X size={20} /></button>
+                </div>
+                <div className="flex-1 flex items-center justify-center overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.img key={img} src={images[img]} className="max-w-full max-h-full object-contain select-none" draggable={false}
+                      initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+                      drag={images.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2}
+                      onDragEnd={(_, i) => { if (i.offset.x < -50) setImg((x) => (x + 1) % images.length); else if (i.offset.x > 50) setImg((x) => (x - 1 + images.length) % images.length); }} />
+                  </AnimatePresence>
+                </div>
+                {images.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto px-4 py-3 hide-scroll justify-center" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+                    {images.map((src, n) => <button key={n} onClick={() => setImg(n)} className={`shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 ${n === img ? "border-white" : "border-transparent opacity-60"}`}><img src={src} className="w-full h-full object-cover" /></button>)}
+                  </div>
+                )}
+              </motion.div>
+          )}
 
           <div className="px-5 pt-4">
             <div className="text-xl font-bold leading-snug">{product.name}</div>

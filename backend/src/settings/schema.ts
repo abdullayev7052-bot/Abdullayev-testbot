@@ -19,7 +19,8 @@ export type FieldType =
   | "select"
   | "image"
   | "password"
-  | "tags";
+  | "tags"
+  | "latlng";
 
 export interface FieldDef {
   key: string;
@@ -318,8 +319,51 @@ export const settingsSchema: SectionDef[] = [
           { key: "textColor", label: "Matn rangi", type: "color", default: "#0f172a" },
           { key: "radius", label: "Burchak yumaloqligi (px)", type: "number", default: 18, min: 0, max: 40 },
           { key: "animations", label: "Animatsiyalar", type: "select", default: "full", options: [
-            { value: "full", label: "To'liq" }, { value: "reduced", label: "Kamaytirilgan" },
+            { value: "full", label: "To'liq" }, { value: "reduced", label: "Kamaytirilgan" }, { value: "off", label: "O'chirilgan" },
           ] },
+        ],
+      },
+      {
+        title: "Animatsiya uslubi",
+        description: "Dunyodagi mashhur Mini App'lar (Telegram Wallet, Notcoin, Hamster, Blum, Major) uslublari asosida",
+        fields: [
+          { key: "pageTransition", label: "Bo'limlar orasidagi o'tish", type: "select", default: "ios", options: [
+            { value: "ios", label: "iOS — yon tomondan surilish (Wallet, Telegram)" },
+            { value: "fade", label: "Yumshoq so'nish (Blum)" },
+            { value: "zoom", label: "Kattalashib chiqish (Notcoin)" },
+            { value: "up", label: "Pastdan ko'tarilish (Hamster)" },
+            { value: "none", label: "O'tish animatsiyasisiz" },
+          ] },
+          { key: "motionPreset", label: "Harakat xarakteri", type: "select", default: "smooth", options: [
+            { value: "smooth", label: "Silliq (premium)" },
+            { value: "bouncy", label: "Sakrovchi (o'yin uslubi)" },
+            { value: "snappy", label: "Tez va aniq" },
+          ] },
+          { key: "cardStagger", label: "Kartochkalar ketma-ket paydo bo'lishi", type: "boolean", default: true },
+          { key: "cardEntrance", label: "Kartochka kirish effekti", type: "select", default: "rise", options: [
+            { value: "rise", label: "Pastdan ko'tarilish" }, { value: "fade", label: "So'nib chiqish" }, { value: "pop", label: "Kattalashib chiqish" }, { value: "none", label: "Yo'q" },
+          ] },
+          { key: "tapScale", label: "Bosganda kichrayish kuchi (0.85–1)", type: "number", default: 0.96, min: 0.8, max: 1, step: 0.01 },
+          { key: "hapticEnabled", label: "Vibratsiya (haptic) javoblari", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Kirish ekrani (splash)",
+        description: "Mini App ochilganda ko'rinadigan birinchi ekran",
+        fields: [
+          { key: "splashShow", label: "Ko'rsatish", type: "boolean", default: true },
+          { key: "splashType", label: "Belgi turi", type: "select", default: "emoji", options: [
+            { value: "emoji", label: "Emoji / matn" }, { value: "image", label: "Rasm (logo)" }, { value: "none", label: "Belgisiz" },
+          ] },
+          { key: "splashEmoji", label: "Emoji yoki qisqa matn", type: "text", default: "🛍" },
+          { key: "splashImage", label: "Rasm", type: "image", default: "" },
+          { key: "splashImageSize", label: "Rasm o'lchami (px)", type: "number", default: 96, min: 40, max: 240 },
+          { key: "splashText", label: "Ostidagi matn", type: "ltext", default: L("", "", "") },
+          { key: "splashBg", label: "Fon rangi", type: "color", default: "#ffffff" },
+          { key: "splashAnimation", label: "Animatsiya", type: "select", default: "pulse", options: [
+            { value: "pulse", label: "Pulsatsiya" }, { value: "bounce", label: "Sakrash" }, { value: "spin", label: "Aylanish" }, { value: "fade", label: "So'nib chiqish" }, { value: "none", label: "Yo'q" },
+          ] },
+          { key: "splashMinMs", label: "Minimal ko'rsatish vaqti (ms)", type: "number", default: 600, min: 0, max: 5000, step: 100 },
         ],
       },
       {
@@ -496,6 +540,9 @@ export const settingsSchema: SectionDef[] = [
           { key: "deliveryHint", label: "Yetkazib berish izohi", type: "ltext", default: L("Kuryer manzilingizga yetkazadi", "Курьер доставит по адресу", "Courier delivers to your address") },
           { key: "pickupHint", label: "Olib ketish izohi", type: "ltext", default: L("Do'kondan o'zingiz olib ketasiz", "Заберёте сами из магазина", "You pick up from the store") },
           { key: "pickupAddress", label: "Do'kon manzili (olib ketish uchun)", type: "ltext", default: L("Qo'qon sh., Istiqlol ko'chasi 1", "г. Коканд, ул. Истиклол 1", "Kokand, Istiqlol st. 1") },
+          { key: "pickupLocation", label: "Do'kon joylashuvi (xaritada belgilang)", type: "latlng", default: { lat: 40.5361, lng: 70.9268 }, help: "Mijoz 'Olib ketish'ni tanlaganda shu nuqtaga Google/Yandex xarita orqali yo'nalish ola oladi" },
+          { key: "pickupShowMap", label: "Olib ketishda xarita tugmalarini ko'rsatish", type: "boolean", default: true },
+          { key: "pickupRouteLabel", label: "Yo'nalish tugmasi matni", type: "ltext", default: L("Yo'nalish", "Маршрут", "Directions") },
           { key: "deliveryFee", label: "Yetkazib berish narxi (0 = bepul)", type: "number", default: 0, min: 0 },
           { key: "freeDeliveryFrom", label: "Shu summadan boshlab bepul (0 = o'chirilgan)", type: "number", default: 0, min: 0 },
           { key: "minOrderTotal", label: "Minimal buyurtma summasi", type: "number", default: 0, min: 0 },
@@ -504,7 +551,9 @@ export const settingsSchema: SectionDef[] = [
       {
         title: "Manzil va xarita",
         fields: [
-          { key: "requireLocation", label: "Yetkazib berishda xaritadan joylashuv majburiy", type: "boolean", default: true },
+          { key: "requireLocation", label: "Yetkazib berishda xaritadan joylashuv MAJBURIY (o'chirilsa — ixtiyoriy)", type: "boolean", default: true },
+          { key: "autoAddress", label: "Xaritadan belgilanganda manzilni avtomatik yozish", type: "boolean", default: true },
+          { key: "autoAddressOverwrite", label: "Avtomatik manzil qo'lda yozilganini ham almashtirsin", type: "boolean", default: false, help: "O'chirilgan bo'lsa — mijoz qo'lda yozgan manzil saqlanadi, faqat bo'sh bo'lsa to'ldiriladi" },
           { key: "mapLat", label: "Xarita markazi — kenglik (lat)", type: "number", default: 40.5286, step: 0.0001 },
           { key: "mapLng", label: "Xarita markazi — uzunlik (lng)", type: "number", default: 70.9425, step: 0.0001 },
           { key: "mapZoom", label: "Xarita masshtabi", type: "number", default: 13, min: 5, max: 19 },
@@ -533,6 +582,14 @@ export const settingsSchema: SectionDef[] = [
           { key: "deliveryFeeLabel", label: "Yetkazib berish (summa yonida)", type: "ltext", default: L("Yetkazib berish", "Доставка", "Delivery") },
           { key: "freeLabel", label: "Bepul", type: "ltext", default: L("Bepul", "Бесплатно", "Free") },
           { key: "clearCart", label: "Savatni tozalash", type: "ltext", default: L("Tozalash", "Очистить", "Clear") },
+          { key: "confirmClear", label: "Tozalashdan oldin tasdiq so'rash", type: "boolean", default: true },
+          { key: "confirmClearTitle", label: "Tasdiq sarlavhasi", type: "ltext", default: L("Savatchani tozalash?", "Очистить корзину?", "Clear the cart?") },
+          { key: "confirmClearText", label: "Tasdiq matni", type: "ltext", default: L("Barcha tanlangan mahsulotlar o'chib ketadi", "Все выбранные товары будут удалены", "All selected items will be removed") },
+          { key: "yesLabel", label: "Ha", type: "ltext", default: L("Ha, tozalash", "Да, очистить", "Yes, clear") },
+          { key: "noLabel", label: "Yo'q", type: "ltext", default: L("Yo'q", "Нет", "No") },
+          { key: "swipeDelete", label: "Mahsulotni chapga surib o'chirish", type: "boolean", default: true },
+          { key: "deleteLabel", label: "O'chirish (surishda)", type: "ltext", default: L("O'chirish", "Удалить", "Delete") },
+          { key: "cartItemTap", label: "Savatchadagi mahsulotni bosganda tafsilotini ochish", type: "boolean", default: true },
           { key: "successTitle", label: "Muvaffaqiyat sarlavhasi", type: "ltext", default: L("Buyurtma qabul qilindi!", "Заказ принят!", "Order received!") },
           { key: "successMessage", label: "Muvaffaqiyat matni", type: "ltextarea", default: L("Buyurtmangiz #{order} qabul qilindi. Kuryerimiz tez orada bog'lanadi 🚚", "Ваш заказ #{order} принят. Курьер скоро свяжется с вами 🚚", "Your order #{order} has been received. Our courier will contact you soon 🚚"), placeholders: ["{order}"] },
           { key: "successMessagePickup", label: "Muvaffaqiyat matni (olib ketish)", type: "ltextarea", default: L("Buyurtmangiz #{order} qabul qilindi. Tayyor bo'lganda xabar beramiz 🛍", "Ваш заказ #{order} принят. Сообщим, когда будет готов 🛍", "Your order #{order} has been received. We'll notify you when it's ready 🛍"), placeholders: ["{order}"] },

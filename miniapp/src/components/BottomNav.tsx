@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { Home, Search, ShoppingCart, User } from "lucide-react";
 import { useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
@@ -27,14 +27,10 @@ export function BottomNav() {
                   className={`w-12 h-8 rounded-2xl flex items-center justify-center ${active ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-slate-400"}`}>
                   <it.icon size={22} strokeWidth={active ? 2.4 : 2} />
                 </motion.div>
-                <AnimatePresence>
-                  {it.badge ? (
-                    <motion.span key="b" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                      className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center">
-                      {it.badge > 99 ? "99+" : it.badge}
-                    </motion.span>
-                  ) : null}
-                </AnimatePresence>
+                <motion.span initial={false} animate={{ scale: it.badge ? 1 : 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                  className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center">
+                  {it.badge ? (it.badge > 99 ? "99+" : it.badge) : ""}
+                </motion.span>
               </div>
               <span className={active ? "text-[var(--primary)]" : "text-slate-400"}>{it.label}</span>
             </NavLink>
