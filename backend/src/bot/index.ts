@@ -88,9 +88,18 @@ export async function startBot() {
   await setupBotCommands();
   onPublicUrlChange(() => { void updateMenuButton(); });
 
-  bot.start({
-    allowed_updates: ["message", "callback_query", "my_chat_member", "chat_member"],
-    onStart: () => log.info("📡 Telegram polling faol"),
-  }).catch((e) => log.error("bot.start", errMsg(e)));
+  const startPolling = (attempt = 1) => {
+    bot.start({
+      allowed_updates: ["message", "callback_query", "my_chat_member", "chat_member"],
+      onStart: () => log.info("📡 Telegram polling faol"),
+    }).catch((e) => {
+      const msg = errMsg(e);
+      // 409: boshqa nusxa hali ishlayapti (qayta deploy paytida) — kutib qayta urinamiz
+      const delay = /409/.test(msg) ? Math.min(60_000, 5_000 * attempt) : 15_000;
+      log.warn(`bot.start (${attempt}-urinish): ${msg} — ${delay / 1000}s dan keyin qayta`);
+      setTimeout(() => startPolling(attempt + 1), delay);
+    });
+  };
+  startPolling();
   return me;
 }
