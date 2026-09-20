@@ -34,8 +34,14 @@ export async function ensureWebhookSubscription(publicUrl: string, force = false
   const cur = await getWebhookState();
   if (!force && cur && cur.destination === destination && cur.secret && !cur.error) return cur;
   try {
-    // Eski manzillarni tozalash (ngrok manzili o'zgarganda)
-    if (cur?.destination && cur.destination !== destination) {
+    // Bito bitta hodisaga faqat bitta manzilga ruxsat beradi — boshqa barcha manzillarni o'chiramiz
+    const all = await bito.webhookGetAll().catch(() => null);
+    for (const d of all?.destinations || []) {
+      if (d.destination !== destination) {
+        await bito.webhookUnsubscribe(d.destination).catch((e) => log.warn("webhook unsubscribe", d.destination, errMsg(e)));
+      }
+    }
+    if (cur?.destination && cur.destination !== destination && !all?.destinations?.some((d) => d.destination === cur.destination)) {
       await bito.webhookUnsubscribe(cur.destination).catch(() => {});
     }
     const r = await bito.webhookSubscribe(destination, WEBHOOK_EVENTS);

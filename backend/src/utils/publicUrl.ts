@@ -9,7 +9,7 @@ function platformUrl(): string {
   return d.startsWith("http") ? d : `https://${d}`;
 }
 
-let current = (env.PUBLIC_URL || platformUrl()).replace(/[/]+$/, "");
+let current = "";
 const listeners: ((url: string) => void)[] = [];
 
 export function getPublicUrl(): string {
