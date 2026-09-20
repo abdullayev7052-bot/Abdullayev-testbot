@@ -1,7 +1,15 @@
 import { env } from "../env.ts";
 import { log } from "../logger.ts";
+import { prisma } from "../db.ts";
 
-let current = env.PUBLIC_URL || "";
+/** Hosting platformalari beradigan domen (Railway, Render, Fly, Heroku) */
+function platformUrl(): string {
+  const d = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RENDER_EXTERNAL_HOSTNAME || process.env.FLY_APP_NAME && `${process.env.FLY_APP_NAME}.fly.dev` || "";
+  if (!d) return process.env.RENDER_EXTERNAL_URL || "";
+  return d.startsWith("http") ? d : `https://${d}`;
+}
+
+let current = (env.PUBLIC_URL || platformUrl()).replace(/[/]+$/, "");
 const listeners: ((url: string) => void)[] = [];
 
 export function getPublicUrl(): string {
@@ -41,11 +49,16 @@ function setUrl(url: string) {
 }
 
 /** Har 15 soniyada ngrok manzilini tekshirib turadi (agar .env da PUBLIC_URL berilmagan bo'lsa) */
-export function startPublicUrlWatcher() {
-  if (env.PUBLIC_URL) {
-    setUrl(env.PUBLIC_URL);
-    return;
-  }
+export async function startPublicUrlWatcher() {
+  if (env.PUBLIC_URL) { setUrl(env.PUBLIC_URL); return; }
+  const platform = platformUrl();
+  if (platform) { setUrl(platform); return; }
+  // Admin paneldan qo'lda saqlangan manzil
+  try {
+    const row = await prisma.syncState.findUnique({ where: { key: "publicUrl" } });
+    const saved = (row?.value as { url?: string } | null)?.url;
+    if (saved) { setUrl(saved); return; }
+  } catch { /* ignore */ }
   const tick = async () => {
     const u = await detectNgrokUrl();
     if (u) setUrl(u);

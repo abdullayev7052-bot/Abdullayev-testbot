@@ -22,7 +22,7 @@ async function main() {
   await listen();
   await startBot();
 
-  startPublicUrlWatcher();
+  await startPublicUrlWatcher();
   startTunnelAutostart();
   onPublicUrlChange((url) => { void ensureWebhookSubscription(url); });
   if (getPublicUrl()) void ensureWebhookSubscription(getPublicUrl());
