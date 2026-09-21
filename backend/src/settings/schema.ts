@@ -42,6 +42,8 @@ export interface FieldDef {
 export interface GroupDef {
   title: string;
   description?: string;
+  /** Admin panelda bo'limning qaysi sahifasida ko'rsatiladi (masalan checkout: "cart" | "order"; general: "bot") */
+  part?: string;
   fields: FieldDef[];
 }
 
@@ -87,6 +89,7 @@ export const settingsSchema: SectionDef[] = [
       },
       {
         title: "Telegram bot",
+        part: "bot",
         description: "Botni almashtirish: BotFather'dan yangi token oling va shu yerga kiriting. Saqlangach bot darhol yangi tokenda ishga tushadi.",
         fields: [
           { key: "botToken", label: "Bot tokeni (bo'sh qoldirilsa .env dagi ishlatiladi)", type: "password", default: "" },
@@ -652,6 +655,7 @@ export const settingsSchema: SectionDef[] = [
     groups: [
       {
         title: "Turi",
+        part: "order",
         fields: [
           { key: "deliveryEnabled", label: "Yetkazib berish", type: "boolean", default: true },
           { key: "pickupEnabled", label: "Olib ketish", type: "boolean", default: true },
@@ -673,6 +677,7 @@ export const settingsSchema: SectionDef[] = [
       },
       {
         title: "Manzil va xarita",
+        part: "order",
         fields: [
           { key: "requireLocation", label: "Yetkazib berishda xaritadan joylashuv MAJBURIY (o'chirilsa — ixtiyoriy)", type: "boolean", default: true },
           { key: "autoAddress", label: "Xaritadan belgilanganda manzilni avtomatik yozish", type: "boolean", default: true },
@@ -684,22 +689,14 @@ export const settingsSchema: SectionDef[] = [
         ],
       },
       {
-        title: "Matnlar",
+        title: "Savatcha matnlari va xatti-harakati",
+        part: "cart",
         fields: [
           { key: "cartTitle", label: "Savatcha sarlavhasi", type: "ltext", default: L("Savatcha", "Корзина", "Cart") },
           { key: "emptyCart", label: "Savatcha bo'sh", type: "ltext", default: L("Savatchangiz bo'sh", "Ваша корзина пуста", "Your cart is empty") },
           { key: "emptyCartHint", label: "Bo'sh savatcha izohi", type: "ltext", default: L("Katalogdan mahsulot tanlang", "Выберите товары в каталоге", "Pick something from the catalog") },
           { key: "goCatalog", label: "Katalogga o'tish tugmasi", type: "ltext", default: L("Katalogga o'tish", "В каталог", "Go to catalog") },
           { key: "checkoutButton", label: "Rasmiylashtirish tugmasi", type: "ltext", default: L("Buyurtmani rasmiylashtirish", "Оформить заказ", "Checkout") },
-          { key: "confirmButton", label: "Tasdiqlash tugmasi", type: "ltext", default: L("Buyurtmani tasdiqlash", "Подтвердить заказ", "Confirm order") },
-          { key: "checkoutTitle", label: "Rasmiylashtirish sarlavhasi", type: "ltext", default: L("Buyurtmani rasmiylashtirish", "Оформление заказа", "Checkout") },
-          { key: "phoneLabel", label: "Telefon", type: "ltext", default: L("Telefon raqam", "Номер телефона", "Phone number") },
-          { key: "nameLabel", label: "Ism", type: "ltext", default: L("Ismingiz", "Ваше имя", "Your name") },
-          { key: "addressLabel", label: "Manzil", type: "ltext", default: L("Manzil", "Адрес", "Address") },
-          { key: "addressPlaceholder", label: "Manzil maydoni matni", type: "ltext", default: L("Ko'cha, uy, kvartira...", "Улица, дом, квартира...", "Street, building, apartment...") },
-          { key: "mapLabel", label: "Xarita sarlavhasi", type: "ltext", default: L("Joylashuvni belgilang", "Укажите местоположение", "Set your location") },
-          { key: "myLocation", label: "Mening joylashuvim tugmasi", type: "ltext", default: L("📍 Mening joylashuvim", "📍 Моё местоположение", "📍 My location") },
-          { key: "commentLabel", label: "Izoh", type: "ltext", default: L("Izoh (ixtiyoriy)", "Комментарий (необязательно)", "Comment (optional)") },
           { key: "totalLabel", label: "Jami", type: "ltext", default: L("Jami", "Итого", "Total") },
           { key: "itemsLabel", label: "Mahsulotlar", type: "ltext", default: L("Mahsulotlar", "Товары", "Items") },
           { key: "deliveryFeeLabel", label: "Yetkazib berish (summa yonida)", type: "ltext", default: L("Yetkazib berish", "Доставка", "Delivery") },
@@ -713,6 +710,21 @@ export const settingsSchema: SectionDef[] = [
           { key: "swipeDelete", label: "Mahsulotni chapga surib o'chirish", type: "boolean", default: true },
           { key: "deleteLabel", label: "O'chirish (surishda)", type: "ltext", default: L("O'chirish", "Удалить", "Delete") },
           { key: "cartItemTap", label: "Savatchadagi mahsulotni bosganda tafsilotini ochish", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "Rasmiylashtirish matnlari",
+        part: "order",
+        fields: [
+          { key: "confirmButton", label: "Tasdiqlash tugmasi", type: "ltext", default: L("Buyurtmani tasdiqlash", "Подтвердить заказ", "Confirm order") },
+          { key: "checkoutTitle", label: "Rasmiylashtirish sarlavhasi", type: "ltext", default: L("Buyurtmani rasmiylashtirish", "Оформление заказа", "Checkout") },
+          { key: "phoneLabel", label: "Telefon", type: "ltext", default: L("Telefon raqam", "Номер телефона", "Phone number") },
+          { key: "nameLabel", label: "Ism", type: "ltext", default: L("Ismingiz", "Ваше имя", "Your name") },
+          { key: "addressLabel", label: "Manzil", type: "ltext", default: L("Manzil", "Адрес", "Address") },
+          { key: "addressPlaceholder", label: "Manzil maydoni matni", type: "ltext", default: L("Ko'cha, uy, kvartira...", "Улица, дом, квартира...", "Street, building, apartment...") },
+          { key: "mapLabel", label: "Xarita sarlavhasi", type: "ltext", default: L("Joylashuvni belgilang", "Укажите местоположение", "Set your location") },
+          { key: "myLocation", label: "Mening joylashuvim tugmasi", type: "ltext", default: L("📍 Mening joylashuvim", "📍 Моё местоположение", "📍 My location") },
+          { key: "commentLabel", label: "Izoh", type: "ltext", default: L("Izoh (ixtiyoriy)", "Комментарий (необязательно)", "Comment (optional)") },
           { key: "successTitle", label: "Muvaffaqiyat sarlavhasi", type: "ltext", default: L("Buyurtma qabul qilindi!", "Заказ принят!", "Order received!") },
           { key: "successMessage", label: "Muvaffaqiyat matni", type: "ltextarea", default: L("Buyurtmangiz #{order} qabul qilindi. Kuryerimiz tez orada bog'lanadi 🚚", "Ваш заказ #{order} принят. Курьер скоро свяжется с вами 🚚", "Your order #{order} has been received. Our courier will contact you soon 🚚"), placeholders: ["{order}"] },
           { key: "successMessagePickup", label: "Muvaffaqiyat matni (olib ketish)", type: "ltextarea", default: L("Buyurtmangiz #{order} qabul qilindi. Tayyor bo'lganda xabar beramiz 🛍", "Ваш заказ #{order} принят. Сообщим, когда будет готов 🛍", "Your order #{order} has been received. We'll notify you when it's ready 🛍"), placeholders: ["{order}"] },

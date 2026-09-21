@@ -7,7 +7,7 @@ export class ApiError extends Error {
 const BASE = "/api/app";
 
 function headers(): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" };
+  const h: Record<string, string> = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1", "X-Platform": tg?.platform || "web" };
   if (inTelegram && tg) h.Authorization = `tma ${tg.initData}`;
   else { const d = devUserId(); if (d) h["X-Dev-User"] = d; }
   return h;

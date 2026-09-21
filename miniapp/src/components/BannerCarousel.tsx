@@ -5,6 +5,7 @@ import type { Banner } from "../lib/api.ts";
 import { useT } from "../store/app.ts";
 import { openLink, haptic, resolveTarget } from "../lib/telegram.ts";
 import { Media } from "./ui.tsx";
+import { track } from "../lib/analytics.ts";
 
 export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { v } = useT();
@@ -28,6 +29,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const onClick = () => {
     if (!b.link) return;
     haptic.light();
+    track("banner_click", { bannerId: b.id, title: b.title, link: b.link });
     const r = resolveTarget(b.link);
     if (r.path) nav(r.path); else if (r.url) openLink(r.url);
   };

@@ -6,6 +6,7 @@ import { useT } from "../store/app.ts";
 import { haptic, openLink, resolveTarget } from "../lib/telegram.ts";
 import { useNavigate } from "react-router-dom";
 import { isVideo } from "./ui.tsx";
+import { track } from "../lib/analytics.ts";
 
 const SEEN_KEY = "stories-seen";
 function seenSet(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch { return new Set(); } }
@@ -46,7 +47,7 @@ export function Stories({ stories }: { stories: Story[] }) {
       <div className="flex gap-3 overflow-x-auto px-4 py-2 hide-scroll">
         {stories.map((st, i) => (
           <motion.button key={st.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} whileTap={{ scale: 0.92 }}
-            onClick={() => { haptic.light(); setOpen(i); }} className="flex flex-col items-center gap-1.5 shrink-0" style={{ width: size + 8 }}>
+            onClick={() => { haptic.light(); track("story_view", { storyId: stories[i].id, title: stories[i].title }); setOpen(i); }} className="flex flex-col items-center gap-1.5 shrink-0" style={{ width: size + 8 }}>
             <div className={`story-ring p-[2.5px] rounded-full ${seen.has(String(st.id)) ? "seen" : ""}`} style={{ width: size, height: size }}>
               <div className="w-full h-full rounded-full bg-white p-[2px]">
                 <img src={st.cover} alt={st.title} className="w-full h-full rounded-full object-cover" />

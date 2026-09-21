@@ -15,11 +15,14 @@ import { sendToUser } from "../../bot/send.ts";
 import { fill } from "../../settings/store.ts";
 import { esc } from "../../utils/format.ts";
 import { isMultiStore, listStores, priceFor, userStore, getStore } from "../../bito/stores.ts";
+import { EVENT_NAMES, isEventName, normPlatform, track } from "../../analytics/track.ts";
 
 export const appRouter = Router();
 appRouter.use(appAuth);
 
 const u = (req: Request) => (req as AppRequest).user;
+/** Mini App yuborgan Telegram platformasi (X-Platform sarlavhasi) */
+const plat = (req: Request) => normPlatform(req.header("x-platform"));
 
 type PUser = Pick<User, "storeId" | "bitoCustomerId">;
 function serializeProduct(p: Product, user: PUser, waitIds?: Set<number>) {
@@ -146,6 +149,8 @@ appRouter.get("/products", async (req, res) => {
   const total = list.length;
   const slice = list.slice((page - 1) * limit, page * limit);
   const waitIds = await userWaitIds(user.id);
+  if (page === 1 && q) track(user.id, "search", { q: q.slice(0, 80), results: total }, plat(req));
+  else if (page === 1 && category && !q) track(user.id, "category_view", { categoryId: category }, plat(req));
   res.json({ total, page, limit, hasMore: page * limit < total, items: slice.map((p) => serializeProduct(p, user, waitIds)) });
 });
 
@@ -174,6 +179,7 @@ appRouter.post("/waitlist", async (req, res) => {
   if (!p) { res.status(404).json({ error: "not found" }); return; }
   await prisma.waitlist.upsert({ where: { userId_productId: { userId: user.id, productId } }, create: { userId: user.id, productId }, update: { notifiedAt: null } });
   await activity("waitlist_added", `"${p.name}" kutilmoqda → ${user.name || user.phone || user.telegramId}`);
+  track(user.id, "waitlist_add", { productId: p.id, name: p.name }, plat(req));
   if (s.bot.waitlistNotifyBot && user.step === "done") {
     const lang = normalizeLang(user.language);
     sendToUser(user.telegramId, esc(fill(lt(s.bot.waitlistAdded, lang), { product: p.name })), { disable_notification: true }).catch(() => {});
@@ -317,12 +323,33 @@ appRouter.post("/orders", async (req, res) => {
   try {
     const order = await createOrder(user, parsed.data, lang);
     invalidateProductCache();
+    track(user.id, "order_created", { orderId: order.id, total: order.total, type: order.type, storeId: order.storeId, items: order.itemsCount }, plat(req));
     res.json({ ok: true, order: { id: order.id, number: order.number || String(order.id), total: order.total } });
   } catch (e) {
     if (e instanceof OrderValidationError) { res.status(400).json({ error: e.message, code: e.code }); return; }
     log.error("createOrder", e);
     res.status(500).json({ error: errMsg(e), code: "server" });
   }
+});
+
+// ---------- Analitika hodisalari (Mini App'dan) ----------
+const eventsSchema = z.object({
+  platform: z.string().max(20).optional(),
+  events: z.array(z.object({ name: z.string().max(40), meta: z.record(z.string(), z.unknown()).optional(), at: z.number().optional() })).max(50),
+});
+appRouter.post("/events", async (req, res) => {
+  const user = u(req);
+  const parsed = eventsSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "bad events" }); return; }
+  const platform = normPlatform(parsed.data.platform) || plat(req);
+  const now = Date.now();
+  for (const e of parsed.data.events) {
+    // faqat ruxsat etilgan nomlar; server tomonida yoziladiganlar (order_created, search...) mijozdan qabul qilinmaydi
+    if (!isEventName(e.name) || ["order_created", "search", "category_view", "waitlist_add", "bot_start", "bot_active"].includes(e.name)) continue;
+    const at = e.at && Math.abs(now - e.at) < 6 * 3600 * 1000 ? new Date(e.at) : undefined;
+    track(user.id, e.name, e.meta || null, platform, at);
+  }
+  res.json({ ok: true, accepted: EVENT_NAMES.length });
 });
 
 // ---------- Geokodlash (manzilni xaritadan aniqlash) ----------

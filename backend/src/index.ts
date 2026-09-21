@@ -10,6 +10,7 @@ import { startFinancePollLoop } from "./bito/finance.ts";
 import { ensureWebhookSubscription } from "./bito/webhook.ts";
 import { getPublicUrl, onPublicUrlChange, startPublicUrlWatcher } from "./utils/publicUrl.ts";
 import { startTunnelAutostart } from "./utils/tunnel.ts";
+import { pruneEvents } from "./analytics/track.ts";
 
 async function main() {
   log.info("🚀 Bito Telegram Shop ishga tushmoqda...");
@@ -31,6 +32,9 @@ async function main() {
   startCatalogSyncLoop();
   startOrderReconcileLoop();
   startFinancePollLoop();
+  // Analitika: eski hodisalarni kuniga bir marta tozalash
+  void pruneEvents();
+  setInterval(() => { void pruneEvents(); }, 24 * 3600 * 1000);
 
   const s = getSettings();
   log.info(`✅ Tayyor. Bito: ${s.bito.apiKey ? s.bito.apiKey.split(":")[0] : "ulanmagan"} | Admin: http://localhost:${env.PORT}/admin/`);

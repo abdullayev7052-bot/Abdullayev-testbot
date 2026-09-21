@@ -46,7 +46,7 @@ git add -A && git commit -m "yangilanish" && git push
 ## 3. Tekshirish
 
 - `https://<nom>.up.railway.app/api/health` → `{"ok":true}`
-- `https://<nom>.up.railway.app/admin/` → admin panel; Boshqaruv panelida "Ommaviy manzil" = Railway manzili, "Webhook: ulangan"
+- `https://<nom>.up.railway.app/admin/` → admin panel; Integratsiya → Bot bo'limida "Ommaviy manzil" = Railway manzili, "Webhook: ulangan"
 - Botda `/start` → "🛍 Buyurtma berish" Mini App'ni ochadi
 
 ## 4. Muammolar

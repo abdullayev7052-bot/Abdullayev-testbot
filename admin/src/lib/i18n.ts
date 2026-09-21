@@ -4,17 +4,35 @@ export type UiLang = "uz" | "ru" | "en";
 const KEY = "admin-lang";
 
 const D = {
-  dashboard: { uz: "Boshqaruv paneli", ru: "Панель управления", en: "Dashboard" },
-  settings: { uz: "Sozlamalar", ru: "Настройки", en: "Settings" },
+  // Bo'limlar (sarlavha, bosilmaydi)
   content: { uz: "Kontent", ru: "Контент", en: "Content" },
-  bot: { uz: "Bot", ru: "Бот", en: "Bot" },
-  stories: { uz: "Storis", ru: "Сторис", en: "Stories" },
-  banners: { uz: "Bannerlar", ru: "Баннеры", en: "Banners" },
-  catalog: { uz: "Katalog boshqaruvi", ru: "Управление каталогом", en: "Catalog management" },
+  integration: { uz: "Integratsiya", ru: "Интеграция", en: "Integration" },
+  settings: { uz: "Sozlamalar", ru: "Настройки", en: "Settings" },
+  // Menyular
+  dashboard: { uz: "Dashboard", ru: "Дашборд", en: "Dashboard" },
   waitlist: { uz: "Kutilayotgan mahsulotlar", ru: "Ожидаемые товары", en: "Waitlist" },
-  groups: { uz: "Guruhlar va xodimlar", ru: "Группы и сотрудники", en: "Groups & staff" },
-  broadcast: { uz: "Xabar tarqatish", ru: "Рассылка", en: "Broadcast" },
+  stories: { uz: "Storis", ru: "Сторис", en: "Stories" },
+  banners: { uz: "Banner", ru: "Баннер", en: "Banner" },
+  broadcast: { uz: "Post", ru: "Пост", en: "Post" },
+  catalog: { uz: "Katalog boshqaruvi", ru: "Управление каталогом", en: "Catalog management" },
+  bito: { uz: "Bito", ru: "Bito", en: "Bito" },
+  bot: { uz: "Bot", ru: "Бот", en: "Bot" },
+  groups: { uz: "Guruh", ru: "Группа", en: "Group" },
+  general: { uz: "Umumiy", ru: "Общие", en: "General" },
+  miniapp: { uz: "Mini App", ru: "Mini App", en: "Mini App" },
+  design: { uz: "Dizayn", ru: "Дизайн", en: "Design" },
+  catalogSettings: { uz: "Katalog", ru: "Каталог", en: "Catalog" },
+  cart: { uz: "Savatcha", ru: "Корзина", en: "Cart" },
+  order: { uz: "Buyurtma", ru: "Заказ", en: "Order" },
+  profile: { uz: "Profil", ru: "Профиль", en: "Profile" },
+  botTexts: { uz: "Bot matnlari", ru: "Тексты бота", en: "Bot texts" },
+  statuses: { uz: "Buyurtma holatlari", ru: "Статусы заказов", en: "Order statuses" },
+  adminPanel: { uz: "Admin panel", ru: "Админ-панель", en: "Admin panel" },
   activity: { uz: "Jurnal", ru: "Журнал", en: "Activity log" },
+  // Umumiy
+  search: { uz: "Qidiruv", ru: "Поиск", en: "Search" },
+  searchHint: { uz: "Bo'lim, menyu yoki sozlama nomini yozing…", ru: "Введите название раздела, меню или настройки…", en: "Type a section, menu or setting name…" },
+  searchEmpty: { uz: "Hech narsa topilmadi", ru: "Ничего не найдено", en: "Nothing found" },
   light: { uz: "Yorug' rejim", ru: "Светлая тема", en: "Light mode" },
   dark: { uz: "Tungi rejim", ru: "Тёмная тема", en: "Dark mode" },
   logout: { uz: "Chiqish", ru: "Выйти", en: "Log out" },
@@ -46,4 +64,9 @@ export const useLang = create<LangState>((set) => ({
 export function useT() {
   const lang = useLang((s) => s.lang);
   return (k: TKey | string, fallback?: string) => (D as Record<string, Record<UiLang, string>>)[k]?.[lang] ?? fallback ?? k;
+}
+/** Barcha tillardagi matn (qidiruv indeksi uchun) */
+export function allLangs(k: TKey | string): string[] {
+  const v = (D as Record<string, Record<UiLang, string>>)[k];
+  return v ? Object.values(v) : [k];
 }

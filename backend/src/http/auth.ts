@@ -7,6 +7,7 @@ import { env } from "../env.ts";
 import { prisma } from "../db.ts";
 import { normalizeLang, getSettings } from "../settings/store.ts";
 import * as botInstance from "../bot/instance.ts";
+import { touchUser } from "../analytics/track.ts";
 
 export interface TgInitUser { id: number; first_name?: string; last_name?: string; username?: string; language_code?: string }
 
@@ -54,6 +55,7 @@ export async function appAuth(req: Request, res: Response, next: NextFunction) {
     });
   }
   (req as AppRequest).user = user;
+  touchUser(user.id);
   next();
 }
 

@@ -106,7 +106,7 @@ export function BroadcastPage() {
   };
   return (
     <div className="max-w-2xl">
-      <PageTitle title="Xabar tarqatish" description="Barcha ro'yxatdan o'tgan mijozlarga bot orqali xabar (aksiya, yangilik) yuborish" />
+      <PageTitle title="Post — xabar tarqatish" description="Barcha ro'yxatdan o'tgan mijozlarga bot orqali xabar (aksiya, yangilik) yuborish" />
       <div className="card p-5 space-y-4">
         <div><label className="label">Matn (HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;)</label><textarea className="input" rows={6} value={text} onChange={(e) => setText(e.target.value)} /></div>
         <div><label className="label">Rasm / video / GIF (ixtiyoriy, 60 MB gacha)</label><ImageUpload video value={media} onChange={setMedia} hint="Video — mp4 tavsiya etiladi. Telegram'ga bir marta yuklanadi, keyin hammaga tez tarqatiladi." /></div>

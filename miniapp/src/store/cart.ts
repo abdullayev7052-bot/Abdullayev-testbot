@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Product } from "../lib/api.ts";
+import { track } from "../lib/analytics.ts";
 
 export interface CartItem {
   productId: number;
@@ -30,6 +31,7 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       items: [],
       add(p, qty, boxCount = 0) {
+        track("add_to_cart", { productId: p.id, name: p.name, qty });
         const items = [...get().items];
         const i = items.findIndex((x) => x.productId === p.id);
         const snap = { name: p.name, price: p.price, image: p.image, measure: p.measure, boxItem: p.boxItem, stock: p.stock };

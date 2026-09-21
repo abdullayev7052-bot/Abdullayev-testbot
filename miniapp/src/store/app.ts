@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api, type Bootstrap, type Lang, type LText } from "../lib/api.ts";
 import { cacheDesign } from "../lib/motion.ts";
 import { setHapticEnabled, tg } from "../lib/telegram.ts";
+import { track } from "../lib/analytics.ts";
 import { applyTheme as applyDark, resolveTheme, setUserPref, type ThemeMode } from "../lib/theme.ts";
 
 interface AppState {
@@ -52,6 +53,7 @@ export const useApp = create<AppState>((set, get) => ({
       const lang = data.user.language || get().lang;
       localStorage.setItem("lang", lang);
       set({ data, lang, loading: false });
+      track("app_open", { start: tg?.initDataUnsafe?.start_param || null }, { once: "app_open" });
       applyTheme(data.settings.design as Record<string, unknown>);
       cacheDesign(data.settings.design as Record<string, unknown>);
       setHapticEnabled((data.settings.design as Record<string, unknown>).hapticEnabled !== false);

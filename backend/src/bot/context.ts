@@ -3,6 +3,7 @@ import type { User } from "@prisma/client";
 import { prisma } from "../db.ts";
 import { fill, getSettings, lt, normalizeLang, type AppSettings } from "../settings/store.ts";
 import type { Lang } from "../settings/schema.ts";
+import { trackBotActivity } from "../analytics/track.ts";
 
 export type BotTextKey = keyof AppSettings["bot"];
 
@@ -19,6 +20,7 @@ export async function userMiddleware(ctx: MyContext, next: NextFunction) {
   if (!from || from.is_bot) return next();
   const tgId = BigInt(from.id);
   let user = await prisma.user.findUnique({ where: { telegramId: tgId } });
+  const isNew = !user;
   if (!user) {
     user = await prisma.user.create({
       data: {
@@ -30,6 +32,7 @@ export async function userMiddleware(ctx: MyContext, next: NextFunction) {
     user = await prisma.user.update({ where: { id: user.id }, data: { tgUsername: from.username || null, tgFirstName: from.first_name || null, isBlocked: false } });
   }
   ctx.user = user;
+  trackBotActivity(user.id, isNew);
   ctx.lang = normalizeLang(user.language);
   ctx.t = (key, vars) => {
     const v = getSettings().bot[key];

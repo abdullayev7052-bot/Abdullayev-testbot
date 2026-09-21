@@ -23,11 +23,14 @@ model User {
   lng            Float?
   step           String   @default("new") // new | phone | name | done
   isBlocked      Boolean  @default(false)
+  /// Oxirgi faollik (bot yoki Mini App) — DAU/WAU/MAU va "faol bo'lmay qolganlar" uchun
+  lastActiveAt   DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   orders   Order[]
   waitlist Waitlist[]
+  events   AppEvent[]
 }
 
 /// Bito'dan sinxronlanadigan mahsulot keshi. Qo'lda qo'shilmaydi — faqat Bito manba.
@@ -229,4 +232,20 @@ model Upload {
   size      Int
   data      Bytes
   createdAt DateTime @default(now())
+}
+
+/// Analitika hodisalari (Mini App/bot foydalanuvchi harakatlari): app_open, product_view, search, add_to_cart, ...
+model AppEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  /// Telegram platformasi: ios | android | tdesktop | web | weba | macos | bot
+  platform  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }

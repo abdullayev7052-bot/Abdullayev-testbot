@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { LayoutDashboard, Settings, Plug, ListChecks, Bot, Palette, LayoutGrid, ShoppingCart, User, Images, GalleryHorizontal, Package, Bell, Users, Send, ScrollText, LogOut, Menu, X, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, Settings, Plug, ListChecks, Bot, Palette, LayoutGrid, ShoppingCart, User, Images, GalleryHorizontal, Package, Bell, Users, Send, ScrollText, LogOut, Menu, X, Moon, Sun, Search, Smartphone, ClipboardList, MessageSquare, Monitor, ChevronRight } from "lucide-react";
 import { api } from "./lib/api.ts";
 import { Toaster, useToast } from "./components/ui.tsx";
 import { Dashboard } from "./pages/Dashboard.tsx";
@@ -10,9 +10,16 @@ import { StoriesPage, BannersPage } from "./pages/Media.tsx";
 import { useLang, useT, type UiLang } from "./lib/i18n.ts";
 import { CatalogPage } from "./pages/Catalog.tsx";
 import { ActivityPage, BroadcastPage, GroupsPage, WaitlistPage } from "./pages/Misc.tsx";
+import { BitoPage, BotPage } from "./pages/Integration.tsx";
+import { SearchPalette, useSearchHotkey } from "./components/Search.tsx";
+import { NAV, type NavItem } from "./lib/nav.ts";
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
-const ICONS: Record<string, React.ComponentType<{ size?: number }>> = { settings: Settings, plug: Plug, "list-checks": ListChecks, bot: Bot, palette: Palette, "layout-grid": LayoutGrid, "shopping-cart": ShoppingCart, user: User, "layout-dashboard": LayoutDashboard };
+type Icon = React.ComponentType<{ size?: number; className?: string }>;
+const ICONS: Record<string, Icon> = {
+  settings: Settings, plug: Plug, "list-checks": ListChecks, bot: Bot, palette: Palette, "layout-grid": LayoutGrid, "shopping-cart": ShoppingCart, user: User, "layout-dashboard": LayoutDashboard,
+  images: Images, "gallery-horizontal": GalleryHorizontal, package: Package, bell: Bell, users: Users, send: Send, "scroll-text": ScrollText, smartphone: Smartphone, "clipboard-list": ClipboardList, "message-square": MessageSquare, monitor: Monitor,
+};
 
 interface Branding { title?: string; subtitle?: string; businessName?: string; emoji?: string; logo?: string; primaryColor?: string; darkMode?: string }
 
@@ -59,35 +66,68 @@ function Login({ onOk, b }: { onOk: () => void; b?: Branding }) {
   );
 }
 
+/** Menyu daraxti: bo'lim sarlavhalari (bosilmaydi) → menyular → ichki menyular (ochiladi/yopiladi) */
+function SideNav() {
+  const t = useT();
+  const loc = useLocation();
+  const [opened, setOpened] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem("admin-nav-open") || "{}"); } catch { return {}; } });
+  const toggle = (k: string) => setOpened((o) => { const n = { ...o, [k]: !o[k] }; localStorage.setItem("admin-nav-open", JSON.stringify(n)); return n; });
+  const isActive = (it: NavItem): boolean => (it.to ? (it.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(it.to)) : false) || !!it.children?.some(isActive);
+  const base = "flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 w-full text-left";
+  const activeCls = "!bg-[var(--primary)] !text-white";
+
+  const Item = ({ it, depth }: { it: NavItem; depth: number }) => {
+    const Icon = ICONS[it.icon] || Settings;
+    const childActive = !!it.children?.some(isActive);
+    const open = it.children ? (opened[it.key] ?? true) || childActive : false;
+    const pad = depth ? { paddingLeft: 12 + depth * 18 } : undefined;
+    const chevron = it.children ? <ChevronRight size={15} className={`ml-auto transition-transform ${open ? "rotate-90" : ""}`} /> : null;
+    return (
+      <div>
+        {it.to ? (
+          <NavLink to={it.to} end={it.to === "/"} style={pad} onClick={() => { if (it.children && !open) toggle(it.key); }} className={({ isActive: a }) => `${base} ${a ? activeCls : ""}`}>
+            <Icon size={17} />{t(it.label)}
+            {it.children && <span role="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(it.key); }} className="ml-auto -mr-1 p-0.5 rounded hover:bg-black/10">{chevron}</span>}
+          </NavLink>
+        ) : (
+          <button onClick={() => toggle(it.key)} style={pad} className={`${base} ${childActive && !open ? "text-[var(--primary)]" : ""}`}><Icon size={17} />{t(it.label)}{chevron}</button>
+        )}
+        {it.children && open && <div className="mt-0.5 space-y-0.5">{it.children.map((c) => <Item key={c.key} it={c} depth={depth + 1} />)}</div>}
+      </div>
+    );
+  };
+  return (
+    <>
+      {NAV.map((s) => (
+        <div key={s.key} className="space-y-0.5">
+          {s.title && <div className="text-[11px] font-semibold text-slate-400 uppercase px-3 pt-4 pb-1 tracking-wide">{t(s.title)}</div>}
+          {!s.title && s.key !== "top" && <div className="pt-3" />}
+          {s.items.map((it) => <Item key={it.key} it={it} depth={0} />)}
+        </div>
+      ))}
+    </>
+  );
+}
+
 function Shell({ onLogout, b, theme }: { onLogout: () => void; b?: Branding; theme: ReturnType<typeof useTheme> }) {
   const schema = useSchema();
   const loc = useLocation();
   const t = useT();
   const { lang, setLang } = useLang();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(false);
+  useSearchHotkey(setSearch);
   useEffect(() => { setOpen(false); }, [loc.pathname]);
   const link = "flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100";
-  const active = "!bg-[var(--primary)] !text-white";
-  const Item = ({ to, icon: Icon, label }: { to: string; icon: React.ComponentType<{ size?: number }>; label: string }) => (
-    <NavLink to={to} className={({ isActive }) => `${link} ${isActive ? active : ""}`}><Icon size={17} />{label}</NavLink>
-  );
+  const searchBtn = (cls: string) => <button onClick={() => setSearch(true)} title={`${t("search")} (Ctrl+K)`} className={cls}><Search size={18} /></button>;
   const nav = (
-    <nav className="p-3 space-y-1 text-sm">
-      <Item to="/" icon={LayoutDashboard} label={t("dashboard")} />
-      <div className="text-[11px] font-semibold text-slate-400 uppercase px-3 pt-4 pb-1">{t("settings")}</div>
-      {(schema.data || []).map((s) => <Item key={s.key} to={`/settings/${s.key}`} icon={ICONS[s.icon] || Settings} label={t(`sec.${s.key}`, s.title)} />)}
-      <div className="text-[11px] font-semibold text-slate-400 uppercase px-3 pt-4 pb-1">{t("content")}</div>
-      <Item to="/stories" icon={Images} label={t("stories")} />
-      <Item to="/banners" icon={GalleryHorizontal} label={t("banners")} />
-      <Item to="/catalog" icon={Package} label={t("catalog")} />
-      <div className="text-[11px] font-semibold text-slate-400 uppercase px-3 pt-4 pb-1">{t("bot")}</div>
-      <Item to="/waitlist" icon={Bell} label={t("waitlist")} />
-      <Item to="/groups" icon={Users} label={t("groups")} />
-      <Item to="/broadcast" icon={Send} label={t("broadcast")} />
-      <Item to="/activity" icon={ScrollText} label={t("activity")} />
-      {theme.canToggle && <button onClick={theme.toggle} className={`${link} w-full mt-2`}>{theme.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />} {theme.theme === "dark" ? t("light") : t("dark")}</button>}
-      <div className="flex items-center gap-1 px-3 pt-3"><span className="text-xs text-slate-400 mr-1">{t("language")}:</span>{(["uz", "ru", "en"] as UiLang[]).map((l) => <button key={l} onClick={() => setLang(l)} className={`text-xs px-2 py-1 rounded-md ${lang === l ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}>{l.toUpperCase()}</button>)}</div>
-      <button onClick={onLogout} className={`${link} w-full mt-2 text-red-600`}><LogOut size={17} /> {t("logout")}</button>
+    <nav className="p-3 text-sm">
+      <SideNav />
+      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1">
+        {theme.canToggle && <button onClick={theme.toggle} className={`${link} w-full`}>{theme.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />} {theme.theme === "dark" ? t("light") : t("dark")}</button>}
+        <div className="flex items-center gap-1 px-3 py-1"><span className="text-xs text-slate-400 mr-1">{t("language")}:</span>{(["uz", "ru", "en"] as UiLang[]).map((l) => <button key={l} onClick={() => setLang(l)} className={`text-xs px-2 py-1 rounded-md ${lang === l ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}>{l.toUpperCase()}</button>)}</div>
+        <button onClick={onLogout} className={`${link} w-full text-red-600`}><LogOut size={17} /> {t("logout")}</button>
+      </div>
     </nav>
   );
   const brand = (
@@ -96,27 +136,34 @@ function Shell({ onLogout, b, theme }: { onLogout: () => void; b?: Branding; the
   return (
     <div className="min-h-screen md:flex">
       <aside className="hidden md:block w-64 shrink-0 bg-white border-r border-slate-200 sticky top-0 h-screen overflow-y-auto">
-        <div className="px-5 py-4 border-b border-slate-100">{brand}</div>
+        <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-between gap-2">{brand}{searchBtn("w-9 h-9 shrink-0 rounded-lg border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500")}</div>
         {nav}
       </aside>
       <div className="md:hidden sticky top-0 z-50 bg-white border-b border-slate-200 flex items-center justify-between px-3 py-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}>
         {brand}
         <div className="flex items-center gap-1">
+          {searchBtn("w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center")}
           {theme.canToggle && <button onClick={theme.toggle} className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center">{theme.theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>}
           <button onClick={() => setOpen(!open)} className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center">{open ? <X /> : <Menu />}</button>
         </div>
       </div>
       {open && <div className="md:hidden fixed inset-0 z-40 bg-white pt-16 overflow-y-auto">{nav}</div>}
+      <SearchPalette open={search} onClose={() => setSearch(false)} schema={schema.data} />
       <main className="flex-1 min-w-0 p-3 md:p-8">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/settings/:section" element={<SettingsPage />} />
+          <Route path="/waitlist" element={<WaitlistPage />} />
           <Route path="/stories" element={<StoriesPage />} />
           <Route path="/banners" element={<BannersPage />} />
-          <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/waitlist" element={<WaitlistPage />} />
-          <Route path="/groups" element={<GroupsPage />} />
           <Route path="/broadcast" element={<BroadcastPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/integration/bito" element={<BitoPage />} />
+          <Route path="/integration/bot" element={<BotPage />} />
+          <Route path="/groups" element={<GroupsPage />} />
+          <Route path="/settings/bito" element={<Navigate to="/integration/bito" replace />} />
+          <Route path="/settings/checkout" element={<Navigate to="/settings/checkout/cart" replace />} />
+          <Route path="/settings/:section/:part" element={<SettingsPage />} />
+          <Route path="/settings/:section" element={<SettingsPage />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

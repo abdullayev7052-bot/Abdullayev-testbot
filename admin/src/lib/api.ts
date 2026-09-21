@@ -37,7 +37,7 @@ export const api = {
 export type Lang = "uz" | "ru" | "en";
 export type LText = Record<Lang, string>;
 export interface FieldDef { key: string; label: string; type: string; help?: string; default: unknown; options?: { value: string; label: string }[]; source?: string; min?: number; max?: number; step?: number; placeholders?: string[] }
-export interface GroupDef { title: string; description?: string; fields: FieldDef[] }
+export interface GroupDef { title: string; description?: string; part?: string; fields: FieldDef[] }
 export interface SectionDef { key: string; title: string; icon: string; description?: string; groups: GroupDef[] }
 export type Settings = Record<string, Record<string, unknown>>;
 export type Options = Record<string, { value: string; label: string }[]> & { ok?: boolean; error?: string };

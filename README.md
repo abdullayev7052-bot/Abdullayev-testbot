@@ -56,7 +56,7 @@ Ikki oyna kerak:
 
 Server ngrok manzilini **avtomatik aniqlaydi** (har 15 soniyada tekshiradi), botdagi "🛍 Buyurtma berish" tugmasini va pastki chap **Menu** tugmasini shu manzilga ulaydi, Bito webhook'ini ham shu manzilga obuna qiladi. Hech narsani qo'lda kiritish shart emas.
 
-> Admin panel → Boshqaruv panelida "Ommaviy manzil" ko'rinib turadi. ngrok topilmasa, manzilni o'sha yerda qo'lda ham kiritsa bo'ladi.
+> Admin panel → Integratsiya → Bot bo'limida "Ommaviy manzil" ko'rinib turadi. ngrok topilmasa, manzilni o'sha yerda qo'lda ham kiritsa bo'ladi.
 
 ## 4. ngrok — o'rnatish va doimiy bepul domen
 
@@ -99,23 +99,28 @@ Bosh admin botga `/admin` yozsa — admin panel va Mini App havolalarini oladi.
 
 Manzil: `http://localhost:4000/admin/` · Parol: `.env` → `ADMIN_PASSWORD` (boshlang'ich `admin123`, keyin **Umumiy** bo'limida o'zgartiring).
 
-| Bo'lim | Nima sozlanadi |
+Menyu tuzilmasi (chap tomonda; burchakdagi 🔍 yoki **Ctrl+K** — bo'lim, menyu va istalgan sozlamani nomi bo'yicha qidirish):
+
+| Bo'lim / menyu | Nima bor |
 |---|---|
-| **Boshqaruv paneli** | Bot holati, ngrok manzil, Bito ulanishi, sinxronizatsiya, webhook, so'nggi faoliyat |
-| **Umumiy** | Do'kon nomi, tillar, valyuta belgisi, aloqa, admin parol |
-| **Bito integratsiyasi** | API kalit, tashkilot, ombor, narx turi, valyuta, mas'ul xodim, qoldiq manbai, sinxronizatsiya oraliqlari, webhook |
-| **Buyurtma holatlari** | Bito holatlariga bog'lash, guruh tugmalari nomlari, mijozga ko'rinadigan holat nomlari, holat o'zgarganda boradigan xabarlar (3 tilda) |
-| **Bot matnlari** | Salomlashish, telefon/ism so'rash, menyu tugmalari, buyurtma xabarlari, chek/to'lov matnlari, "kelganda eslating", guruh xabari shabloni, kim holatni o'zgartira oladi |
-| **Mini App dizayni** | Ranglar, burchaklar, salomlashish (matn/rang/o'lcham), logo (rasm/o'lcham/shakl/joy), storis, bannerlar, hero vidjet, bloklar, pastki navigatsiya |
-| **Katalog** | Qoldiq ko'rinishi (aniq / 10+,50+ / mavjud / yashirin), "Sotuvda yo'q" va "Kelganda eslating" matnlari, tartib, ustunlar, qidiruv, quti rejimi, qo'lda miqdor |
-| **Savatcha va buyurtma** | Yetkazib berish / olib ketish, narxlar, minimal summa, xarita markazi, majburiy joylashuv, barcha matnlar, muvaffaqiyat xabari, avto-yopilish |
-| **Profil** | Profildagi bloklar va matnlar |
-| **Storis** | Doira storislar, har birida bir nechta slayd (rasm, davomiylik, matn, havola), tugash sanasi |
-| **Bannerlar** | Aylanma bannerlar (rasm, sarlavha, izoh, havola, matn rangi) |
-| **Katalog boshqaruvi** | Mahsulotlarni yashirish/ko'rsatish, tavsiyaga qo'shish (★), tartib (yuqori/pastga, A–Z), kategoriyalarni yashirish va tartiblash |
-| **Kutilayotgan mahsulotlar** | "Kelganda eslating" so'rovlari — kim, qaysi mahsulot, xabar berildimi |
-| **Guruhlar va xodimlar** | Buyurtma guruhlari (yoqish/o'chirish/test), holatni o'zgartira oladigan xodimlar |
-| **Xabar tarqatish** | Barcha mijozlarga bot orqali matn/rasm yuborish |
+| **Dashboard** | Analitika va hisobotlar: davr (bugun / 7 kun / oy / yil / ixtiyoriy), kun-hafta-oy bo'yicha guruhlash, do'kon, buyurtma turi, platforma, til filtrlari. Foydalanuvchilar (jami, yangi, DAU/WAU/MAU, DAU/MAU, faol bo'lmay qolganlar, retention D1/D7/D30, kogortalar), buyurtmalar (soni, summa, AOV, holatlar, bekor qilish darajasi, tur/do'kon bo'yicha, eng ko'p sotilganlar), funnel va konversiya (yangi/qaytgan), funksiyalardan foydalanish, qidiruv analitikasi (top so'rovlar, natijasizlar, qidiruv → ko'rish/savat/buyurtma), platforma va tillar |
+| &nbsp;&nbsp;↳ **Kutilayotgan mahsulotlar** | "Kelganda eslating" so'rovlari — kim, qaysi mahsulot, xabar berildimi |
+| **Kontent → Storis** | Doira storislar, har birida bir nechta slayd (rasm/video, davomiylik, matn, havola), tugash sanasi |
+| **Kontent → Banner** | Aylanma bannerlar (rasm, sarlavha, izoh, havola, matn rangi) |
+| **Kontent → Post** | Barcha mijozlarga bot orqali matn/rasm/video yuborish (tugma bilan) |
+| **Kontent → Katalog boshqaruvi** | Mahsulotlarni yashirish/ko'rsatish, tavsiyaga qo'shish (★), chegirma, tartib, kategoriyalarni yashirish va tartiblash |
+| **Integratsiya → Bito** | Ulanish holati, sinxronizatsiya, webhook; API kalit, tashkilot, ombor, narx turi, do'konlar, narx istisnolari, sinxronizatsiya oraliqlari |
+| **Integratsiya → Bot** | Bot holati, ruxsat etilgan guruhlar soni, ommaviy manzil (ngrok), Mini App manzili, bot tokeni |
+| **Integratsiya → Guruh** | Buyurtma guruhlari (yoqish/o'chirish/test), holatni o'zgartira oladigan xodimlar |
+| **Sozlamalar → Umumiy** | Do'kon nomi, tillar, valyuta belgisi, aloqa, admin parol |
+| **Sozlamalar → Mini App → Dizayn** | Ranglar, animatsiya, splash, salomlashish, logo, storis/banner ko'rinishi, hero vidjet, bloklar, pastki navigatsiya |
+| **Sozlamalar → Mini App → Katalog** | Qoldiq ko'rinishi, "Kelganda eslating", tartib, ustunlar, qidiruv, quti rejimi |
+| **Sozlamalar → Mini App → Savatcha** | Savatcha matnlari va xatti-harakati (tozalash tasdig'i, surib o'chirish, …) |
+| **Sozlamalar → Mini App → Buyurtma** | Yetkazib berish / olib ketish, narxlar, minimal summa, xarita, majburiy joylashuv, rasmiylashtirish matnlari, muvaffaqiyat xabari, avto-yopilish |
+| **Sozlamalar → Mini App → Profil** | Profildagi bloklar va matnlar |
+| **Sozlamalar → Bot → Bot matnlari** | Salomlashish, telefon/ism so'rash, menyu tugmalari, buyurtma xabarlari, chek/to'lov matnlari, guruh xabari shabloni, kim holatni o'zgartira oladi |
+| **Sozlamalar → Bot → Buyurtma holatlari** | Bito holatlariga bog'lash, guruh tugmalari, mijozga ko'rinadigan holat nomlari, holat o'zgarganda boradigan xabarlar |
+| **Sozlamalar → Admin panel** | Panel nomi, logo, rang, tungi rejim |
 | **Jurnal** | Bot va integratsiya faoliyati, xatolar |
 
 Har bir matn **3 tilda** (UZ/RU/EN) — maydon ustidagi tugmalar bilan almashtiriladi. `{name}`, `{order}`, `{status}` kabi o'zgaruvchilar maydon ostida ko'rsatilgan.

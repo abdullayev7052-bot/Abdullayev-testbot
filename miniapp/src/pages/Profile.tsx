@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import { MapPicker } from "../components/MapPicker.tsx";
 import { fmtDate, qty as fq, LANG_NAMES } from "../lib/format.ts";
 import { haptic, openLink } from "../lib/telegram.ts";
 import { StorePicker } from "../components/StorePicker.tsx";
+import { track } from "../lib/analytics.ts";
 
 type Sheet = null | "orders" | "purchases" | "card" | "address" | "language";
 
@@ -26,7 +27,9 @@ export function Profile() {
   const user = app.data!.user;
   const f = useCatalogFmt();
   const nav = useNavigate();
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const [sheet, setSheetRaw] = useState<Sheet>(null);
+  const setSheet = (s: Sheet) => { if (s === "orders") track("order_history"); else if (s === "purchases") track("purchases"); else if (s === "card") track("card"); setSheetRaw(s); };
+  useEffect(() => { track("profile_open"); }, []);
   const [orderOpen, setOrderOpen] = useState<OrderRow | null>(null);
   const toast = useToast((s) => s.show);
   const cart = useCart();

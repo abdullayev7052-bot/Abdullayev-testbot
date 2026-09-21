@@ -8,6 +8,7 @@ import { haptic } from "../lib/telegram.ts";
 import { BottomSheet, Img, QtyStepper, useToast } from "./ui.tsx";
 import { useCatalogFmt } from "./ProductCard.tsx";
 import { qty as fq } from "../lib/format.ts";
+import { track } from "../lib/analytics.ts";
 
 export function ProductSheet({ product, onClose, onWaitlist }: { product: Product | null; onClose: () => void; onWaitlist: (p: Product) => void }) {
   const { t, v } = useT();
@@ -21,6 +22,7 @@ export function ProductSheet({ product, onClose, onWaitlist }: { product: Produc
   const [added, setAdded] = useState(false);
   const [full, setFull] = useState(false);
   useEffect(() => { setMode("piece"); setCount(1); setImg(0); setAdded(false); }, [product?.id]);
+  useEffect(() => { if (product) track("product_view", { productId: product.id, name: product.name, price: product.price }); }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const boxEnabled = v<boolean>("catalog", "boxModeEnabled", true) && (product?.boxItem || 0) > 0;
   const manual = v<boolean>("catalog", "allowManualQty", true);

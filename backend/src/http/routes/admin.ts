@@ -20,6 +20,8 @@ import { sendToUser } from "../../bot/send.ts";
 import { invalidateProductCache } from "./app.ts";
 import { priceFor, storeIsUzs } from "../../bito/stores.ts";
 import { InputFile, InlineKeyboard } from "grammy";
+import { buildReport, presetRange, ymd, type Group } from "../../analytics/report.ts";
+import { listStores } from "../../bito/stores.ts";
 
 export const adminRouter = Router();
 
@@ -165,6 +167,21 @@ adminRouter.get("/status", async (_req, res) => {
     counts: { users, registered, products, orders, ordersToday, waitlist, groups: groups.filter((g) => g.enabled).length },
     activity: activityRows,
   });
+});
+// ---------- Analitika (Dashboard) ----------
+adminRouter.get("/analytics", async (req, res) => {
+  const qs = req.query as Record<string, string | undefined>;
+  const preset = qs.preset ? presetRange(qs.preset) : null;
+  const isYmd = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const today = ymd(new Date());
+  let from = preset?.from || (isYmd(qs.from) ? qs.from! : today);
+  let to = preset?.to || (isYmd(qs.to) ? qs.to! : today);
+  if (from > to) [from, to] = [to, from];
+  const group = (["day", "week", "month"].includes(qs.group || "") ? qs.group : "day") as Group;
+  try {
+    const report = await buildReport({ from, to, group, storeId: qs.storeId || null, type: qs.type || null, platform: qs.platform || null, lang: qs.lang || null });
+    res.json({ ...report, stores: listStores().map((s) => ({ id: s.id, name: s.name("uz") })) });
+  } catch (e) { log.error("analytics", e); res.status(500).json({ error: errMsg(e) }); }
 });
 adminRouter.get("/activity", async (req, res) => {
   const take = Math.min(300, Number(req.query.limit || 100));
