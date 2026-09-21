@@ -235,13 +235,13 @@ adminRouter.delete("/stories/:id", async (req, res) => {
   if (st) { await dropUpload(st.cover); for (const sl of st.slides) await dropUpload(sl.image); }
   res.json({ ok: true });
 });
-const slideSchema = z.object({ image: z.string().min(1), caption: z.string().max(200).nullable().optional(), link: z.string().max(300).nullable().optional(), duration: z.number().min(1).max(60).optional() });
+const slideSchema = z.object({ image: z.string().min(1), caption: z.string().max(200).nullable().optional(), link: z.string().max(300).nullable().optional(), duration: z.number().min(1).max(180).optional(), buttonText: z.string().max(60).nullable().optional() });
 adminRouter.post("/stories/:id/slides", async (req, res) => {
   const b = slideSchema.parse(req.body);
   const storyId = Number(req.params.id);
   if ((await prisma.storySlide.count({ where: { storyId } })) >= MEDIA_LIMITS.slidesPerStory) { res.status(400).json({ error: `Bitta storisda ko'pi bilan ${MEDIA_LIMITS.slidesPerStory} ta slayd.` }); return; }
   const max = (await prisma.storySlide.aggregate({ where: { storyId }, _max: { sortOrder: true } }))._max.sortOrder || 0;
-  res.json(await prisma.storySlide.create({ data: { storyId, image: b.image, caption: b.caption || null, link: b.link || null, duration: b.duration || 5, sortOrder: max + 1 } }));
+  res.json(await prisma.storySlide.create({ data: { storyId, image: b.image, caption: b.caption || null, link: b.link || null, duration: b.duration || 5, buttonText: b.buttonText || null, sortOrder: max + 1 } }));
 });
 adminRouter.put("/slides/:id", async (req, res) => {
   const b = slideSchema.partial().extend({ sortOrder: z.number().optional() }).parse(req.body);

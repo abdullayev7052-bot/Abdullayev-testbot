@@ -20,7 +20,7 @@ function LimitsBar({ kind }: { kind: "stories" | "banners" }) {
   );
 }
 
-interface Slide { id: number; image: string; caption: string | null; link: string | null; duration: number; sortOrder: number }
+interface Slide { id: number; image: string; caption: string | null; link: string | null; duration: number; buttonText?: string | null; sortOrder: number }
 interface Story { id: number; title: string; cover: string; active: boolean; sortOrder: number; expiresAt: string | null; slides: Slide[] }
 interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string; active: boolean; sortOrder: number }
 
@@ -32,6 +32,12 @@ export function StoriesPage() {
   const [edit, setEdit] = useState<Partial<Story> | null>(null);
   const [slideFor, setSlideFor] = useState<Story | null>(null);
   const [slide, setSlide] = useState<Partial<Slide>>({});
+  const reloadSlides = async (id: number) => { await refresh(); const fresh = await api.get<Story[]>("/stories"); setSlideFor(fresh.find((s) => s.id === id) || null); };
+  /** Mavjud slaydni tahrirlash (davomiylik, tugma matni, matn, havola) */
+  const patchSlide = async (id: number, body: Partial<Slide>) => {
+    if (!slideFor) return;
+    try { await api.put(`/slides/${id}`, body); await reloadSlides(slideFor.id); } catch (e) { toast((e as Error).message, "err"); }
+  };
   const refresh = () => qc.invalidateQueries({ queryKey: ["stories"] });
 
   const saveStory = async () => {
@@ -46,7 +52,7 @@ export function StoriesPage() {
   const addSlide = async () => {
     if (!slideFor || !slide.image) { toast("Slayd rasmi kerak", "err"); return; }
     try {
-      await api.post(`/stories/${slideFor.id}/slides`, { image: slide.image, caption: slide.caption || null, link: slide.link || null, duration: slide.duration || 5 });
+      await api.post(`/stories/${slideFor.id}/slides`, { image: slide.image, caption: slide.caption || null, link: slide.link || null, duration: Math.max(1, Math.min(180, Number(slide.duration) || 5)), buttonText: slide.buttonText || null });
       setSlide({}); toast("Slayd qo'shildi"); await refresh();
       const fresh = await api.get<Story[]>("/stories"); setSlideFor(fresh.find((s) => s.id === slideFor.id) || null);
     } catch (e) { toast((e as Error).message, "err"); }
@@ -104,18 +110,23 @@ export function StoriesPage() {
               {slideFor.slides.map((sl) => (
                 <div key={sl.id} className="relative group">
                   {isVideoUrl(sl.image) ? <video src={sl.image} className="w-full aspect-[9/16] object-cover rounded-lg" muted autoPlay loop playsInline /> : <img src={sl.image} className="w-full aspect-[9/16] object-cover rounded-lg" />}
-                  <div className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 rounded">{sl.duration}s</div>
+                  <div className="absolute bottom-1 left-1 right-1 flex items-center gap-1 bg-black/60 text-white px-1 rounded text-[10px]">
+                    <input type="number" min={1} max={180} defaultValue={sl.duration} key={`${sl.id}-${sl.duration}`} className="w-10 bg-transparent text-white text-[11px] outline-none text-center" title="Davomiylik (soniya)"
+                      onBlur={(e) => { const d = Math.max(1, Math.min(180, Number(e.target.value) || sl.duration)); if (d !== sl.duration) void patchSlide(sl.id, { duration: d }); }} />s
+                    <button className="ml-auto opacity-80 hover:opacity-100" title="Tugma matni" onClick={() => { const t = window.prompt("Havola tugmasi matni (bo'sh — umumiy sozlama):", sl.buttonText || ""); if (t !== null) void patchSlide(sl.id, { buttonText: t.trim() || null }); }}><Pencil size={11} /></button>
+                  </div>
                   <button className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white items-center justify-center flex md:hidden md:group-hover:flex" onClick={() => { void api.del(`/slides/${sl.id}`).then(async () => { await refresh(); const fresh = await api.get<Story[]>("/stories"); setSlideFor(fresh.find((s) => s.id === slideFor.id) || null); }); }}><Trash2 size={12} /></button>
                 </div>
               ))}
             </div>
             <div className="border-t border-slate-100 pt-4 space-y-3">
               <div className="font-semibold text-sm">Yangi slayd</div>
-              <ImageUpload video value={slide.image || ""} onChange={(v) => setSlide({ ...slide, image: v })} hint="Vertikal (9:16) rasm, GIF yoki ovozsiz qisqa video (mp4, 60 MB gacha)" />
+              <ImageUpload video value={slide.image || ""} onChange={(v) => setSlide({ ...slide, image: v })} hint="Vertikal (9:16) rasm, GIF yoki qisqa video (mp4, 25 MB gacha; ovozli video ovozi bilan ijro etiladi)" />
               <div className="grid sm:grid-cols-3 gap-3">
                 <div><label className="label">Matn (ixtiyoriy)</label><input className="input" value={slide.caption || ""} onChange={(e) => setSlide({ ...slide, caption: e.target.value })} /></div>
                 <div className="sm:col-span-3"><label className="label">Havola (ixtiyoriy)</label><LinkPicker value={slide.link || ""} onChange={(v) => setSlide({ ...slide, link: v })} /></div>
-                <div><label className="label">Davomiylik (soniya)</label><input type="number" className="input" min={1} max={60} value={slide.duration || 5} onChange={(e) => setSlide({ ...slide, duration: Number(e.target.value) })} /></div>
+                <div><label className="label">Davomiylik (soniya)</label><input type="number" className="input" min={1} max={180} placeholder="5" value={slide.duration ?? ""} onChange={(e) => setSlide({ ...slide, duration: e.target.value === "" ? undefined : Number(e.target.value) })} /><div className="help">1–180 soniya, istalgan qiymat. Keyin slayd ustidagi raqamni bosib o'zgartirish mumkin.</div></div>
+                <div className="sm:col-span-2"><label className="label">Havola tugmasi matni (ixtiyoriy)</label><input className="input" placeholder="Umumiy sozlamadagi matn (masalan: 🛒 Buyurtma berish)" value={slide.buttonText || ""} onChange={(e) => setSlide({ ...slide, buttonText: e.target.value })} /></div>
               </div>
               <button className="btn btn-primary" onClick={() => { void addSlide(); }}><Plus size={16} /> Slayd qo'shish</button>
             </div>

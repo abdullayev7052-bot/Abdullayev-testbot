@@ -43,7 +43,7 @@ export interface Product {
   customFields: { name: string; value: string }[]; featured: boolean; inWaitlist: boolean;
 }
 export interface Category { id: string; name: string; parentId: string | null; image: string | null; count: number }
-export interface Story { id: number; title: string; cover: string; slides: { id: number; image: string; caption: string | null; link: string | null; duration: number }[] }
+export interface Story { id: number; title: string; cover: string; slides: { id: number; image: string; caption: string | null; link: string | null; duration: number; buttonText?: string | null }[] }
 export interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string }
 export interface Bootstrap {
   user: { id: number; telegramId: string; name: string; phone: string | null; language: Lang; address: string | null; lat: number | null; lng: number | null; registered: boolean; linked: boolean; storeId?: string };

@@ -88,9 +88,8 @@ function productChanged(old: Record<string, unknown>, data: Record<string, unkno
   if (JSON.stringify(old.customFields) !== JSON.stringify(data.customFields)) return true;
   if (JSON.stringify(old.stores) !== JSON.stringify(data.stores)) return true;
   if (JSON.stringify(old.prices) !== JSON.stringify(data.prices)) return true;
-  const a = old.bitoUpdatedAt instanceof Date ? old.bitoUpdatedAt.getTime() : null;
-  const b = data.bitoUpdatedAt instanceof Date ? data.bitoUpdatedAt.getTime() : null;
-  return a !== b;
+  const ts = (d: unknown) => (d instanceof Date ? d.getTime() : null);
+  return ts(old.bitoUpdatedAt) !== ts(data.bitoUpdatedAt) || ts(old.bitoCreatedAt) !== ts(data.bitoCreatedAt);
 }
 
 function stockOf(p: BitoProduct, orgId: string, warehouseId: string, source: string): number {
@@ -219,6 +218,7 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
         isAvailableForSale: main.available,
         isDeleted: false,
         bitoUpdatedAt: p.updated_at ? new Date(p.updated_at) : null,
+        bitoCreatedAt: p.created_at ? new Date(p.created_at) : null,
         syncedAt: new Date(),
       };
       const old = oldById.get(p._id);
@@ -297,7 +297,7 @@ export async function syncOneProduct(bitoId: string): Promise<void> {
       stock, boxItem: Number(p.box_item || 0), measure: p.measure?.short_name || p.measure?.name || null,
       measureDecimals: Number(p.measure?.decimal_count || 0), sku: p.sku || null, barcode: p.barcode || null, note: p.note || null,
       categoryBitoId: p.category?._id || null, categoryName: p.category?.name || null, isDeleted: false,
-      bitoUpdatedAt: p.updated_at ? new Date(p.updated_at) : null, syncedAt: new Date(),
+      bitoUpdatedAt: p.updated_at ? new Date(p.updated_at) : null, bitoCreatedAt: p.created_at ? new Date(p.created_at) : null, syncedAt: new Date(),
       price: storesData.main?.price ?? (priceOf(p, b.organizationId, b.priceId, new Map()) || price),
       stores: storesData,
     };

@@ -62,7 +62,7 @@ function sortProducts(list: Product[], user: PUser): Product[] {
     name_desc: (a, b) => b.name.localeCompare(a.name, "uz"),
     price_asc: (a, b) => a.price - b.price,
     price_desc: (a, b) => b.price - a.price,
-    newest: (a, b) => (b.bitoUpdatedAt?.getTime() || 0) - (a.bitoUpdatedAt?.getTime() || 0),
+    newest: (a, b) => createdTs(b) - createdTs(a),
   };
   const base = cmp[s.sortMode] || cmp.manual;
   const out = [...list].sort(base);
@@ -99,7 +99,7 @@ appRouter.get("/bootstrap", async (req, res) => {
     .map((c) => ({ id: c.bitoId, name: c.name, parentId: c.parentId && byId.has(c.parentId) ? c.parentId : null, image: bito.fileUrl(c.image), count: totalCount(c.bitoId) }))
     .filter((c) => c.count > 0);
   const featured = sortProducts(products.filter((p) => p.featured), user).slice(0, 20).map((p) => serializeProduct(p, user, waitIds));
-  const newest = [...products].sort((a, b) => (b.bitoUpdatedAt?.getTime() || 0) - (a.bitoUpdatedAt?.getTime() || 0)).slice(0, 10).map((p) => serializeProduct(p, user, waitIds));
+  const newest = [...products].sort((a, b) => createdTs(b) - createdTs(a)).slice(0, 10).map((p) => serializeProduct(p, user, waitIds));
   const lang = normalizeLang(user.language);
   const store = userStore(user);
   const stores = isMultiStore() ? listStores().map((st) => ({ id: st.id, name: st.name(lang), pickupAddress: st.pickupAddress(lang), pickupLocation: st.pickupLocation })) : [];
@@ -112,7 +112,7 @@ appRouter.get("/bootstrap", async (req, res) => {
     stores,
     store: { id: store.id, name: store.name(lang), pickupAddress: store.pickupAddress(lang), pickupLocation: store.pickupLocation },
     settings: publicSettings(),
-    stories: stories.map((st) => ({ id: st.id, title: st.title, cover: st.cover, slides: st.slides.map((sl) => ({ id: sl.id, image: sl.image, caption: sl.caption, link: sl.link, duration: sl.duration || s.design.storiesDefaultDuration || 5 })) })).filter((st) => st.slides.length),
+    stories: stories.map((st) => ({ id: st.id, title: st.title, cover: st.cover, slides: st.slides.map((sl) => ({ id: sl.id, image: sl.image, caption: sl.caption, link: sl.link, duration: sl.duration || s.design.storiesDefaultDuration || 5, buttonText: sl.buttonText || null })) })).filter((st) => st.slides.length),
     banners: banners.map((b) => ({ id: b.id, image: b.image, title: b.title, subtitle: b.subtitle, link: b.link, textColor: b.textColor })),
     categories: cats,
     featured, newest, productCount: products.length,
@@ -297,6 +297,8 @@ appRouter.get("/orders", async (req, res) => {
   res.json({ items });
 });
 
+/** Mahsulot Bito tizimiga qo'shilgan vaqti ("Yangi kelganlar" uchun) */
+const createdTs = (p: { bitoCreatedAt: Date | null; syncedAt: Date }) => (p.bitoCreatedAt || p.syncedAt).getTime();
 const orderSchema = z.object({
   items: z.array(z.object({ productId: z.number().int(), qty: z.number().positive(), boxCount: z.number().min(0).optional() })).min(1).max(100),
   type: z.enum(["delivery", "pickup"]),

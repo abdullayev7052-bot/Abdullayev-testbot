@@ -518,7 +518,9 @@ export const settingsSchema: SectionDef[] = [
           { key: "storiesShow", label: "Ko'rsatish", type: "boolean", default: true },
           { key: "storiesSize", label: "Doira o'lchami (px)", type: "number", default: 66, min: 44, max: 100 },
           { key: "storiesRingColor", label: "Halqa rangi (ko'rilmagan)", type: "color", default: "#f97316" },
-          { key: "storiesDefaultDuration", label: "Standart davomiylik (soniya)", type: "number", default: 5, min: 2, max: 30 },
+          { key: "storiesDefaultDuration", label: "Standart davomiylik (soniya)", type: "number", default: 5, min: 1, max: 180, help: "Har bir slaydga o'z davomiyligini berish mumkin; bu faqat ko'rsatilmaganda ishlaydi." },
+          { key: "storyButton", label: "Havola tugmasi matni", type: "ltext", default: L("→", "→", "→"), help: "Slaydda havola bo'lsa pastdagi tugma matni (masalan: 🛒 Buyurtma berish). Har bir slaydda alohida matn ham berish mumkin." },
+          { key: "storiesSound", label: "Videolar ovoz bilan", type: "boolean", default: true, help: "O'chiq bo'lsa videolar ovozsiz ijro etiladi." },
         ],
       },
       {
