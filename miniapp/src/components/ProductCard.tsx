@@ -40,12 +40,12 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
           {st && (
             <span className={`absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.out ? "bg-slate-800/80 text-white" : "bg-white/90 text-slate-700"}`}>{st.text}</span>
           )}
-          {p.featured && <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>★</span>}
+          {p.discountPercent ? <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>-{p.discountPercent}%</span> : p.featured && <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>★</span>}
         </div>
         <div className="px-3 pt-2.5">
           <div className="text-[13px] font-medium leading-snug line-clamp-2 min-h-[36px]">{p.name}</div>
           {f.showSku && p.sku && <div className="text-[11px] text-slate-400 mt-0.5">#{p.sku}</div>}
-          <div className="font-bold mt-1">{f.price(p.price)}</div>
+          <div className="font-bold mt-1 flex items-baseline gap-1.5 flex-wrap">{f.price(p.price)}{p.discountPercent && p.basePrice ? <span className="text-[11px] font-normal text-slate-400 line-through">{f.price(p.basePrice)}</span> : null}</div>
         </div>
       </motion.button>
       <div className="px-3 pb-3 pt-2 mt-auto">

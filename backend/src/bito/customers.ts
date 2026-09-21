@@ -95,13 +95,16 @@ export async function fetchCustomer(user: User): Promise<BitoCustomer | null> {
 export interface BalanceLine { organization: string; amount: number; currency: string }
 
 /** Mijozning tashkilotlar bo'yicha balansi (manfiy = qarzdor, musbat = haqdor) */
-export async function fetchBalances(user: User): Promise<BalanceLine[]> {
+export async function fetchBalances(user: User, onlyStore = true): Promise<BalanceLine[]> {
   if (!user.bitoCustomerId) return [];
   const s = getSettings().bito;
   const out: BalanceLine[] = [];
+  const { isMultiStore, userStore } = await import("./stores.ts");
+  const orgFilter = onlyStore && isMultiStore() ? userStore(user).organizationId : "";
   try {
     const r = await bito.balance(user.bitoCustomerId, s.currencyId);
     for (const row of r.data || []) {
+      if (orgFilter && row.organization?._id !== orgFilter) continue;
       for (const bal of row.balances || []) {
         out.push({ organization: row.organization?.name || "", amount: Number(bal.amount || 0), currency: bal.currency?.symbol || bal.currency?.name || "" });
       }

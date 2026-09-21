@@ -129,7 +129,7 @@ async function notifyWaitlist(productIds: number[]) {
     const lang = w.user.language as Lang;
     const text = fill(lt(getSettings().bot.waitlistArrived, lang), { product: w.product.name });
     const { openAppInline } = await import("./keyboards.ts");
-    await sendToUser(w.user.telegramId, esc(text), { reply_markup: openAppInline(lang) });
+    await sendToUser(w.user.telegramId, esc(text), { reply_markup: openAppInline(lang, `product:${w.product.id}`) });
     await prisma.waitlist.update({ where: { id: w.id }, data: { notifiedAt: new Date() } });
     await activity("waitlist_notified", `"${w.product.name}" keldi → ${w.user.name || w.user.phone}`);
   }

@@ -8,6 +8,7 @@ import { activity, errMsg, log } from "../logger.ts";
 import { money, normalizePhone, qty, sleep } from "../utils/format.ts";
 import { ensureCustomer, updateCustomerAddress } from "./customers.ts";
 import type { BitoSaleOrder } from "./types.ts";
+import { priceFor, userStore, exceptionPriceId } from "./stores.ts";
 
 /** Bito'dagi ommaviy holat yangilanishi asinxron — shu vaqt ichida qayta o'qimaymiz */
 const PUSH_GRACE_MS = 90_000;
@@ -20,6 +21,7 @@ export interface OrderItemSnapshot {
   bitoId: string;
   name: string;
   price: number;
+  basePrice?: number;
   qty: number;
   boxCount?: number;
   boxItem?: number;
@@ -46,12 +48,45 @@ export function stageOf(stateId: string | null | undefined, dynamic?: { default_
     if (stateId === st.doneStateId) return "done";
     if (stateId === st.canceledStateId) return "canceled";
   }
+  // Boshqa tashkilot holatlari: nom bo'yicha asosiy holatlar bilan solishtirish
+  if (dynamic?.name) {
+    const norm = (x: string) => x.toLowerCase().replace(/['’ʻ`]/g, "").trim();
+    const n = norm(dynamic.name);
+    const names: [Stage, string][] = [["new", lt(st.nameNew, "uz")], ["accepted", lt(st.nameAccepted, "uz")], ["ready", lt(st.nameReady, "uz")], ["delivering", lt(st.nameDelivering, "uz")], ["done", lt(st.nameDone, "uz")], ["canceled", lt(st.nameCanceled, "uz")]];
+    for (const [stage, nm] of names) if (nm && norm(nm) === n) return stage;
+  }
   const k = dynamic?.default_key;
   if (k === "new") return "new";
   if (k === "done") return "done";
   if (k === "canceled") return "canceled";
   if (k === "in_progress" || k === "accepted") return "accepted";
   return "other";
+}
+
+/** Do'kon (tashkilot) uchun mos holat ID: asosiy holat nomi bo'yicha o'sha tashkilot holatlaridan topiladi */
+const statesCache = new Map<string, { at: number; list: { _id: string; name: string; default_key?: string }[] }>();
+async function orgStates(orgId: string) {
+  const c = statesCache.get(orgId);
+  if (c && Date.now() - c.at < 10 * 60 * 1000) return c.list;
+  const list = (await bito.states("saleOrders", orgId)).filter((x) => x.organization_id === orgId);
+  statesCache.set(orgId, { at: Date.now(), list });
+  return list;
+}
+export async function stateIdForStore(stage: Stage, storeId: string): Promise<string> {
+  const mainId = stageStateId(stage);
+  if (storeId === "main" || !mainId) return mainId;
+  try {
+    const { getStore } = await import("./stores.ts");
+    const mainOrg = getSettings().bito.organizationId;
+    const store = getStore(storeId);
+    if (!store.organizationId || store.organizationId === mainOrg) return mainId;
+    const [mainStates, orgList] = await Promise.all([orgStates(mainOrg), orgStates(store.organizationId)]);
+    const ref = mainStates.find((x) => x._id === mainId);
+    if (!ref) return mainId;
+    const norm = (x: string) => x.toLowerCase().replace(/['’ʻ`]/g, "").trim();
+    const hit = orgList.find((x) => norm(x.name) === norm(ref.name)) || (ref.default_key ? orgList.find((x) => x.default_key === ref.default_key) : undefined);
+    return hit?._id || "";
+  } catch (e) { log.warn("stateIdForStore", errMsg(e)); return mainId; }
 }
 
 export function stageStateId(stage: Stage): string {
@@ -105,7 +140,8 @@ export class OrderValidationError extends Error {
 /** Mini App savatchasidan Bito'da buyurtma yaratish */
 export async function createOrder(user: User, input: CreateOrderInput, lang: Lang): Promise<Order> {
   const s = getSettings();
-  const b = s.bito;
+  const store = userStore(user);
+  const b = { ...s.bito, organizationId: store.organizationId, warehouseId: store.warehouseId, priceId: exceptionPriceId(user) || store.priceId, currencyId: store.currencyId, responsibleId: store.responsibleId };
   const c = s.checkout;
   if (!input.items.length) throw new OrderValidationError("Savatcha bo'sh", "empty");
   if (input.type === "delivery" && !c.deliveryEnabled) throw new OrderValidationError("Yetkazib berish o'chirilgan", "type");
@@ -122,11 +158,12 @@ export async function createOrder(user: User, input: CreateOrderInput, lang: Lan
     const q = Number(it.qty);
     if (!Number.isFinite(q) || q <= 0) throw new OrderValidationError("Miqdor noto'g'ri", "qty");
     if (q > s.catalog.maxQtyPerItem) throw new OrderValidationError("Miqdor juda katta", "qty");
-    if (s.catalog.checkStockOnCheckout && !s.catalog.allowOrderOutOfStock && q > p.stock) {
-      throw new OrderValidationError(fill(lt(c.errorStock as never, lang), { product: p.name, stock: qty(p.stock) }), "stock");
+    const pr = priceFor(p, user);
+    if (s.catalog.checkStockOnCheckout && !s.catalog.allowOrderOutOfStock && q > pr.stock) {
+      throw new OrderValidationError(fill(lt(c.errorStock as never, lang), { product: p.name, stock: qty(pr.stock) }), "stock");
     }
-    snapshot.push({ productId: p.id, bitoId: p.bitoId, name: p.name, price: p.price, qty: q, boxCount: it.boxCount || 0, boxItem: p.boxItem, measure: p.measure, image: p.image });
-    total += p.price * q;
+    snapshot.push({ productId: p.id, bitoId: p.bitoId, name: p.name, price: pr.price, basePrice: pr.basePrice, qty: q, boxCount: it.boxCount || 0, boxItem: p.boxItem, measure: p.measure, image: p.image });
+    total += pr.price * q;
     count += q;
   }
   if (c.minOrderTotal > 0 && total < c.minOrderTotal) {
@@ -143,7 +180,7 @@ export async function createOrder(user: User, input: CreateOrderInput, lang: Lan
 
   const typeLabel = isDelivery ? s.bot.gDelivery : s.bot.gPickup;
   const noteLines = [
-    `Telegram bot | ${typeLabel}`,
+    `Telegram bot | ${typeLabel}${store.id !== "main" ? ` | ${store.name("uz")}` : ""}`,
     `Tel: ${phone}`,
     isDelivery && input.address ? `Manzil: ${input.address}` : "",
     isDelivery && input.lat && input.lng ? `Xarita: https://maps.google.com/?q=${input.lat},${input.lng}` : "",
@@ -155,14 +192,14 @@ export async function createOrder(user: User, input: CreateOrderInput, lang: Lan
     customer_id: customerId,
     responsible_id: b.responsibleId,
     state: "new",
-    state_id: stageStateId("new") || undefined,
+    state_id: (await stateIdForStore("new", store.id)) || undefined,
     date: new Date().toISOString(),
     note: noteLines.join("\n"),
     discounts: [] as unknown[],
     price_id: b.priceId || undefined,
     currency_id: b.currencyId || undefined,
     products: snapshot.map((i) => ({
-      product_id: i.bitoId, amount: i.qty, price: i.price, real_price: i.price, price_id: b.priceId, warehouse_id: b.warehouseId,
+      product_id: i.bitoId, amount: i.qty, price: i.price, real_price: i.basePrice ?? i.price, price_id: b.priceId, warehouse_id: b.warehouseId,
       box_count: i.boxCount || 0, box_item: i.boxItem || 0,
     })),
     delivery_address: isDelivery && input.lat && input.lng
@@ -189,7 +226,7 @@ export async function createOrder(user: User, input: CreateOrderInput, lang: Lan
   const history: HistoryEntry[] = [{ at: new Date().toISOString(), stage: "new", stateName: created.dynamic_state?.name, by: { type: "customer" } }];
   const order = await prisma.order.create({
     data: {
-      bitoId: created._id, number: created.number || created.uuid || null, userId: user.id, type: input.type,
+      bitoId: created._id, number: created.number || created.uuid || null, userId: user.id, type: input.type, storeId: store.id,
       stateId: created.state_id, stateKey: stage, stateName: created.dynamic_state?.name || null,
       items: snapshot as unknown as object, total, itemsCount: count, phone, customerName: updatedUser.name || input.name || null,
       address: isDelivery ? input.address || null : null, lat: isDelivery ? input.lat || null : null, lng: isDelivery ? input.lng || null : null,
@@ -204,7 +241,7 @@ export async function createOrder(user: User, input: CreateOrderInput, lang: Lan
 /** Bosqichni o'zgartirish (guruh tugmasi yoki Bito'dan kelgan o'zgarish) */
 export async function applyStage(order: Order, stage: Stage, by: StageActor, opts?: { pushToBito?: boolean; stateId?: string; stateName?: string }): Promise<Order> {
   const prev = order.stateKey;
-  let stateId = opts?.stateId || stageStateId(stage);
+  let stateId = opts?.stateId || (order.storeId && order.storeId !== "main" ? await stateIdForStore(stage, order.storeId) : stageStateId(stage));
   if (opts?.pushToBito) {
     if (!stateId) throw new Error(`"${stage}" bosqichi uchun Bito holati sozlanmagan (Admin panel → Buyurtma holatlari)`);
     if (!order.bitoId) throw new Error("Buyurtma Bito bilan bog'lanmagan");

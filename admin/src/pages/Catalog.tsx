@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Star, ArrowUp, ArrowDown, RefreshCw, Search, ArrowDownAZ, Copy, ChevronsUp, ChevronsDown } from "lucide-react";
+import { Eye, EyeOff, Star, ArrowUp, ArrowDown, RefreshCw, Search, ArrowDownAZ, Copy, ChevronsUp, ChevronsDown, Percent } from "lucide-react";
 import { api } from "../lib/api.ts";
-import { PageTitle, Spinner, Toggle, useToast } from "../components/ui.tsx";
+import { Modal, PageTitle, Spinner, Toggle, useToast } from "../components/ui.tsx";
 
-interface P { id: number; bitoId: string; name: string; image: string | null; price: number; stock: number; categoryId: string | null; categoryName: string | null; hidden: boolean; featured: boolean; sortOrder: number; boxItem: number; sku: string | null }
+interface P { id: number; bitoId: string; name: string; image: string | null; price: number; stock: number; categoryId: string | null; categoryName: string | null; hidden: boolean; featured: boolean; sortOrder: number; boxItem: number; sku: string | null; finalPrice?: number; discountPercent?: number; roundStep?: number; roundMode?: string }
 interface C { id: number; bitoId: string; name: string; parentId: string | null; image: string | null; hidden: boolean; sortOrder: number; itemCount: number }
-interface Data { products: P[]; categories: C[]; sync: { running: boolean; last: { at: string; ok: boolean; message: string } | null } }
+interface Data { products: P[]; categories: C[]; uzs?: boolean; sync: { running: boolean; last: { at: string; ok: boolean; message: string } | null } }
 
 /** Tartibni serverga yuborishni 600 ms kechiktirib, bir nechta bosishni bittaga jamlash */
 function useDebouncedReorder(url: string) {
@@ -32,6 +32,7 @@ export function CatalogPage() {
   const [cat, setCat] = useState("");
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [disc, setDisc] = useState<{ percent: number; round: boolean; step: number; mode: string } | null>(null);
   const reorderP = useDebouncedReorder("/catalog/products/reorder");
   const reorderC = useDebouncedReorder("/catalog/categories/reorder");
 
@@ -88,6 +89,13 @@ export function CatalogPage() {
     setSel(new Set());
     try { await api.post("/catalog/products/bulk", { ids, ...body }); toast(`${ids.length} ta mahsulot yangilandi`); } catch (e) { toast((e as Error).message, "err"); void qc.invalidateQueries({ queryKey: ["catalog"] }); }
   };
+  const applyDiscount = async () => {
+    if (!disc) return;
+    const ids = [...sel];
+    const body = { ids, percent: disc.percent, roundStep: disc.round && q.data?.uzs ? disc.step : 0, roundMode: disc.mode };
+    setDisc(null); setSel(new Set());
+    try { await api.post("/catalog/products/discount", body); toast(body.percent > 0 ? `${ids.length} ta mahsulotga ${body.percent}% chegirma` : "Chegirma olib tashlandi"); await qc.invalidateQueries({ queryKey: ["catalog"] }); } catch (e) { toast((e as Error).message, "err"); }
+  };
   const sortAZ = () => {
     setProducts((all) => { const l = [...all].sort((a, b) => a.name.localeCompare(b.name, "uz")).map((p, i) => ({ ...p, sortOrder: i + 1 })); reorderP(l.map((p) => p.id)); return l; });
     toast("A–Z tartiblandi");
@@ -127,6 +135,7 @@ export function CatalogPage() {
                 <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => { void bulk({ hidden: false }); }}>Ko'rsatish</button>
                 <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => { void bulk({ featured: true }); }}>★ Tavsiyaga</button>
                 <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => { void bulk({ featured: false }); }}>Tavsiyadan olish</button>
+                <button className="btn btn-ghost !py-1 !px-2 text-xs text-rose-600" onClick={() => setDisc({ percent: 10, round: true, step: 1000, mode: "nearest" })}><Percent size={12} /> Chegirma</button>
               </div>
             )}
           </div>
@@ -137,7 +146,7 @@ export function CatalogPage() {
                 {p.image ? <img src={p.image} className="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0" loading="lazy" /> : <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0" />}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{p.name}</div>
-                  <div className="text-xs text-slate-500 truncate">{p.categoryName || "—"} · {p.price.toLocaleString()} · qoldiq {p.stock}{p.boxItem ? ` · quti ${p.boxItem}` : ""}</div>
+                  <div className="text-xs text-slate-500 truncate">{p.categoryName || "—"} · {p.discountPercent ? <><s className="text-slate-400">{p.price.toLocaleString()}</s> <b className="text-rose-600">{(p.finalPrice ?? p.price).toLocaleString()}</b> <span className="badge bg-rose-50 text-rose-600">-{p.discountPercent}%</span></> : p.price.toLocaleString()} · qoldiq {p.stock}{p.boxItem ? ` · quti ${p.boxItem}` : ""}</div>
                   <button onClick={() => { void copy(`product:${p.id}`); }} className="text-[11px] text-blue-600 inline-flex items-center gap-1 mt-0.5"><Copy size={11} /> ID {p.id}</button>
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
@@ -176,6 +185,29 @@ export function CatalogPage() {
           ))}
         </div>
       )}
+
+      <Modal open={!!disc} onClose={() => setDisc(null)} title={`Chegirma belgilash (${sel.size} ta mahsulot)`}>
+        {disc && (
+          <div className="space-y-4">
+            <div><label className="label">Chegirma foizi (%)</label><input type="number" className="input max-w-xs" min={0} max={99} value={disc.percent} onChange={(e) => setDisc({ ...disc, percent: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })} />
+              <div className="help">0 — chegirmani olib tashlaydi. Chegirma narxi Mini App'da chizilgan eski narx bilan ko'rsatiladi, buyurtma ham Bito'ga shu narxda tushadi.</div></div>
+            {q.data?.uzs ? (
+              <>
+                <div className="flex items-center justify-between"><span className="text-sm font-medium">Narxni yaxlitlash</span><Toggle value={disc.round} onChange={(v) => setDisc({ ...disc, round: v })} /></div>
+                {disc.round && (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div><label className="label">Yaxlitlash qadami</label>
+                      <select className="input" value={disc.step} onChange={(e) => setDisc({ ...disc, step: Number(e.target.value) })}>{[100, 500, 1000, 5000, 10000].map((s) => <option key={s} value={s}>{s.toLocaleString()} so'm</option>)}</select></div>
+                    <div><label className="label">Yaxlitlash turi</label>
+                      <select className="input" value={disc.mode} onChange={(e) => setDisc({ ...disc, mode: e.target.value })}><option value="nearest">Eng yaqiniga</option><option value="up">Yuqoriga</option><option value="down">Pastga</option></select></div>
+                  </div>
+                )}
+              </>
+            ) : <div className="help">Yaxlitlash faqat so'm valyutasida ishlaydi.</div>}
+            <div className="flex justify-end gap-2"><button className="btn btn-ghost" onClick={() => setDisc(null)}>Bekor</button><button className="btn btn-primary" onClick={() => { void applyDiscount(); }}>{disc.percent > 0 ? "Qo'llash" : "Chegirmani olib tashlash"}</button></div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

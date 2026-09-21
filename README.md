@@ -246,3 +246,21 @@ kategoriyalarda **ID nusxalash** tugmasi.
 - Chek qatorlari va guruh xabaridagi har bir qator/tugma — yoqish/o'chirish (Bot matnlari bo'limi)
 - Guruh xabari: tarix Telegram "quote" ko'rinishida; ismlar profil havolasi bilan (username ko'rsatilmaydi); Bito'da mahsulotlar o'zgarsa yoki buyurtma savdoga o'tkazilsa — tarixga yoziladi va xabar yangilanadi
 - Holat o'zgarganda mijozga xabar — faqat bir marta
+
+## 16. Ko'p do'kon, narx istisnolari, chegirmalar (2026-09-21)
+
+**Qo'shimcha tashkilotlar (do'konlar)** — Admin → *Bito integratsiyasi* → "Qo'shimcha tashkilotlar" → tugmani yoqing → "Do'kon qo'shish".
+Har bir do'kon uchun: nom (3 tilda), Bito tashkiloti, ombor, narx turi, valyuta, mas'ul xodim, qoldiq manbai, olib ketish manzili va xaritadagi joyi.
+Saqlangach katalog barcha do'konlar bo'yicha qayta sinxronlanadi. Mijoz Mini App (yuqoridagi 🏬 chip yoki Profil) yoki botdagi "🏬 Do'kon" tugmasi orqali do'konni tanlaydi;
+mahsulotlar, narxlar, qoldiq, qarz, buyurtmalar va xaridlar tanlangan do'kon bo'yicha ko'rsatiladi. Buyurtma o'sha tashkilotga, uning ombori va narx turi bilan tushadi. Tugma o'chiq bo'lsa hech narsa o'zgarmaydi.
+
+**Narx istisnolari** — *Bito integratsiyasi* → "Mijozlar uchun narx istisnolari" → yoqing → "Istisno qo'shish" → narx turini tanlang → "Mijoz qo'shish" (Bito mijozlari ism/telefon bo'yicha qidiriladi, bir nechtasini qo'shish mumkin).
+Ro'yxatdagi mijozlar ilovada shu narxni ko'radi va buyurtma ham shu narxda tushadi.
+
+**Chegirma** — *Katalog boshqaruvi* → mahsulotlarni belgilang → "% Chegirma" → foiz → (so'm bo'lsa) yaxlitlash: qadam 100/500/1000/5000/10000 va turi (eng yaqiniga / yuqoriga / pastga).
+Mini App'da eski narx chizilgan holda va -X% belgisi bilan ko'rinadi; buyurtma Bito'ga chegirmali narx bilan tushadi. 0% — chegirmani olib tashlaydi.
+
+**Media limitlari (o'zgartirib bo'lmaydi):** storis 15 ta (har birida 10 slayd), banner 12 ta; rasm 5 MB, GIF 10 MB, video 25 MB, xabar tarqatish fayli 50 MB, umumiy 600 MB.
+Barcha yuklangan fayllar bazada saqlanadi — qayta deploy qilinganda yo'qolmaydi.
+
+**Boshqa:** admin panel tili (menyu pastida UZ/RU/EN), PWA/bookmark ikonkasi = admin logo (*Admin panel ko'rinishi* → Logo), telefonda storis slaydini o'chirish tugmasi doim ko'rinadi, "Mahsulot keldi" xabaridagi tugma mahsulot kartochkasini ochadi.

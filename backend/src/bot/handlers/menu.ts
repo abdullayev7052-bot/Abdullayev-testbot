@@ -1,7 +1,8 @@
 import type { Bot } from "grammy";
 import { InputFile, InlineKeyboard } from "grammy";
 import type { MyContext, BotTextKey } from "../context.ts";
-import { languageKeyboard, mainKeyboard, openAppInline } from "../keyboards.ts";
+import { languageKeyboard, mainKeyboard, openAppInline, storeKeyboard } from "../keyboards.ts";
+import { isMultiStore, userStore, getStore } from "../../bito/stores.ts";
 import { getSettings, lt, normalizeLang } from "../../settings/store.ts";
 import type { Lang } from "../../settings/schema.ts";
 import { LANGS } from "../../settings/schema.ts";
@@ -12,7 +13,7 @@ import { stageName, stageOf, type Stage } from "../../bito/orders.ts";
 import { esc, fmtDate, money, prettyPhone, qty } from "../../utils/format.ts";
 import { activity, errMsg, log } from "../../logger.ts";
 
-type MenuKey = "mOrders" | "mPurchases" | "mMyInfo" | "mSettings" | "mBalance" | "mCard" | "mAkt";
+type MenuKey = "mOrders" | "mPurchases" | "mMyInfo" | "mSettings" | "mBalance" | "mCard" | "mAkt" | "mStore";
 
 /** Matn qaysi menyu tugmasiga mos kelishini aniqlash (barcha tillarda) */
 function menuKeyOf(text: string): MenuKey | "openApp" | null {
@@ -23,6 +24,8 @@ function menuKeyOf(text: string): MenuKey | "openApp" | null {
     const v = b[k] as Record<Lang, string>;
     for (const l of LANGS) if (v?.[l] && v[l].trim() === t) return k === "openAppButton" ? "openApp" : k;
   }
+  const sb = getSettings().bito.storeButton as Record<Lang, string>;
+  for (const l of LANGS) if (sb?.[l] && sb[l].trim() === t) return "mStore";
   return null;
 }
 
@@ -46,7 +49,8 @@ async function requireLinked(ctx: MyContext): Promise<string | null> {
 export async function showOrders(ctx: MyContext) {
   const lang = ctx.lang;
   const limit = Math.max(3, Number(getSettings().bot.listLimit || 10));
-  const local = await prisma.order.findMany({ where: { userId: ctx.user.id }, orderBy: { createdAt: "desc" }, take: limit });
+  const storeOrg = userStore(ctx.user).organizationId;
+  const local = await prisma.order.findMany({ where: { userId: ctx.user.id, ...(isMultiStore() ? { storeId: userStore(ctx.user).id } : {}) }, orderBy: { createdAt: "desc" }, take: limit });
   const rows: { key: string; number: string; date: string | Date; total: number; status: string }[] = [];
   const seen = new Set<string>();
   for (const o of local) {
@@ -59,6 +63,7 @@ export async function showOrders(ctx: MyContext) {
       const r = await bito.ordersByCustomer(customerId, 1, limit);
       for (const o of r.list || []) {
         if (seen.has(o._id)) continue;
+        if (isMultiStore() && storeOrg && o.organization_id && o.organization_id !== storeOrg) continue;
         const stage = stageOf(o.state_id, o.dynamic_state || { default_key: o.state });
         rows.push({ key: `od:b:${o._id}`, number: String(o.number || o.uuid || ""), date: o.date || o.created_at || "", total: o.total_to_pay ?? o.total_price ?? 0, status: stageName(stage, lang, o.dynamic_state?.name || o.state) });
         if (rows.length >= limit) break;
@@ -113,7 +118,8 @@ export async function showPurchases(ctx: MyContext) {
   const lang = ctx.lang;
   const limit = Math.max(3, Number(getSettings().bot.listLimit || 10));
   try {
-    const r = await bito.tradesPage({ page: 1, limit, customer_id: customerId });
+    const orgId = userStore(ctx.user).organizationId;
+    const r = await bito.tradesPage({ page: 1, limit, customer_id: customerId, ...(isMultiStore() && orgId ? { organization_id: orgId } : {}) });
     const list = (r.data || []).filter((t) => t.state !== "canceled");
     if (!list.length) { await ctx.reply(ctx.t("noPurchases")); return; }
     const lines = list.map((t) => `• <b>№${esc(t.number || t.uuid || "")}</b> — ${fmtDate(t.sold_at || t.date || t.created_at, lang, false)} — ${money(t.total_to_pay ?? t.total_price ?? 0, lang)}${t.is_refund ? " ↩️" : ""}`);
@@ -212,7 +218,22 @@ export async function showAkt(ctx: MyContext) {
   }
 }
 
+export async function showStore(ctx: MyContext) {
+  if (!isMultiStore()) return;
+  const cur = userStore(ctx.user);
+  await ctx.reply(`${lt(getSettings().bito.storeChooseLabel, ctx.lang)}\n\n${esc(cur.name(ctx.lang))}`, { parse_mode: "HTML", reply_markup: storeKeyboard(ctx.lang, cur.id) });
+}
+
 export function registerMenu(bot: Bot<MyContext>) {
+  bot.callbackQuery(/^store:([a-zA-Z0-9_-]+)$/, async (ctx) => {
+    const st = getStore(ctx.match[1]);
+    ctx.user = await prisma.user.update({ where: { id: ctx.user.id }, data: { storeId: st.id } });
+    const { fill } = await import("../../settings/store.ts");
+    await ctx.answerCallbackQuery({ text: fill(lt(getSettings().bito.storeChanged, ctx.lang), { store: st.name(ctx.lang) }) }).catch(() => {});
+    await ctx.editMessageText(`${lt(getSettings().bito.storeChooseLabel, ctx.lang)}\n\n✅ ${esc(st.name(ctx.lang))}`, { parse_mode: "HTML", reply_markup: storeKeyboard(ctx.lang, st.id) }).catch(() => {});
+  });
+  bot.command(["dokon", "store"], async (ctx) => { if (ctx.chat.type === "private" && ctx.user.step === "done") await showStore(ctx); });
+
   const only = (fn: (ctx: MyContext) => Promise<void>) => async (ctx: MyContext) => {
     if (ctx.chat?.type !== "private") return;
     if (ctx.user.step !== "done") { await ctx.reply(ctx.t("askPhone")); return; }
@@ -254,7 +275,7 @@ export function registerMenu(bot: Bot<MyContext>) {
     if (!key) return next();
     if (ctx.user.step !== "done") { await ctx.reply(ctx.t("askPhone")); return; }
     const map: Record<MenuKey | "openApp", (c: MyContext) => Promise<void>> = {
-      mOrders: showOrders, mPurchases: showPurchases, mMyInfo: showMyInfo, mSettings: showSettings, mBalance: showBalance, mCard: showCard, mAkt: showAkt,
+      mOrders: showOrders, mPurchases: showPurchases, mMyInfo: showMyInfo, mSettings: showSettings, mBalance: showBalance, mCard: showCard, mAkt: showAkt, mStore: showStore,
       openApp: async (c) => {
         const kb = openAppInline(c.lang);
         if (kb) await c.reply(lt(getSettings().bot.openAppButton, c.lang), { reply_markup: kb });

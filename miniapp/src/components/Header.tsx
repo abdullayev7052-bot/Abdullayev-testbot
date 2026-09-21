@@ -1,9 +1,11 @@
 import { motion } from "motion/react";
 import { useApp, useT } from "../store/app.ts";
+import { StorePicker } from "./StorePicker.tsx";
 
 export function Header() {
   const { t, v } = useT();
   const user = useApp((s) => s.data?.user);
+  const theme = useApp((s) => s.theme);
   const showGreeting = v<boolean>("design", "greetingShow", true);
   const showLogo = v<boolean>("design", "logoShow", true);
   const logo = v<string>("design", "logoImage", "");
@@ -18,12 +20,12 @@ export function Header() {
       {logo ? <img src={logo} alt="logo" className="w-full h-full object-cover" /> : <span style={{ fontSize: size * 0.5 }}>🛍</span>}
     </motion.div>
   ) : null;
-  return (
+  return (<>
     <div className="wrap safe-top pt-4 pb-2 flex items-center justify-between gap-3">
       {pos === "left" && logoEl}
       {showGreeting && (
         <motion.div initial={{ opacity: 0, x: pos === "left" ? 12 : -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35 }} className="min-w-0 flex-1">
-          <div className="font-bold leading-tight truncate" style={{ fontSize: v<number>("design", "greetingSize", 20), color: v<string>("design", "greetingColor", "#0f172a") }}>
+          <div className="font-bold leading-tight truncate" style={{ fontSize: v<number>("design", "greetingSize", 20), color: theme === "dark" ? "var(--text)" : v<string>("design", "greetingColor", "#0f172a") }}>
             {t("design", "greetingText", { name })}
           </div>
           <div className="text-sm text-slate-500 mt-0.5 truncate">{t("design", "greetingSub")}</div>
@@ -31,5 +33,7 @@ export function Header() {
       )}
       {pos !== "left" && logoEl}
     </div>
+    <StorePicker />
+  </>
   );
 }

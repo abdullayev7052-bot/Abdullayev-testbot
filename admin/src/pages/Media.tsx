@@ -5,6 +5,21 @@ import { api } from "../lib/api.ts";
 import { ImageUpload, Modal, PageTitle, Spinner, Toggle, useToast, confirmDialog, isVideoUrl } from "../components/ui.tsx";
 import { LinkPicker } from "../components/LinkPicker.tsx";
 
+interface Limits { imageBytes: number; gifBytes: number; videoBytes: number; stories: number; slidesPerStory: number; banners: number; totalBytes: number; used: { stories: number; banners: number; bytes: number } }
+const mb = (b: number) => `${Math.round(b / 1048576)} MB`;
+/** Belgilangan media limitlari (admin o'zgartira olmaydi) */
+function LimitsBar({ kind }: { kind: "stories" | "banners" }) {
+  const q = useQuery({ queryKey: ["media-limits"], queryFn: () => api.get<Limits>("/media/limits"), staleTime: 10_000 });
+  const l = q.data; if (!l) return null;
+  return (
+    <div className="text-xs text-slate-500 mb-3 flex flex-wrap gap-x-3 gap-y-1">
+      {kind === "stories" ? <span>Storis: <b>{l.used.stories}/{l.stories}</b> · slayd/storis: {l.slidesPerStory}</span> : <span>Bannerlar: <b>{l.used.banners}/{l.banners}</b></span>}
+      <span>Rasm ≤ {mb(l.imageBytes)}, GIF ≤ {mb(l.gifBytes)}, video ≤ {mb(l.videoBytes)}</span>
+      <span>Umumiy hajm: {mb(l.used.bytes)}/{mb(l.totalBytes)}</span>
+    </div>
+  );
+}
+
 interface Slide { id: number; image: string; caption: string | null; link: string | null; duration: number; sortOrder: number }
 interface Story { id: number; title: string; cover: string; active: boolean; sortOrder: number; expiresAt: string | null; slides: Slide[] }
 interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string; active: boolean; sortOrder: number }
@@ -46,6 +61,7 @@ export function StoriesPage() {
   return (
     <div>
       <PageTitle title="Storis" description="Instagram uslubidagi doira storislar. Har bir storisda bir nechta slayd bo'lishi mumkin." actions={<button className="btn btn-primary" onClick={() => setEdit({ active: true })}><Plus size={16} /> Yangi storis</button>} />
+      <LimitsBar kind="stories" />
       {!list.length && <div className="card p-8 text-center text-slate-500">Hali storis yo'q. "Yangi storis" tugmasini bosing.</div>}
       <div className="grid md:grid-cols-2 gap-3">
         {list.map((s, i) => (
@@ -89,7 +105,7 @@ export function StoriesPage() {
                 <div key={sl.id} className="relative group">
                   {isVideoUrl(sl.image) ? <video src={sl.image} className="w-full aspect-[9/16] object-cover rounded-lg" muted autoPlay loop playsInline /> : <img src={sl.image} className="w-full aspect-[9/16] object-cover rounded-lg" />}
                   <div className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 rounded">{sl.duration}s</div>
-                  <button className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white items-center justify-center hidden group-hover:flex" onClick={() => { void api.del(`/slides/${sl.id}`).then(async () => { await refresh(); const fresh = await api.get<Story[]>("/stories"); setSlideFor(fresh.find((s) => s.id === slideFor.id) || null); }); }}><Trash2 size={12} /></button>
+                  <button className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white items-center justify-center flex md:hidden md:group-hover:flex" onClick={() => { void api.del(`/slides/${sl.id}`).then(async () => { await refresh(); const fresh = await api.get<Story[]>("/stories"); setSlideFor(fresh.find((s) => s.id === slideFor.id) || null); }); }}><Trash2 size={12} /></button>
                 </div>
               ))}
             </div>
@@ -135,6 +151,7 @@ export function BannersPage() {
   return (
     <div>
       <PageTitle title="Bannerlar" description="Bosh sahifadagi aylanma bannerlar (rasm, GIF yoki ovozsiz video). Havola mahsulot/kategoriya bo'lsa Mini App ichida ochiladi." actions={<button className="btn btn-primary" onClick={() => setEdit({ active: true, textColor: "#ffffff" })}><Plus size={16} /> Yangi banner</button>} />
+      <LimitsBar kind="banners" />
       <div className="grid md:grid-cols-2 gap-3">
         {list.map((b, i) => (
           <div key={b.id} className={`card overflow-hidden ${!b.active ? "opacity-60" : ""}`}>

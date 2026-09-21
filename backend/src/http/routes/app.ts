@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import type { Product } from "@prisma/client";
+import type { Product, User } from "@prisma/client";
 import { prisma } from "../../db.ts";
 import { appAuth, type AppRequest } from "../auth.ts";
 import { getSettings, lt, normalizeLang, publicSettings } from "../../settings/store.ts";
@@ -14,32 +14,47 @@ import { activity, errMsg, log } from "../../logger.ts";
 import { sendToUser } from "../../bot/send.ts";
 import { fill } from "../../settings/store.ts";
 import { esc } from "../../utils/format.ts";
+import { isMultiStore, listStores, priceFor, userStore, getStore } from "../../bito/stores.ts";
 
 export const appRouter = Router();
 appRouter.use(appAuth);
 
 const u = (req: Request) => (req as AppRequest).user;
 
-function serializeProduct(p: Product, waitIds?: Set<number>) {
+type PUser = Pick<User, "storeId" | "bitoCustomerId">;
+function serializeProduct(p: Product, user: PUser, waitIds?: Set<number>) {
+  const pr = priceFor(p, user);
   return {
     id: p.id, bitoId: p.bitoId, name: p.name, image: bito.fileUrl(p.image), images: ((p.images as string[]) || []).map((x) => bito.fileUrl(x)),
-    price: p.price, stock: p.stock, boxItem: p.boxItem, measure: p.measure, measureDecimals: p.measureDecimals, sku: p.sku,
+    price: pr.price, basePrice: pr.basePrice, discountPercent: pr.discountPercent, stock: pr.stock, boxItem: p.boxItem, measure: p.measure, measureDecimals: p.measureDecimals, sku: p.sku,
     categoryId: p.categoryBitoId, categoryName: p.categoryName, note: p.note, customFields: p.customFields, featured: p.featured,
     inWaitlist: waitIds ? waitIds.has(p.id) : false, createdAt: p.syncedAt,
   };
+}
+/** Foydalanuvchi do'koniga tegishli va narxi > 0 (sozlamaga ko'ra) mahsulotlar */
+function forUser(list: Product[], user: PUser): Product[] {
+  const s = getSettings().catalog;
+  const storeId = userStore(user).id;
+  return list.filter((p) => {
+    const st = (p.stores as Record<string, unknown>) || {};
+    if (Object.keys(st).length && !st[storeId]) return false;
+    if (s.hideZeroPrice && priceFor(p, user).price <= 0) return false;
+    return true;
+  });
 }
 
 let productCache: { at: number; list: Product[] } | null = null;
 async function visibleProducts(): Promise<Product[]> {
   if (productCache && Date.now() - productCache.at < 20000) return productCache.list;
   const s = getSettings().catalog;
-  const list = await prisma.product.findMany({ where: { isDeleted: false, hidden: false, ...(s.hideZeroPrice ? { price: { gt: 0 } } : {}) } });
+  void s;
+  const list = await prisma.product.findMany({ where: { isDeleted: false, hidden: false } });
   productCache = { at: Date.now(), list };
   return list;
 }
 export function invalidateProductCache() { productCache = null; }
 
-function sortProducts(list: Product[]): Product[] {
+function sortProducts(list: Product[], user: PUser): Product[] {
   const s = getSettings().catalog;
   const cmp: Record<string, (a: Product, b: Product) => number> = {
     manual: (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
@@ -51,7 +66,7 @@ function sortProducts(list: Product[]): Product[] {
   };
   const base = cmp[s.sortMode] || cmp.manual;
   const out = [...list].sort(base);
-  if (s.outOfStockLast) out.sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0));
+  if (s.outOfStockLast) out.sort((a, b) => Number(priceFor(b, user).stock > 0) - Number(priceFor(a, user).stock > 0));
   return out;
 }
 
@@ -68,7 +83,7 @@ appRouter.get("/bootstrap", async (req, res) => {
     prisma.story.findMany({ where: { active: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { sortOrder: "asc" }, include: { slides: { orderBy: { sortOrder: "asc" } } } }),
     prisma.banner.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.category.findMany({ where: { isDeleted: false, hidden: false }, orderBy: { sortOrder: "asc" } }),
-    visibleProducts(),
+    visibleProducts().then((l) => forUser(l, user)),
     userWaitIds(user.id),
   ]);
   const counts = new Map<string, number>();
@@ -83,13 +98,19 @@ appRouter.get("/bootstrap", async (req, res) => {
   const cats = categories
     .map((c) => ({ id: c.bitoId, name: c.name, parentId: c.parentId && byId.has(c.parentId) ? c.parentId : null, image: bito.fileUrl(c.image), count: totalCount(c.bitoId) }))
     .filter((c) => c.count > 0);
-  const featured = sortProducts(products.filter((p) => p.featured)).slice(0, 20).map((p) => serializeProduct(p, waitIds));
-  const newest = [...products].sort((a, b) => (b.bitoUpdatedAt?.getTime() || 0) - (a.bitoUpdatedAt?.getTime() || 0)).slice(0, 10).map((p) => serializeProduct(p, waitIds));
+  const featured = sortProducts(products.filter((p) => p.featured), user).slice(0, 20).map((p) => serializeProduct(p, user, waitIds));
+  const newest = [...products].sort((a, b) => (b.bitoUpdatedAt?.getTime() || 0) - (a.bitoUpdatedAt?.getTime() || 0)).slice(0, 10).map((p) => serializeProduct(p, user, waitIds));
+  const lang = normalizeLang(user.language);
+  const store = userStore(user);
+  const stores = isMultiStore() ? listStores().map((st) => ({ id: st.id, name: st.name(lang), pickupAddress: st.pickupAddress(lang), pickupLocation: st.pickupLocation })) : [];
   res.json({
     user: {
       id: user.id, telegramId: String(user.telegramId), name: user.name || user.tgFirstName || "", phone: user.phone, language: normalizeLang(user.language),
       address: user.address, lat: user.lat, lng: user.lng, registered: user.step === "done", linked: !!user.bitoCustomerId,
+      storeId: store.id,
     },
+    stores,
+    store: { id: store.id, name: store.name(lang), pickupAddress: store.pickupAddress(lang), pickupLocation: store.pickupLocation },
     settings: publicSettings(),
     stories: stories.map((st) => ({ id: st.id, title: st.title, cover: st.cover, slides: st.slides.map((sl) => ({ id: sl.id, image: sl.image, caption: sl.caption, link: sl.link, duration: sl.duration || s.design.storiesDefaultDuration || 5 })) })).filter((st) => st.slides.length),
     banners: banners.map((b) => ({ id: b.id, image: b.image, title: b.title, subtitle: b.subtitle, link: b.link, textColor: b.textColor })),
@@ -106,8 +127,8 @@ appRouter.get("/products", async (req, res) => {
   const category = String(req.query.category || "");
   const page = Math.max(1, Number(req.query.page || 1));
   const limit = Math.min(100, Math.max(1, Number(req.query.limit || 40)));
-  let list = await visibleProducts();
-  if (!s.showOutOfStock) list = list.filter((p) => p.stock > 0);
+  let list = forUser(await visibleProducts(), user);
+  if (!s.showOutOfStock) list = list.filter((p) => priceFor(p, user).stock > 0);
   if (category) {
     const cats = await prisma.category.findMany({ where: { isDeleted: false }, select: { bitoId: true, parentId: true } });
     const ids = new Set<string>([category]);
@@ -120,26 +141,27 @@ appRouter.get("/products", async (req, res) => {
     scored.sort((a, b) => b.sc - a.sc || a.p.sortOrder - b.p.sortOrder);
     list = scored.map((x) => x.p);
   } else {
-    list = sortProducts(list);
+    list = sortProducts(list, user);
   }
   const total = list.length;
   const slice = list.slice((page - 1) * limit, page * limit);
   const waitIds = await userWaitIds(user.id);
-  res.json({ total, page, limit, hasMore: page * limit < total, items: slice.map((p) => serializeProduct(p, waitIds)) });
+  res.json({ total, page, limit, hasMore: page * limit < total, items: slice.map((p) => serializeProduct(p, user, waitIds)) });
 });
 
 appRouter.get("/products/:id", async (req, res) => {
   const user = u(req);
   const p = await prisma.product.findUnique({ where: { id: Number(req.params.id) } });
   if (!p || p.isDeleted || p.hidden) { res.status(404).json({ error: "not found" }); return; }
-  res.json(serializeProduct(p, await userWaitIds(user.id)));
+  res.json(serializeProduct(p, user, await userWaitIds(user.id)));
 });
 
 /** Savatchadagi mahsulotlarning joriy narx/qoldig'ini tekshirish */
 appRouter.post("/products/refresh", async (req, res) => {
+  const user = u(req);
   const ids = z.array(z.number()).max(200).parse((req.body as { ids?: number[] })?.ids || []);
   const list = await prisma.product.findMany({ where: { id: { in: ids } } });
-  res.json(list.map((p) => ({ id: p.id, price: p.price, stock: p.stock, name: p.name, image: bito.fileUrl(p.image), boxItem: p.boxItem, measure: p.measure, available: !p.isDeleted && !p.hidden })));
+  res.json(list.map((p) => { const pr = priceFor(p, user); return { id: p.id, price: pr.price, basePrice: pr.basePrice, discountPercent: pr.discountPercent, stock: pr.stock, name: p.name, image: bito.fileUrl(p.image), boxItem: p.boxItem, measure: p.measure, available: !p.isDeleted && !p.hidden && forUser([p], user).length > 0 }; }));
 });
 
 // ---------- Kelganda eslating ----------
@@ -172,6 +194,7 @@ const profileSchema = z.object({
   lat: z.number().nullable().optional(),
   lng: z.number().nullable().optional(),
   language: z.enum(["uz", "ru", "en"]).optional(),
+  storeId: z.string().max(40).optional(),
 });
 appRouter.put("/profile", async (req, res) => {
   const user = u(req);
@@ -183,8 +206,9 @@ appRouter.put("/profile", async (req, res) => {
   if (body.lat !== undefined) data.lat = body.lat;
   if (body.lng !== undefined) data.lng = body.lng;
   if (body.language) data.language = normalizeLang(body.language);
+  if (body.storeId !== undefined) data.storeId = getStore(body.storeId).id;
   const updated = await prisma.user.update({ where: { id: user.id }, data });
-  res.json({ ok: true, user: { name: updated.name, phone: updated.phone, address: updated.address, lat: updated.lat, lng: updated.lng, language: updated.language } });
+  res.json({ ok: true, user: { name: updated.name, phone: updated.phone, address: updated.address, lat: updated.lat, lng: updated.lng, language: updated.language, storeId: updated.storeId } });
 });
 
 appRouter.get("/balance", async (req, res) => {
@@ -212,7 +236,8 @@ appRouter.get("/purchases", async (req, res) => {
   const user = u(req);
   if (!user.bitoCustomerId) { res.json({ items: [] }); return; }
   try {
-    const r = await bito.tradesPage({ page: 1, limit: 50, customer_id: user.bitoCustomerId });
+    const orgId = userStore(user).organizationId;
+    const r = await bito.tradesPage({ page: 1, limit: 50, customer_id: user.bitoCustomerId, ...(isMultiStore() && orgId ? { organization_id: orgId } : {}) });
     res.json({
       items: (r.data || []).filter((t) => t.state !== "canceled").map((t) => ({
         id: t._id, number: t.number || t.uuid, date: t.sold_at || t.date || t.created_at, total: t.total_to_pay ?? t.total_price ?? 0,
@@ -242,7 +267,8 @@ appRouter.get("/purchases/:id", async (req, res) => {
 appRouter.get("/orders", async (req, res) => {
   const user = u(req);
   const lang = normalizeLang(user.language);
-  const local = await prisma.order.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 50 });
+  const storeOrg = userStore(user).organizationId;
+  const local = await prisma.order.findMany({ where: { userId: user.id, ...(isMultiStore() ? { storeId: userStore(user).id } : {}) }, orderBy: { createdAt: "desc" }, take: 50 });
   const seen = new Set(local.map((o) => o.bitoId).filter(Boolean) as string[]);
   const localIds = await prisma.product.findMany({ where: { isDeleted: false }, select: { id: true, bitoId: true } });
   const idMap = new Map(localIds.map((p) => [p.bitoId, p.id]));
@@ -256,6 +282,7 @@ appRouter.get("/orders", async (req, res) => {
       const r = await bito.ordersByCustomer(user.bitoCustomerId, 1, 30);
       for (const o of r.list || []) {
         if (seen.has(o._id)) continue;
+        if (isMultiStore() && storeOrg && o.organization_id && o.organization_id !== storeOrg) continue;
         const stage = stageOf(o.state_id, o.dynamic_state || { default_key: o.state });
         items.push({
           id: 0, number: o.number || o.uuid || "", date: (o.date || o.created_at || new Date().toISOString()) as unknown as Date, total: o.total_to_pay ?? o.total_price ?? 0, type: "delivery",

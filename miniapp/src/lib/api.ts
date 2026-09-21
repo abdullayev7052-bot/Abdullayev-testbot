@@ -36,8 +36,9 @@ export const api = {
 export type Lang = "uz" | "ru" | "en";
 export type LText = Record<Lang, string>;
 
+export interface StoreInfo { id: string; name: string; pickupAddress: string; pickupLocation: { lat: number; lng: number } | null }
 export interface Product {
-  id: number; bitoId: string; name: string; image: string | null; images: (string | null)[]; price: number; stock: number; boxItem: number;
+  id: number; bitoId: string; name: string; image: string | null; images: (string | null)[]; price: number; basePrice?: number; discountPercent?: number; stock: number; boxItem: number;
   measure: string | null; measureDecimals: number; sku: string | null; categoryId: string | null; categoryName: string | null; note: string | null;
   customFields: { name: string; value: string }[]; featured: boolean; inWaitlist: boolean;
 }
@@ -45,7 +46,9 @@ export interface Category { id: string; name: string; parentId: string | null; i
 export interface Story { id: number; title: string; cover: string; slides: { id: number; image: string; caption: string | null; link: string | null; duration: number }[] }
 export interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string }
 export interface Bootstrap {
-  user: { id: number; telegramId: string; name: string; phone: string | null; language: Lang; address: string | null; lat: number | null; lng: number | null; registered: boolean; linked: boolean };
+  user: { id: number; telegramId: string; name: string; phone: string | null; language: Lang; address: string | null; lat: number | null; lng: number | null; registered: boolean; linked: boolean; storeId?: string };
+  stores: StoreInfo[];
+  store: StoreInfo;
   settings: Record<string, Record<string, unknown>> & { filesUrl: string };
   stories: Story[]; banners: Banner[]; categories: Category[]; featured: Product[]; newest: Product[]; productCount: number;
 }

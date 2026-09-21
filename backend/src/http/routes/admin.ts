@@ -18,6 +18,7 @@ import { bot } from "../../bot/instance.ts";
 import { updateMenuButton, restartBot } from "../../bot/index.ts";
 import { sendToUser } from "../../bot/send.ts";
 import { invalidateProductCache } from "./app.ts";
+import { priceFor, storeIsUzs } from "../../bito/stores.ts";
 import { InputFile, InlineKeyboard } from "grammy";
 
 export const adminRouter = Router();
@@ -106,6 +107,19 @@ adminRouter.get("/bito/options", async (req, res) => {
     res.json({ ok: false, error: errMsg(e) });
   }
 });
+adminRouter.get("/bito/customers", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  try {
+    const r = await bito.call<{ data: { _id: string; name: string; phone_number?: string }[] }>("POST", "customer/get-paging", { page: 1, limit: 30, ...(q ? { search: q } : {}) });
+    res.json((r.data || []).map((c) => ({ id: c._id, name: c.name, phone: c.phone_number || "" })));
+  } catch (e) { res.json([]); void e; }
+});
+adminRouter.get("/bito/customers/by-ids", async (req, res) => {
+  const ids = String(req.query.ids || "").split(",").filter(Boolean).slice(0, 200);
+  const out: { id: string; name: string; phone: string }[] = [];
+  for (const id of ids) { try { const c = await bito.customerById(id); out.push({ id: c._id, name: c.name, phone: c.phone_number || "" }); } catch { out.push({ id, name: "?", phone: "" }); } }
+  res.json(out);
+});
 adminRouter.post("/bito/test", async (req, res) => {
   const body = (req.body || {}) as { apiKey?: string; apiUrl?: string };
   res.json(await testConnection(body.apiKey ? { apiKey: body.apiKey, apiUrl: body.apiUrl } : undefined));
@@ -159,14 +173,29 @@ adminRouter.get("/activity", async (req, res) => {
 
 // ---------- Fayl yuklash ----------
 fs.mkdirSync(env.UPLOADS_DIR, { recursive: true });
+/** Media limitlari (server tomonida qat'iy, admin o'zgartira olmaydi) */
+export const MEDIA_LIMITS = {
+  imageBytes: 5 * 1024 * 1024,      // rasm: 5 MB
+  gifBytes: 10 * 1024 * 1024,       // GIF: 10 MB
+  videoBytes: 25 * 1024 * 1024,     // storis/banner video: 25 MB
+  broadcastBytes: 50 * 1024 * 1024, // xabar tarqatish (Telegram chegarasi): 50 MB
+  stories: 15, slidesPerStory: 10, banners: 12,
+  totalBytes: 600 * 1024 * 1024,    // barcha yuklangan fayllar jami: 600 MB
+};
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 60 * 1024 * 1024 },
+  limits: { fileSize: MEDIA_LIMITS.broadcastBytes },
   fileFilter: (_req, file, cb) => cb(null, /^image[/](png|jpe?g|webp|gif|svg[+]xml)$|^video[/](mp4|webm|quicktime)$/.test(file.mimetype)),
 });
 adminRouter.post("/upload", upload.single("file"), async (req, res) => {
   const f = (req as Request & { file?: Express.Multer.File }).file;
   if (!f) { res.status(400).json({ error: "Fayl tanlanmadi (rasm yoki video: mp4/webm/gif)" }); return; }
+  const purpose = String(req.query.purpose || "media"); // media | broadcast
+  const isGif = f.mimetype === "image/gif", isVid = f.mimetype.startsWith("video/");
+  const max = purpose === "broadcast" ? MEDIA_LIMITS.broadcastBytes : isVid ? MEDIA_LIMITS.videoBytes : isGif ? MEDIA_LIMITS.gifBytes : MEDIA_LIMITS.imageBytes;
+  if (f.size > max) { res.status(400).json({ error: `Fayl juda katta: ${(f.size / 1048576).toFixed(1)} MB. Limit: ${Math.round(max / 1048576)} MB (${isVid ? "video" : isGif ? "GIF" : "rasm"})` }); return; }
+  const total = await prisma.upload.aggregate({ _sum: { size: true } });
+  if ((total._sum.size || 0) + f.size > MEDIA_LIMITS.totalBytes) { res.status(400).json({ error: "Yuklangan fayllar umumiy limiti (600 MB) to'ldi. Eski storis/bannerlarni o'chiring." }); return; }
   const ext = (path.extname(f.originalname) || (f.mimetype.startsWith("video/") ? ".mp4" : ".png")).toLowerCase().slice(0, 8);
   const name = `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`;
   await prisma.upload.create({ data: { name, mime: f.mimetype, size: f.size, data: new Uint8Array(f.buffer) as never } });
@@ -180,6 +209,7 @@ adminRouter.get("/stories", async (_req, res) => {
 const storySchema = z.object({ title: z.string().trim().min(1).max(60), cover: z.string().min(1), active: z.boolean().optional(), expiresAt: z.string().nullable().optional() });
 adminRouter.post("/stories", async (req, res) => {
   const b = storySchema.parse(req.body);
+  if ((await prisma.story.count()) >= MEDIA_LIMITS.stories) { res.status(400).json({ error: `Storislar limiti: ko'pi bilan ${MEDIA_LIMITS.stories} ta. Eskisini o'chiring.` }); return; }
   const max = (await prisma.story.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
   const st = await prisma.story.create({ data: { title: b.title, cover: b.cover, active: b.active ?? true, sortOrder: max + 1, expiresAt: b.expiresAt ? new Date(b.expiresAt) : null } });
   res.json(st);
@@ -189,14 +219,27 @@ adminRouter.put("/stories/:id", async (req, res) => {
   const st = await prisma.story.update({ where: { id: Number(req.params.id) }, data: { ...b, expiresAt: b.expiresAt === undefined ? undefined : b.expiresAt ? new Date(b.expiresAt) : null } });
   res.json(st);
 });
+async function dropUpload(url: string | null | undefined) {
+  if (!url || !url.startsWith("/uploads/")) return;
+  const name = path.basename(url);
+  const used = await Promise.all([prisma.story.count({ where: { cover: url } }), prisma.storySlide.count({ where: { image: url } }), prisma.banner.count({ where: { image: url } })]);
+  if (used.reduce((x, y) => x + y, 0) <= 1) await prisma.upload.deleteMany({ where: { name } }).catch(() => {});
+}
+adminRouter.get("/media/limits", async (_req, res) => {
+  const [stories, banners, total] = await Promise.all([prisma.story.count(), prisma.banner.count(), prisma.upload.aggregate({ _sum: { size: true } })]);
+  res.json({ ...MEDIA_LIMITS, used: { stories, banners, bytes: total._sum.size || 0 } });
+});
 adminRouter.delete("/stories/:id", async (req, res) => {
+  const st = await prisma.story.findUnique({ where: { id: Number(req.params.id) }, include: { slides: true } });
   await prisma.story.delete({ where: { id: Number(req.params.id) } });
+  if (st) { await dropUpload(st.cover); for (const sl of st.slides) await dropUpload(sl.image); }
   res.json({ ok: true });
 });
 const slideSchema = z.object({ image: z.string().min(1), caption: z.string().max(200).nullable().optional(), link: z.string().max(300).nullable().optional(), duration: z.number().min(1).max(60).optional() });
 adminRouter.post("/stories/:id/slides", async (req, res) => {
   const b = slideSchema.parse(req.body);
   const storyId = Number(req.params.id);
+  if ((await prisma.storySlide.count({ where: { storyId } })) >= MEDIA_LIMITS.slidesPerStory) { res.status(400).json({ error: `Bitta storisda ko'pi bilan ${MEDIA_LIMITS.slidesPerStory} ta slayd.` }); return; }
   const max = (await prisma.storySlide.aggregate({ where: { storyId }, _max: { sortOrder: true } }))._max.sortOrder || 0;
   res.json(await prisma.storySlide.create({ data: { storyId, image: b.image, caption: b.caption || null, link: b.link || null, duration: b.duration || 5, sortOrder: max + 1 } }));
 });
@@ -205,7 +248,9 @@ adminRouter.put("/slides/:id", async (req, res) => {
   res.json(await prisma.storySlide.update({ where: { id: Number(req.params.id) }, data: b }));
 });
 adminRouter.delete("/slides/:id", async (req, res) => {
+  const sl = await prisma.storySlide.findUnique({ where: { id: Number(req.params.id) } });
   await prisma.storySlide.delete({ where: { id: Number(req.params.id) } });
+  if (sl) await dropUpload(sl.image);
   res.json({ ok: true });
 });
 adminRouter.post("/stories/reorder", async (req, res) => {
@@ -219,6 +264,7 @@ adminRouter.get("/banners", async (_req, res) => { res.json(await prisma.banner.
 const bannerSchema = z.object({ image: z.string().min(1), title: z.string().max(80).nullable().optional(), subtitle: z.string().max(160).nullable().optional(), link: z.string().max(300).nullable().optional(), textColor: z.string().max(20).optional(), active: z.boolean().optional() });
 adminRouter.post("/banners", async (req, res) => {
   const b = bannerSchema.parse(req.body);
+  if ((await prisma.banner.count()) >= MEDIA_LIMITS.banners) { res.status(400).json({ error: `Bannerlar limiti: ko'pi bilan ${MEDIA_LIMITS.banners} ta. Eskisini o'chiring.` }); return; }
   const max = (await prisma.banner.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
   res.json(await prisma.banner.create({ data: { image: b.image, title: b.title || null, subtitle: b.subtitle || null, link: b.link || null, textColor: b.textColor || "#ffffff", active: b.active ?? true, sortOrder: max + 1 } }));
 });
@@ -226,7 +272,7 @@ adminRouter.put("/banners/:id", async (req, res) => {
   const b = bannerSchema.partial().extend({ sortOrder: z.number().optional() }).parse(req.body);
   res.json(await prisma.banner.update({ where: { id: Number(req.params.id) }, data: b }));
 });
-adminRouter.delete("/banners/:id", async (req, res) => { await prisma.banner.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
+adminRouter.delete("/banners/:id", async (req, res) => { const b = await prisma.banner.findUnique({ where: { id: Number(req.params.id) } }); await prisma.banner.delete({ where: { id: Number(req.params.id) } }); if (b) await dropUpload(b.image); res.json({ ok: true }); });
 adminRouter.post("/banners/reorder", async (req, res) => {
   const ids = z.array(z.number()).parse((req.body as { ids?: number[] })?.ids);
   await Promise.all(ids.map((id, i) => prisma.banner.update({ where: { id }, data: { sortOrder: i + 1 } })));
@@ -240,7 +286,8 @@ adminRouter.get("/catalog", async (_req, res) => {
     prisma.category.findMany({ where: { isDeleted: false }, orderBy: { sortOrder: "asc" } }),
   ]);
   res.json({
-    products: products.map((p) => ({ id: p.id, bitoId: p.bitoId, name: p.name, image: bito.fileUrl(p.image), price: p.price, stock: p.stock, categoryId: p.categoryBitoId, categoryName: p.categoryName, hidden: p.hidden, featured: p.featured, sortOrder: p.sortOrder, boxItem: p.boxItem, sku: p.sku })),
+    products: products.map((p) => ({ id: p.id, bitoId: p.bitoId, name: p.name, image: bito.fileUrl(p.image), price: p.price, finalPrice: priceFor(p, { storeId: "main", bitoCustomerId: null }).price, discountPercent: p.discountPercent, roundStep: p.roundStep, roundMode: p.roundMode, stock: p.stock, categoryId: p.categoryBitoId, categoryName: p.categoryName, hidden: p.hidden, featured: p.featured, sortOrder: p.sortOrder, boxItem: p.boxItem, sku: p.sku })),
+    uzs: storeIsUzs("main"),
     categories: categories.map((c) => ({ id: c.id, bitoId: c.bitoId, name: c.name, parentId: c.parentId, image: bito.fileUrl(c.image), hidden: c.hidden, sortOrder: c.sortOrder, itemCount: c.itemCount })),
     sync: getSyncStatus(),
   });
@@ -258,6 +305,13 @@ adminRouter.post("/catalog/products/bulk", async (req, res) => {
   if (b.featured !== undefined) data.featured = b.featured;
   await prisma.product.updateMany({ where: { id: { in: b.ids } }, data });
   invalidateProductCache();
+  res.json({ ok: true });
+});
+adminRouter.post("/catalog/products/discount", async (req, res) => {
+  const b = z.object({ ids: z.array(z.number()).min(1), percent: z.number().min(0).max(100), roundStep: z.number().int().min(0).optional(), roundMode: z.enum(["nearest", "up", "down"]).optional() }).parse(req.body);
+  await prisma.product.updateMany({ where: { id: { in: b.ids } }, data: { discountPercent: b.percent, roundStep: b.percent > 0 ? (b.roundStep || 0) : 0, roundMode: b.roundMode || "nearest" } });
+  invalidateProductCache();
+  await activity("discount", `Chegirma ${b.percent}% → ${b.ids.length} ta mahsulot${b.roundStep ? ` (yaxlitlash /${b.roundStep} ${b.roundMode})` : ""}`);
   res.json({ ok: true });
 });
 adminRouter.post("/catalog/products/reorder", async (req, res) => {

@@ -20,7 +20,9 @@ export type FieldType =
   | "image"
   | "password"
   | "tags"
-  | "latlng";
+  | "latlng"
+  | "stores"
+  | "priceExceptions";
 
 export interface FieldDef {
   key: string;
@@ -150,6 +152,26 @@ export const settingsSchema: SectionDef[] = [
           { key: "customerOrganizations", label: "Yangi mijozni qaysi tashkilotlarga qo'shish", type: "select", default: "all", options: [
             { value: "all", label: "Barcha tashkilotlarga" }, { value: "selected", label: "Faqat tanlangan tashkilotga" },
           ] },
+        ],
+      },
+      {
+        title: "Mijozlar uchun narx istisnolari",
+        description: "Tanlangan mijozlar Mini App'da boshqa narx turini ko'radi va buyurtma shu narxda hisoblanadi",
+        fields: [
+          { key: "priceExceptionsEnabled", label: "Istisnolar", type: "boolean", default: false },
+          { key: "priceExceptions", label: "Istisnolar ro'yxati", type: "priceExceptions", default: [] },
+        ],
+      },
+      {
+        title: "Qo'shimcha tashkilotlar (do'konlar)",
+        description: "Yoqilsa mijozlar Mini App va botda do'kon tanlaydi: mahsulotlar, narxlar, qoldiq, qarzdorlik, buyurtma va xaridlar tanlangan do'kon bo'yicha ko'rsatiladi",
+        fields: [
+          { key: "multiStore", label: "Tashkilot qo'shish", type: "boolean", default: false },
+          { key: "mainStoreName", label: "Asosiy do'kon nomi (yuqoridagi kontekst)", type: "ltext", default: L("Asosiy do'kon", "Основной магазин", "Main store") },
+          { key: "stores", label: "Qo'shimcha do'konlar", type: "stores", default: [] },
+          { key: "storeChooseLabel", label: "Do'kon tanlash sarlavhasi", type: "ltext", default: L("🏬 Do'konni tanlang", "🏬 Выберите магазин", "🏬 Choose a store") },
+          { key: "storeButton", label: "Do'kon tugmasi (bot/Mini App)", type: "ltext", default: L("🏬 Do'kon", "🏬 Магазин", "🏬 Store") },
+          { key: "storeChanged", label: "Do'kon o'zgartirildi xabari", type: "ltext", default: L("✅ Do'kon tanlandi: {store}", "✅ Магазин выбран: {store}", "✅ Store selected: {store}"), placeholders: ["{store}"] },
         ],
       },
       {

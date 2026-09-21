@@ -17,6 +17,7 @@ model User {
   phone          String?
   bitoCustomerId String?  @unique
   language       String   @default("uz")
+  storeId        String   @default("main")
   address        String?
   lat            Float?
   lng            Float?
@@ -41,6 +42,13 @@ model Product {
   priceId        String?
   currencyId     String?
   stock          Float    @default(0)
+  /// Har bir do'kon (tashkilot konteksti) bo'yicha narx/qoldiq: { main: {price, stock, available}, s2: {...} }
+  stores         Json     @default("{}")
+  /// Barcha sinxronlangan narx ro'yxatlari: { <priceId>: amount }
+  prices         Json     @default("{}")
+  discountPercent Float   @default(0)
+  roundStep      Int      @default(0)
+  roundMode      String   @default("nearest")
   boxItem        Float    @default(0)
   measure        String?
   measureDecimals Int     @default(0)
@@ -87,6 +95,7 @@ model Order {
   userId           Int
   user             User     @relation(fields: [userId], references: [id])
   type             String   // delivery | pickup
+  storeId          String   @default("main")
   stateId          String?
   stateKey         String?  // new | in_progress | done | canceled | custom
   stateName        String?

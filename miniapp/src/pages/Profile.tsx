@@ -11,6 +11,7 @@ import { useCatalogFmt } from "../components/ProductCard.tsx";
 import { MapPicker } from "../components/MapPicker.tsx";
 import { fmtDate, qty as fq, LANG_NAMES } from "../lib/format.ts";
 import { haptic, openLink } from "../lib/telegram.ts";
+import { StorePicker } from "../components/StorePicker.tsx";
 
 type Sheet = null | "orders" | "purchases" | "card" | "address" | "language";
 
@@ -95,6 +96,7 @@ export function Profile() {
               <span className="text-[var(--primary)]">{r.icon}</span><span className="flex-1 font-medium">{r.label}</span><ChevronRight size={18} className="text-slate-300" />
             </motion.button>
           ))}
+          <StorePicker inline />
           {themeMode === "user" && (
             <button onClick={() => { haptic.select(); setTheme(theme === "dark" ? "light" : "dark"); }} className="w-full flex items-center gap-3 px-4 py-3.5 border-t border-slate-100 text-left">
               <span className="text-[var(--primary)]">{theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}</span><span className="flex-1 font-medium">{t("design", "darkToggleLabel")}</span>

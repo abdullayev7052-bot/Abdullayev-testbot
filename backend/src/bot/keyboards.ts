@@ -5,6 +5,7 @@ import type { Lang } from "../settings/schema.ts";
 import { getPublicUrl } from "../utils/publicUrl.ts";
 import { bito } from "../bito/client.ts";
 import { nextStages, type Stage } from "../bito/orders.ts";
+import { isMultiStore, listStores } from "../bito/stores.ts";
 
 export function appUrl(): string | null {
   const u = getPublicUrl();
@@ -26,13 +27,21 @@ export function mainKeyboard(lang: Lang): Keyboard {
   kb.text(lt(b.mMyInfo, lang)).text(lt(b.mSettings, lang)).row();
   kb.text(lt(b.mBalance, lang)).text(lt(b.mCard, lang)).row();
   kb.text(lt(b.mAkt, lang));
+  if (isMultiStore()) kb.text(lt(getSettings().bito.storeButton, lang));
   return kb.resized().persistent();
 }
 
-export function openAppInline(lang: Lang): InlineKeyboard | undefined {
+export function openAppInline(lang: Lang, go?: string, label?: string): InlineKeyboard | undefined {
   const url = appUrl();
   if (!url) return undefined;
-  return new InlineKeyboard().webApp(lt(getSettings().bot.openAppButton, lang), url);
+  return new InlineKeyboard().webApp(label || lt(getSettings().bot.openAppButton, lang), go ? `${url}?go=${encodeURIComponent(go)}` : url);
+}
+
+/** Do'kon tanlash tugmalari (ko'p do'kon rejimida) */
+export function storeKeyboard(lang: Lang, currentId: string): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const st of listStores()) { kb.text((st.id === currentId ? "✅ " : "") + st.name(lang), `store:${st.id}`).row(); }
+  return kb;
 }
 
 export function languageKeyboard(): InlineKeyboard {

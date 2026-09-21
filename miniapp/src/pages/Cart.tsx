@@ -46,7 +46,9 @@ export function Cart() {
   const toast = useToast((s) => s.show);
   const swipeDelete = v<boolean>("checkout", "swipeDelete", true);
   const itemTap = v<boolean>("checkout", "cartItemTap", true);
-  const pickupLoc = v<{ lat: number; lng: number } | null>("checkout", "pickupLocation", null);
+  const storeInfo = app.data!.store;
+  const pickupLoc = storeInfo?.pickupLocation || v<{ lat: number; lng: number } | null>("checkout", "pickupLocation", null);
+  const pickupAddr = storeInfo?.pickupAddress || t("checkout", "pickupAddress");
   const clearAll = () => {
     if (v<boolean>("checkout", "confirmClear", true)) setConfirmOpen(true);
     else { haptic.medium(); cart.clear(); }
@@ -178,7 +180,7 @@ export function Cart() {
             )}
             {type === "pickup" && (
               <div className="card p-4">
-                <div className="flex gap-3 items-start"><MapPin className="shrink-0 text-[var(--primary)]" size={20} /><div><div className="text-sm font-semibold">{t("checkout", "pickupLabel")}</div><div className="text-sm text-slate-500">{t("checkout", "pickupAddress")}</div></div></div>
+                <div className="flex gap-3 items-start"><MapPin className="shrink-0 text-[var(--primary)]" size={20} /><div><div className="text-sm font-semibold">{t("checkout", "pickupLabel")}</div><div className="text-sm text-slate-500">{pickupAddr}</div></div></div>
                 {v<boolean>("checkout", "pickupShowMap", true) && pickupLoc && pickupLoc.lat && pickupLoc.lng && (
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <button onClick={() => { haptic.light(); openLink(`https://www.google.com/maps/dir/?api=1&destination=${pickupLoc.lat},${pickupLoc.lng}`); }} className="py-2.5 rounded-xl bg-slate-100 text-sm font-semibold flex items-center justify-center gap-1.5"><Navigation size={15} /> Google — {t("checkout", "pickupRouteLabel")}</button>

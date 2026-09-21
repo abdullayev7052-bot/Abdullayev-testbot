@@ -106,7 +106,8 @@ export function ProductSheet({ product, onClose, onWaitlist }: { product: Produc
 
           <div className="px-5 pt-4">
             <div className="text-xl font-bold leading-snug">{product.name}</div>
-            <div className="text-2xl font-extrabold mt-1" style={{ color: "var(--primary)" }}>{f.price(product.price)}</div>
+            <div className="text-2xl font-extrabold mt-1 flex items-baseline gap-2 flex-wrap" style={{ color: "var(--primary)" }}>{f.price(product.price)}
+              {product.discountPercent && product.basePrice ? <><span className="text-base font-medium text-slate-400 line-through">{f.price(product.basePrice)}</span><span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>-{product.discountPercent}%</span></> : null}</div>
             {product.measure && <div className="text-xs text-slate-500 mt-0.5">1 {product.measure}</div>}
 
             <div className="mt-5">

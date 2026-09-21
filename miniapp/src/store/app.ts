@@ -12,6 +12,7 @@ interface AppState {
   load: () => Promise<void>;
   setLang: (l: Lang) => void;
   patchUser: (p: Partial<Bootstrap["user"]>) => void;
+  setStore: (id: string) => Promise<void>;
   theme: "light" | "dark";
   setTheme: (t: "light" | "dark") => void;
   syncTheme: () => void;
@@ -22,6 +23,10 @@ export const useApp = create<AppState>((set, get) => ({
   lang: (localStorage.getItem("lang") as Lang) || "uz",
   loading: true,
   error: null,
+  async setStore(id) {
+    await api.put("/profile", { storeId: id });
+    await get().load();
+  },
   theme: "light",
   setTheme(t) {
     setUserPref(t);

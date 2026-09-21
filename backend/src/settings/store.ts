@@ -14,6 +14,8 @@ export interface AppSettings {
     organizationId: string; warehouseId: string; priceId: string; currencyId: string; responsibleId: string;
     stockSource: "warehouse" | "organization"; customerOrganizations: "all" | "selected";
     syncIntervalSec: number; pollIntervalSec: number; webhookEnabled: boolean; onlyAvailableForSale: boolean;
+    priceExceptionsEnabled: boolean; priceExceptions: { priceId: string; customerIds: string[]; customerNames?: string[]; priceName?: string }[];
+    multiStore: boolean; mainStoreName: LText; stores: StoreDef[]; storeChooseLabel: LText; storeButton: LText; storeChanged: LText;
   };
   statuses: {
     newStateId: string; acceptedStateId: string; readyStateId: string; deliveringStateId: string; doneStateId: string; canceledStateId: string;
@@ -54,6 +56,11 @@ export interface AppSettings {
     [key: string]: unknown;
   };
   profile: Record<string, unknown>;
+}
+
+export interface StoreDef {
+  id: string; name: LText; organizationId: string; warehouseId: string; priceId: string; currencyId: string; responsibleId: string;
+  stockSource: "warehouse" | "organization"; pickupAddress?: LText; pickupLocation?: { lat: number; lng: number }; enabled?: boolean;
 }
 
 const defaults = buildDefaults();
@@ -147,6 +154,7 @@ export function publicSettings(): Record<string, unknown> {
       nameDelivering: s.statuses.nameDelivering, nameDone: s.statuses.nameDone, nameCanceled: s.statuses.nameCanceled,
     },
     bot: { openAppButton: s.bot.openAppButton },
+    bito: { multiStore: s.bito.multiStore, storeButton: s.bito.storeButton, storeChooseLabel: s.bito.storeChooseLabel, storeChanged: s.bito.storeChanged },
     filesUrl: s.bito.filesUrl.replace(/\/+$/, ""),
   };
 }

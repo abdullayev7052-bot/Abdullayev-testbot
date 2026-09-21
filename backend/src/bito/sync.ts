@@ -4,6 +4,7 @@ import { getSettings, updateSection } from "../settings/store.ts";
 import { buildSearchKey } from "../utils/search.ts";
 import { activity, errMsg, log } from "../logger.ts";
 import type { BitoProduct } from "./types.ts";
+import { allPriceIds, listStores, setCurrencyCodes } from "./stores.ts";
 
 let running = false;
 let lastResult: { at: string; ok: boolean; message: string; products: number; categories: number } | null = null;
@@ -85,6 +86,8 @@ function productChanged(old: Record<string, unknown>, data: Record<string, unkno
   for (const k of CMP_KEYS) if ((old[k] ?? null) !== (data[k] ?? null)) return true;
   if (JSON.stringify(old.images) !== JSON.stringify(data.images)) return true;
   if (JSON.stringify(old.customFields) !== JSON.stringify(data.customFields)) return true;
+  if (JSON.stringify(old.stores) !== JSON.stringify(data.stores)) return true;
+  if (JSON.stringify(old.prices) !== JSON.stringify(data.prices)) return true;
   const a = old.bitoUpdatedAt instanceof Date ? old.bitoUpdatedAt.getTime() : null;
   const b = data.bitoUpdatedAt instanceof Date ? data.bitoUpdatedAt.getTime() : null;
   return a !== b;
@@ -129,14 +132,35 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
     await ensureContext();
     const b = getSettings().bito;
     const orgId = b.organizationId;
-    const [products, priceItems, categories, cfDefs] = await Promise.all([
-      bito.products({ organization_id: orgId, is_product: true }),
-      b.priceId ? bito.priceItems(b.priceId, orgId).catch((e) => { log.warn("Narxlar o'qilmadi:", errMsg(e)); return []; }) : Promise.resolve([]),
+    const stores = listStores();
+    const priceIds = allPriceIds();
+    const [products, categories, cfDefs, currencies, ...priceLists] = await Promise.all([
+      bito.products({ is_product: true }),
       bito.categories(),
       bito.customFields(),
+      bito.currencies().catch(() => []),
+      ...priceIds.map((pid) => bito.priceItems(pid).catch((e) => { log.warn("Narxlar o'qilmadi:", pid, errMsg(e)); return []; })),
     ]);
-    const priceMap = new Map<string, number>();
-    for (const it of priceItems) if (it.product?._id) priceMap.set(it.product._id, Number(it.amount || 0));
+    setCurrencyCodes(new Map(currencies.map((c) => [c._id, (c.code || c.symbol || c.name || "").toLowerCase()])));
+    // key: "<orgId>:<priceId>" → Map<productId, amount>; "*:<priceId>" — istalgan tashkilot (zaxira)
+    const priceMaps = new Map<string, Map<string, number>>();
+    priceIds.forEach((pid, i) => {
+      for (const it of priceLists[i]) {
+        if (!it.product?._id) continue;
+        for (const key of [`${it.organization_id}:${pid}`, `*:${pid}`]) {
+          if (!priceMaps.has(key)) priceMaps.set(key, new Map());
+          const m = priceMaps.get(key)!;
+          if (key.startsWith("*:") && m.has(it.product._id)) continue;
+          m.set(it.product._id, Number(it.amount || 0));
+        }
+      }
+    });
+    const priceLookup = (org: string, pid: string, productId: string, p: BitoProduct): number => {
+      // Avval shu tashkilot narxi, bo'lmasa istalgan tashkilotdagi shu narx turi
+      const v = priceMaps.get(`${org}:${pid}`)?.get(productId) ?? priceMaps.get(`*:${pid}`)?.get(productId);
+      if (v !== undefined) return v;
+      return priceOf(p, org, pid, new Map());
+    };
     const defs = new Map<string, string>();
     for (const d of cfDefs) if (d.table_name === "products") defs.set(d._id, d.name);
 
@@ -155,11 +179,22 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
       if (p.is_parent) continue;
       if (p.is_deleted || p.is_archived) continue;
       const org = p.organizations?.find((x) => x.organization_id === orgId);
-      if (orgId && p.organizations?.length && !org) continue; // boshqa filialga tegishli
-      if (b.onlyAvailableForSale && org && org.is_available === false) continue;
+      // Do'konlar bo'yicha narx/qoldiq
+      const storesData: Record<string, { price: number; stock: number; available: boolean }> = {};
+      for (const st of stores) {
+        const sOrg = p.organizations?.find((x) => x.organization_id === st.organizationId);
+        if (st.organizationId && p.organizations?.length && !sOrg) continue;
+        if (b.onlyAvailableForSale && sOrg && sOrg.is_available === false) continue;
+        const sStock = stockOf(p, st.organizationId, st.warehouseId, st.stockSource);
+        storesData[st.id] = { price: priceLookup(st.organizationId, st.priceId, p._id, p), stock: sStock, available: sOrg ? sOrg.is_available_for_sale !== false || sStock > 0 : true };
+      }
+      if (!Object.keys(storesData).length) continue; // hech qaysi do'konga tegishli emas
       seen.add(p._id);
-      const stock = stockOf(p, orgId, b.warehouseId, b.stockSource);
-      const price = priceOf(p, orgId, b.priceId, priceMap);
+      const main = storesData.main || Object.values(storesData)[0];
+      const stock = main.stock;
+      const price = main.price;
+      const pricesAll: Record<string, number> = {};
+      for (const pid of priceIds) pricesAll[pid] = priceLookup(orgId, pid, p._id, p);
       const images = (p.images && p.images.length ? p.images : p.image ? [p.image] : []).filter(Boolean) as string[];
       const data = {
         name: p.name,
@@ -170,6 +205,8 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
         priceId: b.priceId || null,
         currencyId: b.currencyId || null,
         stock,
+        stores: storesData,
+        prices: pricesAll,
         boxItem: Number(p.box_item || 0),
         measure: p.measure?.short_name || p.measure?.name || null,
         measureDecimals: Number(p.measure?.decimal_count || 0),
@@ -179,7 +216,7 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
         customFields: customFieldsOf(p, defs),
         categoryBitoId: p.category?._id || null,
         categoryName: p.category?.name || null,
-        isAvailableForSale: org ? org.is_available_for_sale !== false || stock > 0 : true,
+        isAvailableForSale: main.available,
         isDeleted: false,
         bitoUpdatedAt: p.updated_at ? new Date(p.updated_at) : null,
         syncedAt: new Date(),
@@ -187,7 +224,10 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
       const old = oldById.get(p._id);
       if (old) {
         if (productChanged(old, data)) updates.push({ id: old.id, data });
-        if ((old.stock <= 0 || old.isDeleted) && stock > 0) arrived.push(old.id);
+        const oldStores = (old.stores as Record<string, { stock?: number }>) || {};
+        const wasOut = old.isDeleted || (old.stock <= 0 && !Object.values(oldStores).some((x) => Number(x?.stock || 0) > 0));
+        const nowIn = Object.values(storesData).some((x) => x.stock > 0);
+        if (wasOut && nowIn) arrived.push(old.id);
       } else {
         maxOrder += 1;
         creates.push({ ...data, bitoId: p._id, sortOrder: maxOrder });
@@ -244,17 +284,27 @@ export async function syncOneProduct(bitoId: string): Promise<void> {
     const stock = stockOf(p, b.organizationId, b.warehouseId, b.stockSource);
     const images = (p.images && p.images.length ? p.images : p.image ? [p.image] : []).filter(Boolean) as string[];
     const price = old?.price ?? 0;
+    const oldStores = (old?.stores as Record<string, { price: number; stock: number; available: boolean }>) || {};
+    const storesData: Record<string, { price: number; stock: number; available: boolean }> = {};
+    for (const st of listStores()) {
+      const sOrg = p.organizations?.find((x) => x.organization_id === st.organizationId);
+      if (st.organizationId && p.organizations?.length && !sOrg) continue;
+      const sStock = stockOf(p, st.organizationId, st.warehouseId, st.stockSource);
+      storesData[st.id] = { price: oldStores[st.id]?.price ?? priceOf(p, st.organizationId, st.priceId, new Map()) ?? 0, stock: sStock, available: sOrg ? sOrg.is_available_for_sale !== false || sStock > 0 : true };
+    }
     const data = {
       name: p.name, searchKey: buildSearchKey(p.name, p.sku, p.barcode, p.category?.name), image: images[0] || null, images,
       stock, boxItem: Number(p.box_item || 0), measure: p.measure?.short_name || p.measure?.name || null,
       measureDecimals: Number(p.measure?.decimal_count || 0), sku: p.sku || null, barcode: p.barcode || null, note: p.note || null,
       categoryBitoId: p.category?._id || null, categoryName: p.category?.name || null, isDeleted: false,
       bitoUpdatedAt: p.updated_at ? new Date(p.updated_at) : null, syncedAt: new Date(),
-      price: priceOf(p, b.organizationId, b.priceId, new Map()) || price,
+      price: storesData.main?.price ?? (priceOf(p, b.organizationId, b.priceId, new Map()) || price),
+      stores: storesData,
     };
     if (old) {
       await prisma.product.update({ where: { id: old.id }, data });
-      if ((old.stock <= 0 || old.isDeleted) && stock > 0 && stockArrivedHandler) await stockArrivedHandler([old.id]);
+      const wasOut = old.isDeleted || (old.stock <= 0 && !Object.values(oldStores).some((x) => Number(x?.stock || 0) > 0));
+      if (wasOut && Object.values(storesData).some((x) => x.stock > 0) && stockArrivedHandler) await stockArrivedHandler([old.id]);
     } else {
       const max = (await prisma.product.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
       await prisma.product.create({ data: { ...data, bitoId, sortOrder: max + 1 } });
