@@ -602,6 +602,48 @@ export const settingsSchema: SectionDef[] = [
         ],
       },
       {
+        title: "Istaklarim (yurakcha)",
+        description: "Mahsulot kartochkasidagi ❤️ tugma. Mijoz bosgan mahsulotlar Profil → Istaklarim bo'limida ko'rinadi.",
+        fields: [
+          { key: "favoritesEnabled", label: "Funksiyani yoqish", type: "boolean", default: true },
+          { key: "favoritesTitle", label: "Bo'lim nomi", type: "ltext", default: L("Istaklarim", "Избранное", "Favourites") },
+          { key: "favoritesEmpty", label: "Bo'sh bo'lganda", type: "ltext", default: L("Hali hech narsa qo'shmagansiz", "Пока ничего не добавлено", "Nothing added yet") },
+          { key: "favoritesEmptyHint", label: "Bo'sh bo'lganda izoh", type: "ltext", default: L("Yoqqan mahsulotdagi ❤️ ni bosing — shu yerda saqlanadi", "Нажмите ❤️ на товаре — он сохранится здесь", "Tap ❤️ on a product — it will be saved here") },
+          { key: "favoriteAdded", label: "Qo'shilganda xabar", type: "ltext", default: L("❤️ Istaklarimga qo'shildi", "❤️ Добавлено в избранное", "❤️ Added to favourites") },
+          { key: "favoriteRemoved", label: "Olib tashlanganda xabar", type: "ltext", default: L("Istaklarimdan olib tashlandi", "Удалено из избранного", "Removed from favourites") },
+        ],
+      },
+      {
+        title: "Mahsulot kartochkasidagi ko'rsatkichlar",
+        description: "Mahsulot ochilganda izoh tarzida ko'rinadigan qo'shimcha ma'lumotlar",
+        fields: [
+          { key: "weeklySalesEnabled", label: "«Bu haftada X ta sotildi» ni ko'rsatish", type: "boolean", default: false },
+          { key: "weeklySalesSource", label: "Ma'lumot qayerdan olinsin", type: "select", default: "bito", options: [
+            { value: "bito", label: "Bito bo'yicha (do'kondagi barcha savdolar)" },
+            { value: "app", label: "Mini App bo'yicha (faqat shu bot orqali berilgan buyurtmalar)" },
+          ] },
+          { key: "weeklySalesDays", label: "Necha kunlik davr", type: "number", default: 7, min: 1, max: 90 },
+          { key: "weeklySalesRefreshMin", label: "Ma'lumotni necha daqiqada yangilash", type: "number", default: 30, min: 5, max: 720 },
+          { key: "weeklySalesMin", label: "Shu sondan kam sotilgan bo'lsa ko'rsatilmasin", type: "number", default: 1, min: 1 },
+          { key: "weeklySalesText", label: "Matn", type: "ltext", default: L("Bu haftada {n} ta sotildi", "На этой неделе продано {n}", "{n} sold this week"), placeholders: ["{n}"] },
+          { key: "inCartCountEnabled", label: "«X ta insonning savatida» ni ko'rsatish", type: "boolean", default: false },
+          { key: "inCartCountHours", label: "Savatcha necha soat ichida yangilangan bo'lsa hisoblansin", type: "number", default: 24, min: 1, max: 168 },
+          { key: "inCartCountMin", label: "Shu sondan kam bo'lsa ko'rsatilmasin", type: "number", default: 2, min: 1 },
+          { key: "inCartCountText", label: "Matn", type: "ltext", default: L("{n} ta insonning savatida", "У {n} человек в корзине", "In {n} people's carts"), placeholders: ["{n}"] },
+        ],
+      },
+      {
+        title: "Variantli mahsulotlar",
+        description: "Bito'da variant (atribut) bilan ochilgan mahsulotlar — masalan «Futbolka / Qora / S»",
+        fields: [
+          { key: "variantsEnabled", label: "Variantlarni bitta kartochka ostida ko'rsatish", type: "boolean", default: true },
+          { key: "variantChooseLabel", label: "Tanlash sarlavhasi", type: "ltext", default: L("Variantni tanlang", "Выберите вариант", "Choose a variant") },
+          { key: "variantPickHint", label: "Tanlanmaganda tugma matni", type: "ltext", default: L("Variantni tanlang", "Выберите вариант", "Select a variant") },
+          { key: "variantOutLabel", label: "Variant tugagan bo'lsa", type: "ltext", default: L("tugagan", "нет в наличии", "out of stock") },
+          { key: "variantFromLabel", label: "Narx oldidagi so'z (eng arzon variant)", type: "ltext", default: L("dan", "от", "from"), help: "Masalan: «45 000 so'm dan». Bo'sh qoldirilsa — oddiy narx" },
+        ],
+      },
+      {
         title: "Tartib va ko'rinish",
         fields: [
           { key: "sortMode", label: "Mahsulotlar tartibi", type: "select", default: "manual", options: [

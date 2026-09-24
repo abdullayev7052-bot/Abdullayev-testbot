@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Info, X } from "lucide-react";
 
 /* Kutubxonasiz, yengil SVG grafiklar (tungi rejimga mos, CSS o'zgaruvchilar orqali) */
 
@@ -87,13 +88,49 @@ export function HBars({ rows, color = "var(--primary)", fmt = fmtN }: { rows: { 
 }
 
 /** Statistika plitkasi */
-export function Stat({ label, value, sub, icon, tone = "blue", to }: { label: string; value: React.ReactNode; sub?: React.ReactNode; icon?: React.ReactNode; tone?: "blue" | "green" | "amber" | "red" | "violet" | "slate"; to?: string }) {
+export function Stat({ label, value, sub, icon, tone = "blue", to, info }: { label: string; value: React.ReactNode; sub?: React.ReactNode; icon?: React.ReactNode; tone?: "blue" | "green" | "amber" | "red" | "violet" | "slate"; to?: string; info?: React.ReactNode }) {
   const tones: Record<string, string> = { blue: "bg-blue-50 text-blue-600", green: "bg-emerald-50 text-emerald-600", amber: "bg-amber-50 text-amber-600", red: "bg-red-50 text-red-600", violet: "bg-violet-50 text-violet-600", slate: "bg-slate-100 text-slate-600" };
   const body = (
     <div className="card p-4 h-full flex gap-3 hover:shadow-md transition-shadow">
       {icon && <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tones[tone]}`}>{icon}</div>}
-      <div className="min-w-0"><div className="text-xs text-slate-500 truncate">{label}</div><div className="text-xl font-bold leading-tight mt-0.5 tabular-nums">{value}</div>{sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}</div>
+      <div className="min-w-0 flex-1"><div className="text-xs text-slate-500 flex items-center gap-1.5"><span className="truncate">{label}</span>{info}</div><div className="text-xl font-bold leading-tight mt-0.5 tabular-nums">{value}</div>{sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}</div>
     </div>
   );
   return to ? <Link to={to}>{body}</Link> : body;
+}
+
+/** Ko'rsatkich yonidagi «i» tugmasi — bosilganda tushuntirish va misol chiqadi */
+export function InfoDot({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [open]);
+  return (
+    <>
+      <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }} title="Bu nima?"
+        className="w-5 h-5 rounded-full border border-slate-300 text-slate-400 hover:text-[var(--primary)] hover:border-[var(--primary)] flex items-center justify-center shrink-0">
+        <Info size={12} />
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={() => setOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative card w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+              <div className="font-semibold">{title}</div>
+              <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"><X size={18} /></button>
+            </div>
+            <div className="p-5 text-sm leading-relaxed space-y-2.5 text-slate-600">{children}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Misol bloki (InfoDot ichida) */
+export function Example({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-[13px] font-mono whitespace-pre-line">{children}</div>;
 }

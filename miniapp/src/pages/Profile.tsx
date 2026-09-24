@@ -2,19 +2,20 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw, Moon, Sun } from "lucide-react";
+import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw, Moon, Sun, Heart } from "lucide-react";
 import { api, type BalanceLine, type Lang, type OrderRow, type Purchase, type Product } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
 import { Page, BottomSheet, Skeleton, Empty, Img, useToast } from "../components/ui.tsx";
-import { useCatalogFmt } from "../components/ProductCard.tsx";
+import { ProductCard, useCatalogFmt } from "../components/ProductCard.tsx";
+import { ProductSheet } from "../components/ProductSheet.tsx";
 import { MapPicker } from "../components/MapPicker.tsx";
 import { fmtDate, qty as fq, LANG_NAMES } from "../lib/format.ts";
 import { haptic, openLink } from "../lib/telegram.ts";
 import { StorePicker } from "../components/StorePicker.tsx";
 import { track } from "../lib/analytics.ts";
 
-type Sheet = null | "orders" | "purchases" | "card" | "address" | "language";
+type Sheet = null | "orders" | "purchases" | "card" | "address" | "language" | "favorites";
 
 const STAGE_COLORS: Record<string, string> = {
   new: "bg-blue-50 text-blue-700", accepted: "bg-indigo-50 text-indigo-700", ready: "bg-amber-50 text-amber-700",
@@ -28,9 +29,10 @@ export function Profile() {
   const f = useCatalogFmt();
   const nav = useNavigate();
   const [sheet, setSheetRaw] = useState<Sheet>(null);
-  const setSheet = (s: Sheet) => { if (s === "orders") track("order_history"); else if (s === "purchases") track("purchases"); else if (s === "card") track("card"); setSheetRaw(s); };
+  const setSheet = (s: Sheet) => { if (s === "orders") track("order_history"); else if (s === "purchases") track("purchases"); else if (s === "card") track("card"); else if (s === "favorites") track("favorites_open"); setSheetRaw(s); };
   useEffect(() => { track("profile_open"); }, []);
   const [orderOpen, setOrderOpen] = useState<OrderRow | null>(null);
+  const [productOpen, setProductOpen] = useState<Product | null>(null);
   const toast = useToast((s) => s.show);
   const cart = useCart();
 
@@ -57,8 +59,11 @@ export function Profile() {
 
   const balanceText = (b: BalanceLine) => b.amount < 0 ? `${t("profile", "debt")}: ${f.price(Math.abs(b.amount))}` : b.amount > 0 ? `${t("profile", "credit")}: ${f.price(b.amount)}` : t("profile", "noDebt");
 
+  const favoritesEnabled = v<boolean>("catalog", "favoritesEnabled", true);
+  const favorites = useQuery({ queryKey: ["favorites"], queryFn: () => api.get<{ enabled: boolean; items: Product[] }>("/favorites"), enabled: sheet === "favorites", staleTime: 10000 });
   const rows: { icon: React.ReactNode; label: string; onClick: () => void; show: boolean }[] = [
     { icon: <Package size={20} />, label: t("profile", "myOrders"), onClick: () => setSheet("orders"), show: true },
+    { icon: <Heart size={20} />, label: t("catalog", "favoritesTitle"), onClick: () => setSheet("favorites"), show: favoritesEnabled },
     { icon: <Receipt size={20} />, label: t("profile", "purchases"), onClick: () => setSheet("purchases"), show: v<boolean>("profile", "showPurchases", true) },
     { icon: <CreditCard size={20} />, label: t("profile", "card"), onClick: () => setSheet("card"), show: v<boolean>("profile", "showCard", true) },
     { icon: <MapPin size={20} />, label: t("profile", "address"), onClick: () => setSheet("address"), show: v<boolean>("profile", "showAddress", true) },
@@ -148,6 +153,24 @@ export function Profile() {
           </div>
         )}
       </BottomSheet>
+
+      {/* Istaklarim */}
+      <BottomSheet open={sheet === "favorites"} onClose={() => setSheet(null)} title={t("catalog", "favoritesTitle")} full>
+        <div className="px-4 pb-8">
+          {favorites.isLoading ? (
+            <div className="grid grid-cols-2 gap-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-52" />)}</div>
+          ) : !favorites.data?.items.length ? (
+            <Empty emoji="❤️" title={t("catalog", "favoritesEmpty")} hint={t("catalog", "favoritesEmptyHint")} />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {favorites.data.items.map((p, i) => (
+                <ProductCard key={p.id} p={p} index={i} onOpen={setProductOpen} onWaitlist={() => {}} />
+              ))}
+            </div>
+          )}
+        </div>
+      </BottomSheet>
+      <ProductSheet product={productOpen} onClose={() => { setProductOpen(null); void favorites.refetch(); }} onWaitlist={() => {}} />
 
       {/* Xaridlar */}
       <BottomSheet open={sheet === "purchases"} onClose={() => setSheet(null)} title={t("profile", "purchases")} full>

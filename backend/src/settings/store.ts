@@ -48,6 +48,11 @@ export interface AppSettings {
     allCategoriesLabel: LText; catalogTitle: LText; descriptionTitle: LText; noDescription: LText; emptyCatalog: LText;
     searchPlaceholder: LText; searchMinChars: number; searchFuzzy: boolean;
     allowManualQty: boolean; maxQtyPerItem: number; boxModeEnabled: boolean; boxLabel: LText; pieceLabel: LText; boxHint: LText; addToCart: LText; inCartLabel: LText;
+    favoritesEnabled: boolean; favoritesTitle: LText; favoritesEmpty: LText; favoritesEmptyHint: LText; favoriteAdded: LText; favoriteRemoved: LText;
+    weeklySalesEnabled: boolean; weeklySalesSource: "bito" | "app"; weeklySalesDays: number; weeklySalesRefreshMin: number; weeklySalesMin: number; weeklySalesText: LText;
+    inCartCountEnabled: boolean; inCartCountHours: number; inCartCountMin: number; inCartCountText: LText;
+    variantsEnabled: boolean; variantChooseLabel: LText; variantPickHint: LText; variantOutLabel: LText; variantFromLabel: LText;
+    [key: string]: unknown;
   };
   checkout: {
     deliveryEnabled: boolean; pickupEnabled: boolean; defaultType: "delivery" | "pickup"; deliveryLabel: LText; pickupLabel: LText;

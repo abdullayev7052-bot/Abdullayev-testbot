@@ -82,9 +82,9 @@ export async function buildReport(f: ReportFilters) {
   const [
     userTotals, active, inactive, retention, cohorts,
     sNew, sActive, sOrders,
-    orderTotals, orderQuick, byStage, byType, byStore, ordersRaw,
+    orderTotals, orderQuick, byStage, byType, byStore,
     eventsByName, funnelBase, orderUsers, convSplit,
-    searchTop, searchStats, searchNext, platforms, langs, topViewed, misc,
+    searchTop, searchStats, searchNext, platforms, langs, topViewed, sessions, misc,
   ] = await Promise.all([
     // Foydalanuvchilar: jami, ro'yxatdan o'tgan, yangilar
     q(Prisma.sql`SELECT count(*)::int AS total, count(*) FILTER (WHERE u.step = 'done')::int AS registered,
@@ -121,7 +121,6 @@ export async function buildReport(f: ReportFilters) {
     q(Prisma.sql`SELECT coalesce(o."stateKey", 'new') AS k, count(*)::int AS c, coalesce(sum(o.total), 0)::float8 AS s ${OR} WHERE ${oP} GROUP BY 1`),
     q(Prisma.sql`SELECT o.type AS k, count(*)::int AS c, coalesce(sum(o.total), 0)::float8 AS s ${OR} WHERE ${oP} GROUP BY 1`),
     q(Prisma.sql`SELECT o."storeId" AS k, count(*)::int AS c, coalesce(sum(o.total), 0)::float8 AS s ${OR} WHERE ${oP} GROUP BY 1 ORDER BY 2 DESC`),
-    q<{ items: unknown }>(Prisma.sql`SELECT o.items ${OR} WHERE ${oP} AND o."stateKey" IS DISTINCT FROM 'canceled' ORDER BY o."createdAt" DESC LIMIT 5000`),
     // Hodisalar (funksiyalar + funnel)
     q(Prisma.sql`SELECT e.name AS k, count(*)::int AS c, count(DISTINCT e."userId")::int AS u ${EV} WHERE ${evP} GROUP BY 1`),
     q(Prisma.sql`SELECT count(DISTINCT e."userId")::int AS c ${EV} WHERE ${evP}`),
@@ -143,7 +142,22 @@ export async function buildReport(f: ReportFilters) {
     // Eng ko'p ko'rilgan mahsulotlar
     q(Prisma.sql`SELECT (e.meta->>'productId')::int AS id, max(e.meta->>'name') AS name, count(*)::int AS c, count(DISTINCT e."userId")::int AS u
       ${EV} WHERE e.name = 'product_view' AND ${evP} AND (e.meta->>'productId') ~ '^[0-9]+$' GROUP BY 1 ORDER BY 3 DESC LIMIT 10`),
-    Promise.all([prisma.product.count({ where: { isDeleted: false } }), prisma.waitlist.count({ where: { notifiedAt: null } })]),
+    // Sessiyalar: 30 daqiqadan uzoq tanaffus — yangi sessiya. Davomiylik = sessiyaning birinchi va oxirgi hodisasi orasi.
+    q(Prisma.sql`WITH ev AS (
+        SELECT e."userId" uid, e."createdAt" ts,
+          CASE WHEN lag(e."createdAt") OVER (PARTITION BY e."userId" ORDER BY e."createdAt") IS NULL
+                 OR e."createdAt" - lag(e."createdAt") OVER (PARTITION BY e."userId" ORDER BY e."createdAt") > interval '30 minutes'
+               THEN 1 ELSE 0 END AS is_start
+        ${EV} WHERE ${evP} AND e.name NOT IN ('bot_start', 'bot_active')),
+      grp AS (SELECT uid, ts, sum(is_start) OVER (PARTITION BY uid ORDER BY ts) AS sid FROM ev),
+      sess AS (SELECT uid, sid, extract(epoch FROM (max(ts) - min(ts))) AS secs, count(*) AS events FROM grp GROUP BY 1, 2)
+      SELECT count(*)::int AS sessions, count(DISTINCT uid)::int AS users,
+        coalesce(avg(secs), 0)::float8 AS avg_secs,
+        coalesce(percentile_cont(0.5) WITHIN GROUP (ORDER BY secs), 0)::float8 AS median_secs,
+        coalesce(avg(events), 0)::float8 AS avg_events,
+        count(*) FILTER (WHERE secs < 30)::int AS bounced
+      FROM sess`),
+    Promise.all([prisma.product.count({ where: { isDeleted: false } }), prisma.waitlist.count({ where: { notifiedAt: null } }), prisma.favorite.count()]),
   ]);
 
   // ---- Seriyalarni bo'sh chelaklar bilan to'ldirish ----
@@ -167,18 +181,6 @@ export async function buildReport(f: ReportFilters) {
   const statuses = stageOrder.map((k) => ({ key: k, label: stageLabel[k] || k, count: n(stageMap.get(k)?.c), sum: n(stageMap.get(k)?.s) }));
   for (const [k, r] of stageMap) if (!stageOrder.includes(k)) statuses.push({ key: k, label: k, count: n(r.c), sum: n(r.s) });
 
-  // ---- Eng ko'p sotilgan mahsulotlar (buyurtma tarkibidan) ----
-  const sold = new Map<string, { id: number | null; name: string; qty: number; sum: number; orders: number }>();
-  for (const row of ordersRaw) {
-    const items = Array.isArray(row.items) ? (row.items as { productId?: number; name?: string; price?: number; qty?: number }[]) : [];
-    for (const it of items) {
-      const key = String(it.productId ?? it.name ?? "?");
-      const cur = sold.get(key) || { id: it.productId ?? null, name: it.name || key, qty: 0, sum: 0, orders: 0 };
-      cur.qty += n(it.qty); cur.sum += n(it.price) * n(it.qty); cur.orders += 1;
-      sold.set(key, cur);
-    }
-  }
-  const topSold = [...sold.values()].sort((a, b) => b.sum - a.sum).slice(0, 10);
 
   // ---- Funnel ----
   const ev = new Map(eventsByName.map((r) => [String(r.k), r]));
@@ -200,10 +202,11 @@ export async function buildReport(f: ReportFilters) {
 
   const features = [
     ["product_view", "Mahsulot ko'rish"], ["category_view", "Kategoriya tanlash"], ["search", "Qidiruv"], ["add_to_cart", "Savatga qo'shish"], ["checkout_start", "Rasmiylashtirish"],
-    ["order_created", "Buyurtma berish"], ["waitlist_add", "Kelganda eslating"], ["story_view", "Storis ko'rish"], ["banner_click", "Banner bosish"], ["profile_open", "Profil"],
+    ["order_created", "Buyurtma berish"], ["waitlist_add", "Kelganda eslating"], ["favorite_add", "Istaklarimga qo'shish"], ["favorites_open", "Istaklarim bo'limi"], ["story_view", "Storis ko'rish"], ["banner_click", "Banner bosish"], ["profile_open", "Profil"],
     ["order_history", "Buyurtmalar tarixi"], ["purchases", "Xaridlar (Bito)"], ["card", "Karta"], ["bot_active", "Bot bilan muloqot"],
   ].map(([key, label]) => ({ key, label, count: evCount(key), users: evUsers(key) }));
 
+  const se = sessions[0] || {};
   const ut = userTotals[0] || {}, ac = active[0] || {}, ina = inactive[0] || {}, rt = retention[0] || {}, ot = orderTotals[0] || {}, oq = orderQuick[0] || {}, ss = searchStats[0] || {}, sn = searchNext[0] || {};
   const searchers = n(ss.u);
   const ret = (b: unknown, r: unknown) => ({ base: n(b), returned: n(r), pct: pct(n(r), n(b)) });
@@ -224,7 +227,6 @@ export async function buildReport(f: ReportFilters) {
       period: { count: n(ot.c), sum: n(ot.s), canceled: n(ot.canceled), cancelRate: pct(n(ot.canceled), n(ot.c)), aov: n(ot.c_ok) ? Math.round(n(ot.s_ok) / n(ot.c_ok)) : 0, buyers: n(ot.buyers) },
       quick: { today: { count: n(oq.c_today), sum: n(oq.s_today) }, week: { count: n(oq.c_week), sum: n(oq.s_week) }, month: { count: n(oq.c_month), sum: n(oq.s_month) }, all: n(oq.c_all) },
       statuses, byType: byType.map((r) => ({ key: String(r.k), count: n(r.c), sum: n(r.s) })), byStore: byStore.map((r) => ({ key: String(r.k), count: n(r.c), sum: n(r.s) })),
-      topSold,
     },
     series,
     funnel,
@@ -239,9 +241,16 @@ export async function buildReport(f: ReportFilters) {
       zeroResult: searchTop.filter((r) => n(r.best) === 0).slice(0, 15).map((r) => ({ q: String(r.k), count: n(r.c) })),
       toView: { users: n(sn.view), pct: pct(n(sn.view), searchers) }, toCart: { users: n(sn.cart), pct: pct(n(sn.cart), searchers) }, toOrder: { users: n(sn.ordered), pct: pct(n(sn.ordered), searchers) },
     },
+    sessions: {
+      count: n(se.sessions), users: n(se.users),
+      avgSec: Math.round(n(se.avg_secs)), medianSec: Math.round(n(se.median_secs)),
+      avgEvents: Math.round(n(se.avg_events) * 10) / 10,
+      perUser: n(se.users) ? Math.round((n(se.sessions) / n(se.users)) * 10) / 10 : 0,
+      bounceRate: pct(n(se.bounced), n(se.sessions)),
+    },
     platforms: platforms.map((r) => ({ key: String(r.k), users: n(r.u), opens: n(r.opens) })),
     topViewed: topViewed.map((r) => ({ id: n(r.id), name: String(r.name || ""), count: n(r.c), users: n(r.u) })),
-    misc: { products: misc[0], waitlist: misc[1] },
+    misc: { products: misc[0], waitlist: misc[1], favorites: misc[2] },
   };
 }
 

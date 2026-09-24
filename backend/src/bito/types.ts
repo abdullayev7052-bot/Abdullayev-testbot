@@ -35,7 +35,8 @@ export interface BitoProduct {
   custom_fields?: { _id: string; value: unknown }[];
   organizations?: { organization_id: string; amount?: number; is_available?: boolean; is_available_for_sale?: boolean; prices?: { price_id: string; amount: number }[] }[];
   _warehouses?: Record<string, { amount?: number; booked?: number }>;
-  is_product?: boolean; is_parent?: boolean; is_variant?: boolean;
+  is_product?: boolean; is_parent?: boolean; is_variant?: boolean; parent_id?: string | null;
+  attributes?: { attribute_id?: string; attribute?: { _id?: string; name?: string }; attribute_item_id?: string; attribute_item?: { _id?: string; name?: string } }[];
 }
 
 export interface BitoPriceItem { _id: string; organization_id: string; price_id: string; amount: number; product: { _id: string; name: string }; category?: { _id: string; name: string } }

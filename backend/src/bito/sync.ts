@@ -81,13 +81,14 @@ export async function autoMapStates(): Promise<void> {
   }
 }
 
-const CMP_KEYS = ["name", "searchKey", "image", "price", "priceId", "currencyId", "stock", "boxItem", "measure", "measureDecimals", "sku", "barcode", "note", "categoryBitoId", "categoryName", "isAvailableForSale", "isDeleted"] as const;
+const CMP_KEYS = ["name", "searchKey", "image", "price", "priceId", "currencyId", "stock", "boxItem", "measure", "measureDecimals", "sku", "barcode", "note", "categoryBitoId", "categoryName", "isAvailableForSale", "isDeleted", "parentBitoId", "isParent", "variantLabel"] as const;
 function productChanged(old: Record<string, unknown>, data: Record<string, unknown>): boolean {
   for (const k of CMP_KEYS) if ((old[k] ?? null) !== (data[k] ?? null)) return true;
   if (JSON.stringify(old.images) !== JSON.stringify(data.images)) return true;
   if (JSON.stringify(old.customFields) !== JSON.stringify(data.customFields)) return true;
   if (JSON.stringify(old.stores) !== JSON.stringify(data.stores)) return true;
   if (JSON.stringify(old.prices) !== JSON.stringify(data.prices)) return true;
+  if (JSON.stringify(old.variantAttrs) !== JSON.stringify(data.variantAttrs)) return true;
   const ts = (d: unknown) => (d instanceof Date ? d.getTime() : null);
   return ts(old.bitoUpdatedAt) !== ts(data.bitoUpdatedAt) || ts(old.bitoCreatedAt) !== ts(data.bitoCreatedAt);
 }
@@ -108,6 +109,27 @@ function priceOf(p: BitoProduct, orgId: string, priceId: string, map: Map<string
   const o = p.organizations?.find((x) => x.organization_id === orgId);
   const pr = o?.prices?.find((x) => x.price_id === priceId);
   return Number(pr?.amount || 0);
+}
+
+/** Variant atributlari: [{ name: "Rang", value: "Qora" }] — Bito'dagi har qanday atribut nomi bilan ishlaydi */
+function variantAttrsOf(p: BitoProduct): { name: string; value: string }[] {
+  const out: { name: string; value: string }[] = [];
+  for (const a of p.attributes || []) {
+    const name = a.attribute?.name?.trim();
+    const value = a.attribute_item?.name?.trim();
+    if (name && value) out.push({ name, value });
+  }
+  return out;
+}
+/** Variant nomidan ota mahsulot nomini olib tashlab, faqat farqni qoldirish: "Futbolka / Qora / S" → "Qora / S" */
+function variantLabelOf(p: BitoProduct, parentName: string | undefined, attrs: { name: string; value: string }[]): string {
+  if (attrs.length) return attrs.map((a) => a.value).join(" / ");
+  const n = p.name || "";
+  if (parentName && n.toLowerCase().startsWith(parentName.toLowerCase())) {
+    const rest = n.slice(parentName.length).replace(/^\s*[/|,-]\s*/, "").trim();
+    if (rest) return rest;
+  }
+  return n;
 }
 
 function customFieldsOf(p: BitoProduct, defs: Map<string, string>): { name: string; value: string }[] {
@@ -174,18 +196,51 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
     const orderRows = await prisma.product.aggregate({ _max: { sortOrder: true } });
     maxOrder = orderRows._max.sortOrder || 0;
 
+    // Variant mahsulotlar: ota (is_parent) va bolalari (parent_id). Ota kartochka bolalaridan yig'iladi.
+    // Ba'zi akkauntlarda ota mahsulot ro'yxatga tushmaydi — uni alohida o'qiymiz.
+    const listed = new Set(products.map((x) => x._id));
+    const missingParents = [...new Set(products.map((x) => x.parent_id).filter((id): id is string => !!id && !listed.has(id)))];
+    if (missingParents.length) {
+      const fetched = await Promise.all(missingParents.slice(0, 500).map((id) => bito.productById(id).catch(() => null)));
+      for (const pr of fetched) if (pr && pr._id) { pr.is_parent = true; products.push(pr); }
+      log.info(`Variantli mahsulotlar: ${missingParents.length} ta ota kartochka qo'shildi`);
+    }
+    const byBitoId = new Map(products.map((x) => [x._id, x]));
+    const childrenOf = new Map<string, BitoProduct[]>();
+    for (const x of products) {
+      if (x.is_parent || !x.parent_id) continue;
+      const arr = childrenOf.get(x.parent_id) || [];
+      arr.push(x);
+      childrenOf.set(x.parent_id, arr);
+    }
+
     for (const p of products) {
-      if (p.is_parent) continue;
       if (p.is_deleted || p.is_archived) continue;
-      const org = p.organizations?.find((x) => x.organization_id === orgId);
-      // Do'konlar bo'yicha narx/qoldiq
+      const kids = p.is_parent ? (childrenOf.get(p._id) || []).filter((k) => !k.is_deleted && !k.is_archived) : [];
+      if (p.is_parent && !kids.length) continue; // variantlari yo'q ota mahsulot ko'rsatilmaydi
+      const parent = p.parent_id ? byBitoId.get(p.parent_id) : undefined;
+      const attrs = p.is_parent ? [] : variantAttrsOf(p);
+      // Do'konlar bo'yicha narx/qoldiq (ota mahsulot uchun — variantlaridan yig'iladi)
       const storesData: Record<string, { price: number; stock: number; available: boolean }> = {};
       for (const st of stores) {
-        const sOrg = p.organizations?.find((x) => x.organization_id === st.organizationId);
-        if (st.organizationId && p.organizations?.length && !sOrg) continue;
-        if (b.onlyAvailableForSale && sOrg && sOrg.is_available === false) continue;
-        const sStock = stockOf(p, st.organizationId, st.warehouseId, st.stockSource);
-        storesData[st.id] = { price: priceLookup(st.organizationId, st.priceId, p._id, p), stock: sStock, available: sOrg ? sOrg.is_available_for_sale !== false || sStock > 0 : true };
+        const sources = kids.length ? kids : [p];
+        const rows = sources.map((src) => {
+          const sOrg = src.organizations?.find((x) => x.organization_id === st.organizationId);
+          if (st.organizationId && src.organizations?.length && !sOrg) return null;
+          if (b.onlyAvailableForSale && sOrg && sOrg.is_available === false) return null;
+          const sStock = stockOf(src, st.organizationId, st.warehouseId, st.stockSource);
+          return { price: priceLookup(st.organizationId, st.priceId, src._id, src), stock: sStock, available: sOrg ? sOrg.is_available_for_sale !== false || sStock > 0 : true };
+        }).filter(Boolean) as { price: number; stock: number; available: boolean }[];
+        if (!rows.length) continue;
+        if (rows.length === 1) { storesData[st.id] = rows[0]; continue; }
+        // Ota kartochka: qoldiq — yig'indi, narx — eng arzon (qoldig'i borlar ichidan)
+        const withStock = rows.filter((r) => r.stock > 0);
+        const priced = (withStock.length ? withStock : rows).filter((r) => r.price > 0);
+        storesData[st.id] = {
+          price: priced.length ? Math.min(...priced.map((r) => r.price)) : 0,
+          stock: rows.reduce((a, r) => a + r.stock, 0),
+          available: rows.some((r) => r.available),
+        };
       }
       if (!Object.keys(storesData).length) continue; // hech qaysi do'konga tegishli emas
       seen.add(p._id);
@@ -193,8 +248,15 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
       const stock = main.stock;
       const price = main.price;
       const pricesAll: Record<string, number> = {};
-      for (const pid of priceIds) pricesAll[pid] = priceLookup(orgId, pid, p._id, p);
-      const images = (p.images && p.images.length ? p.images : p.image ? [p.image] : []).filter(Boolean) as string[];
+      for (const pid of priceIds) {
+        if (!kids.length) { pricesAll[pid] = priceLookup(orgId, pid, p._id, p); continue; }
+        const vals = kids.map((k) => priceLookup(orgId, pid, k._id, k)).filter((v) => v > 0);
+        pricesAll[pid] = vals.length ? Math.min(...vals) : 0;
+      }
+      const ownImages = (p.images && p.images.length ? p.images : p.image ? [p.image] : []).filter(Boolean) as string[];
+      // Ota mahsulotning rasmi bo'lmasa — birinchi variantning rasmi
+      const kidImages = kids.flatMap((k) => (k.images && k.images.length ? k.images : k.image ? [k.image] : [])).filter(Boolean) as string[];
+      const images = ownImages.length ? ownImages : kidImages;
       const data = {
         name: p.name,
         searchKey: buildSearchKey(p.name, p.sku, p.barcode, p.category?.name),
@@ -213,8 +275,12 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
         barcode: p.barcode || null,
         note: p.note || null,
         customFields: customFieldsOf(p, defs),
-        categoryBitoId: p.category?._id || null,
-        categoryName: p.category?.name || null,
+        categoryBitoId: p.category?._id || parent?.category?._id || null,
+        categoryName: p.category?.name || parent?.category?.name || null,
+        parentBitoId: p.is_parent ? null : p.parent_id || null,
+        isParent: !!p.is_parent,
+        variantAttrs: attrs,
+        variantLabel: p.is_parent ? null : p.parent_id ? variantLabelOf(p, parent?.name, attrs) : null,
         isAvailableForSale: main.available,
         isDeleted: false,
         bitoUpdatedAt: p.updated_at ? new Date(p.updated_at) : null,

@@ -359,6 +359,26 @@ adminRouter.get("/waitlist", async (_req, res) => {
     user: { id: w.user.id, name: w.user.name || w.user.tgFirstName, phone: w.user.phone, username: w.user.tgUsername, telegramId: String(w.user.telegramId) },
   })));
 });
+/** "Istaklarim" — qaysi mijoz qaysi mahsulotni yoqtirgan */
+adminRouter.get("/favorites", async (req, res) => {
+  const take = Math.min(500, Number(req.query.limit || 300));
+  const [rows, top] = await Promise.all([
+    prisma.favorite.findMany({ orderBy: { createdAt: "desc" }, take, include: { product: true, user: true } }),
+    prisma.favorite.groupBy({ by: ["productId"], _count: { userId: true }, orderBy: { _count: { userId: "desc" } }, take: 20 }),
+  ]);
+  const prods = await prisma.product.findMany({ where: { id: { in: top.map((t) => t.productId) } } });
+  const byId = new Map(prods.map((p) => [p.id, p]));
+  res.json({
+    items: rows.map((r) => ({
+      id: r.id, createdAt: r.createdAt,
+      product: { id: r.product.id, name: r.product.name, image: bito.fileUrl(r.product.image), stock: r.product.stock },
+      user: { id: r.user.id, name: r.user.name, phone: r.user.phone, username: r.user.tgUsername, telegramId: String(r.user.telegramId) },
+    })),
+    top: top.map((t) => ({ productId: t.productId, name: byId.get(t.productId)?.name || `#${t.productId}`, image: bito.fileUrl(byId.get(t.productId)?.image || null), count: t._count.userId })),
+  });
+});
+adminRouter.delete("/favorites/:id", async (req, res) => { await prisma.favorite.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
+
 adminRouter.delete("/waitlist/:id", async (req, res) => { await prisma.waitlist.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
 
 // ---------- Guruhlar va xodimlar ----------
@@ -396,8 +416,19 @@ adminRouter.post("/broadcast", async (req, res) => {
     language: z.enum(["all", "uz", "ru", "en"]).optional(),
     buttonText: z.string().trim().max(60).optional(),
     buttonTarget: z.string().trim().max(300).optional(),
+    /** Faqat tugmadagi mahsulotni "Istaklarim"ga qo'shganlarga yuborish */
+    onlyFavorites: z.boolean().optional(),
   }).parse(req.body);
-  const users = await prisma.user.findMany({ where: { step: "done", isBlocked: false, ...(b.language && b.language !== "all" ? { language: b.language } : {}) } });
+  // "Istaklarga qo'shganlar uchun": tugma mahsulotga (product:ID) qaratilgan bo'lishi kerak
+  let favUserIds: number[] | null = null;
+  if (b.onlyFavorites) {
+    const m = /^product:(\d+)$/.exec(b.buttonTarget || "");
+    if (!m) { res.status(400).json({ error: "«Istaklarga qo'shganlar uchun» — tugmaga mahsulot tanlang" }); return; }
+    const rows = await prisma.favorite.findMany({ where: { productId: Number(m[1]) }, select: { userId: true } });
+    favUserIds = rows.map((r) => r.userId);
+    if (!favUserIds.length) { res.json({ ok: true, total: 0 }); return; }
+  }
+  const users = await prisma.user.findMany({ where: { step: "done", isBlocked: false, ...(favUserIds ? { id: { in: favUserIds } } : {}), ...(b.language && b.language !== "all" ? { language: b.language } : {}) } });
   res.json({ ok: true, total: users.length });
   // Tugma: url / product:ID / category:ID → Mini App ichida ochiladi
   const pub = getPublicUrl();

@@ -6,11 +6,13 @@ const KEY = "admin-lang";
 const D = {
   // Bo'limlar (sarlavha, bosilmaydi)
   content: { uz: "Kontent", ru: "Контент", en: "Content" },
+  control: { uz: "Nazorat", ru: "Контроль", en: "Control" },
   integration: { uz: "Integratsiya", ru: "Интеграция", en: "Integration" },
   settings: { uz: "Sozlamalar", ru: "Настройки", en: "Settings" },
   // Menyular
   dashboard: { uz: "Dashboard", ru: "Дашборд", en: "Dashboard" },
   waitlist: { uz: "Kutilayotgan mahsulotlar", ru: "Ожидаемые товары", en: "Waitlist" },
+  favorites: { uz: "Istaklarim", ru: "Избранное", en: "Favourites" },
   stories: { uz: "Storis", ru: "Сторис", en: "Stories" },
   banners: { uz: "Banner", ru: "Баннер", en: "Banner" },
   broadcast: { uz: "Post", ru: "Пост", en: "Post" },

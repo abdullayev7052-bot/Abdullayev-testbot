@@ -3,6 +3,8 @@ import { api, type Bootstrap, type Lang, type LText } from "../lib/api.ts";
 import { cacheDesign } from "../lib/motion.ts";
 import { setHapticEnabled, tg } from "../lib/telegram.ts";
 import { track } from "../lib/analytics.ts";
+import { useFavorites } from "./favorites.ts";
+import { useCart } from "./cart.ts";
 import { applyTheme as applyDark, resolveTheme, setUserPref, type ThemeMode } from "../lib/theme.ts";
 
 interface AppState {
@@ -54,6 +56,10 @@ export const useApp = create<AppState>((set, get) => ({
       localStorage.setItem("lang", lang);
       set({ data, lang, loading: false });
       track("app_open", { start: tg?.initDataUnsafe?.start_param || null }, { once: "app_open" });
+      // Istaklarim ro'yxati va savatcha nusxasi
+      if ((data.settings.catalog as Record<string, unknown>)?.favoritesEnabled !== false) void useFavorites.getState().load();
+      const cartItems = useCart.getState().items;
+      if (cartItems.length) api.put("/cart", { items: cartItems.map((x) => ({ productId: x.productId, qty: x.qty })) }).catch(() => {});
       applyTheme(data.settings.design as Record<string, unknown>);
       cacheDesign(data.settings.design as Record<string, unknown>);
       setHapticEnabled((data.settings.design as Record<string, unknown>).hapticEnabled !== false);

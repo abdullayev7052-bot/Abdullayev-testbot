@@ -11,6 +11,8 @@ export const EVENT_NAMES = [
   "checkout_start",  // rasmiylashtirish boshlandi    {items, total}
   "order_created",   // buyurtma berildi (server)     {orderId, total, type, storeId}
   "waitlist_add",    // "kelganda eslating" (server)  {productId}
+  "favorite_add",    // "istaklarim"ga qo'shildi (server) {productId}
+  "favorites_open",  // "Istaklarim" bo'limi ochildi
   "profile_open",    // profil sahifasi
   "order_history",   // "Mening buyurtmalarim"
   "purchases",       // "Xaridlar"

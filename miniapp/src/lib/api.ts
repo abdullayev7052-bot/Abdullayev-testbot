@@ -37,10 +37,19 @@ export type Lang = "uz" | "ru" | "en";
 export type LText = Record<Lang, string>;
 
 export interface StoreInfo { id: string; name: string; pickupAddress: string; pickupLocation: { lat: number; lng: number } | null }
+export interface Variant {
+  id: number; bitoId: string; label: string; name: string; attrs: { name: string; value: string }[];
+  price: number; basePrice?: number; discountPercent?: number; stock: number; image: string | null; images: (string | null)[]; boxItem: number; sku: string | null;
+}
 export interface Product {
   id: number; bitoId: string; name: string; image: string | null; images: (string | null)[]; price: number; basePrice?: number; discountPercent?: number; stock: number; boxItem: number;
   measure: string | null; measureDecimals: number; sku: string | null; categoryId: string | null; categoryName: string | null; note: string | null;
   customFields: { name: string; value: string }[]; featured: boolean; inWaitlist: boolean;
+  favorite?: boolean;
+  isParent?: boolean;
+  variants?: Variant[];
+  /** Faqat bitta mahsulot ochilganda keladi */
+  stats?: { soldWeek: number | null; inCart: number | null };
 }
 export interface Category { id: string; name: string; parentId: string | null; image: string | null; count: number }
 export interface Story { id: number; title: string; cover: string; slides: { id: number; image: string; caption: string | null; link: string | null; duration: number; buttonText?: string | null }[] }

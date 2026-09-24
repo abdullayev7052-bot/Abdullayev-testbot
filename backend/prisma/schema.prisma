@@ -28,9 +28,11 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  orders   Order[]
-  waitlist Waitlist[]
-  events   AppEvent[]
+  orders    Order[]
+  waitlist  Waitlist[]
+  events    AppEvent[]
+  favorites Favorite[]
+  cart      CartItem[]
 }
 
 /// Bito'dan sinxronlanadigan mahsulot keshi. Qo'lda qo'shilmaydi — faqat Bito manba.
@@ -61,6 +63,13 @@ model Product {
   customFields   Json     @default("[]")
   categoryBitoId String?
   categoryName   String?
+  /// Bito variant mahsulotlari: ota mahsulot (is_parent) va uning variantlari (parent_id)
+  parentBitoId   String?
+  isParent       Boolean  @default(false)
+  /// Variant atributlari: [{ name: "Rang", value: "Qora" }]
+  variantAttrs   Json     @default("[]")
+  /// Variant nomi (faqat atributlar): "Qora / S"
+  variantLabel   String?
   isAvailableForSale Boolean @default(true)
   isDeleted      Boolean  @default(false)
   // Admin boshqaruvi
@@ -71,10 +80,13 @@ model Product {
   bitoCreatedAt  DateTime?
   syncedAt       DateTime @default(now())
 
-  waitlist Waitlist[]
+  waitlist  Waitlist[]
+  favorites Favorite[]
+  cartItems CartItem[]
 
   @@index([categoryBitoId])
   @@index([hidden, sortOrder])
+  @@index([parentBitoId])
 }
 
 /// Bito kategoriyalari keshi
@@ -248,4 +260,31 @@ model AppEvent {
   @@index([name, createdAt])
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+/// "Istaklarim" (Favourites) — mijoz yoqtirgan mahsulotlar
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([productId])
+}
+
+/// Mini App savatchasining serverdagi nusxasi — "necha kishining savatida" ko'rsatkichi uchun
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  qty       Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@index([productId, updatedAt])
 }

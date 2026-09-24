@@ -103,18 +103,18 @@ Menyu tuzilmasi (chap tomonda; burchakdagi 🔍 yoki **Ctrl+K** — bo'lim, meny
 
 | Bo'lim / menyu | Nima bor |
 |---|---|
-| **Dashboard** | Analitika va hisobotlar: davr (bugun / 7 kun / oy / yil / ixtiyoriy), kun-hafta-oy bo'yicha guruhlash, do'kon, buyurtma turi, platforma, til filtrlari. Foydalanuvchilar (jami, yangi, DAU/WAU/MAU, DAU/MAU, faol bo'lmay qolganlar, retention D1/D7/D30, kogortalar), buyurtmalar (soni, summa, AOV, holatlar, bekor qilish darajasi, tur/do'kon bo'yicha, eng ko'p sotilganlar), funnel va konversiya (yangi/qaytgan), funksiyalardan foydalanish, qidiruv analitikasi (top so'rovlar, natijasizlar, qidiruv → ko'rish/savat/buyurtma), platforma va tillar |
-| &nbsp;&nbsp;↳ **Kutilayotgan mahsulotlar** | "Kelganda eslating" so'rovlari — kim, qaysi mahsulot, xabar berildimi |
+| **Dashboard** | Analitika va hisobotlar: davr (bugun / 7 kun / oy / yil / ixtiyoriy), kun-hafta-oy bo'yicha guruhlash, do'kon, buyurtma turi, platforma, til filtrlari. Foydalanuvchilar (jami, yangi, DAU/WAU/MAU, DAU/MAU, faol bo'lmay qolganlar, retention D1/D7/D30, kogortalar), **sessiyalar** (o'rtacha necha daqiqa o'tiriladi, bir mijozga sessiya, tez chiqib ketganlar), buyurtmalar (soni, summa, AOV, holatlar, bekor qilish darajasi, tur/do'kon bo'yicha), funnel va konversiya (yangi/qaytgan), funksiyalardan foydalanish, qidiruv analitikasi, platforma va tillar. Tushunish qiyin ko'rsatkichlar yonida **ⓘ** — bosilsa misollar bilan tushuntiriladi |
 | **Kontent → Storis** | Doira storislar, har birida bir nechta slayd (rasm/video, davomiylik, matn, havola), tugash sanasi |
 | **Kontent → Banner** | Aylanma bannerlar (rasm, sarlavha, izoh, havola, matn rangi) |
-| **Kontent → Post** | Barcha mijozlarga bot orqali matn/rasm/video yuborish (tugma bilan) |
-| **Kontent → Katalog boshqaruvi** | Mahsulotlarni yashirish/ko'rsatish, tavsiyaga qo'shish (★), chegirma, tartib, kategoriyalarni yashirish va tartiblash |
+| **Kontent → Post** | Mijozlarga bot orqali matn/rasm/video yuborish (tugma bilan). Filtrlar: til va **«faqat shu mahsulotni Istaklarimga qo'shganlarga»** |
+| **Nazorat → Katalog boshqaruvi** | Mahsulotlarni yashirish/ko'rsatish, tavsiyaga qo'shish (★), chegirma, tartib, kategoriyalarni yashirish va tartiblash |
+| **Nazorat → Kutilayotgan mahsulotlar** | Ikki bo'lim: "Kelganda eslating" so'rovlari va **Istaklarim (❤️)** — kim qaysi mahsulotni yoqtirgani, eng ko'p yoqtirilganlar |
 | **Integratsiya → Bito** | Ulanish holati, sinxronizatsiya, webhook; API kalit, tashkilot, ombor, narx turi, do'konlar, narx istisnolari, sinxronizatsiya oraliqlari |
 | **Integratsiya → Bot** | Bot holati, ruxsat etilgan guruhlar soni, ommaviy manzil (ngrok), Mini App manzili, bot tokeni |
 | **Integratsiya → Guruh** | Buyurtma guruhlari (yoqish/o'chirish/test), holatni o'zgartira oladigan xodimlar |
 | **Sozlamalar → Umumiy** | Do'kon nomi, tillar, valyuta belgisi, aloqa, admin parol |
 | **Sozlamalar → Mini App → Dizayn** | Ranglar, animatsiya, splash, salomlashish, logo, storis/banner ko'rinishi, hero vidjet, bloklar, pastki navigatsiya |
-| **Sozlamalar → Mini App → Katalog** | Qoldiq ko'rinishi, "Kelganda eslating", tartib, ustunlar, qidiruv, quti rejimi |
+| **Sozlamalar → Mini App → Katalog** | Qoldiq ko'rinishi, "Kelganda eslating", **Istaklarim (❤️)**, mahsulot kartochkasidagi ko'rsatkichlar (*bu haftada X sotildi* — Bito yoki Mini App bo'yicha; *X ta insonning savatida*), **variantli mahsulotlar**, tartib, ustunlar, qidiruv, quti rejimi |
 | **Sozlamalar → Mini App → Savatcha** | Savatcha matnlari va xatti-harakati (tozalash tasdig'i, surib o'chirish, …) |
 | **Sozlamalar → Mini App → Buyurtma** | Yetkazib berish / olib ketish, narxlar, minimal summa, xarita, majburiy joylashuv, rasmiylashtirish matnlari, muvaffaqiyat xabari, avto-yopilish |
 | **Sozlamalar → Mini App → Profil** | Profildagi bloklar va matnlar |
@@ -267,5 +267,11 @@ Mini App'da eski narx chizilgan holda va -X% belgisi bilan ko'rinadi; buyurtma B
 
 **Media limitlari (o'zgartirib bo'lmaydi):** storis 15 ta (har birida 10 slayd), banner 12 ta; rasm 5 MB, GIF 10 MB, video 25 MB, xabar tarqatish fayli 50 MB, umumiy 600 MB.
 Barcha yuklangan fayllar bazada saqlanadi — qayta deploy qilinganda yo'qolmaydi.
+
+**Istaklarim (❤️):** mahsulot kartochkasidagi yurakcha — mijoz bosgan mahsulotlar *Profil → Istaklarim* da to'planadi. Admin panelda kim nimani yoqtirgani ko'rinadi (*Nazorat → Kutilayotgan mahsulotlar → Istaklarim*), va aynan shu mahsulotni yoqtirganlarga *Kontent → Post* orqali xabar yuborish mumkin. O'chirib qo'yilsa — Mini App'da yurakcha ham, "Istaklarim" bo'limi ham ko'rinmaydi.
+
+**Variantli mahsulotlar:** Bito'da atribut bilan ochilgan mahsulot (masalan *Futbolka Adidas* → Rang: Qora/Oq/Ko'k × O'lcham: S/M/L/XL) Mini App'da **bitta kartochka** bo'lib turadi. Ochilganda atributlar tugmalari chiqadi, tanlanganda o'sha variantning narxi, qoldig'i va rasmlari ko'rsatiladi; savatchaga *"Futbolka Adidas / Ko'k / S"* ko'rinishida tushadi va Bito'ga aynan o'sha variant yuboriladi. Tugagan variantlar chizilgan holda ko'rinadi. Ota mahsulot ro'yxatda eng arzon variant narxi va variantlar qoldig'i yig'indisi bilan turadi.
+
+**Mahsulot kartochkasidagi ko'rsatkichlar** (*Sozlamalar → Mini App → Katalog* da yoqiladi): «Bu haftada X ta sotildi» (manba: **Bito** — do'kondagi barcha savdolar, yoki **Mini App** — faqat shu bot orqali berilgan buyurtmalar; davr va yangilanish oralig'i sozlanadi) va «X ta insonning savatida» (hozir savatda turgan, lekin hali buyurtma bermagan mijozlar soni).
 
 **Boshqa:** admin panel tili (menyu pastida UZ/RU/EN), PWA/bookmark ikonkasi = admin logo (*Admin panel ko'rinishi* → Logo), telefonda storis slaydini o'chirish tugmasi doim ko'rinadi, "Mahsulot keldi" xabaridagi tugma mahsulot kartochkasini ochadi.

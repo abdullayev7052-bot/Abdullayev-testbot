@@ -14,14 +14,16 @@ export interface NavSection { key: string; title?: TKey; items: NavItem[] }
 
 export const NAV: NavSection[] = [
   { key: "top", items: [
-    { key: "dashboard", label: "dashboard", icon: "layout-dashboard", to: "/", keywords: ["analitika", "hisobot", "statistika", "DAU", "MAU", "retention", "funnel", "konversiya", "buyurtmalar", "foydalanuvchilar", "qidiruv analitikasi", "platforma", "аналитика", "analytics"],
-      children: [{ key: "waitlist", label: "waitlist", icon: "bell", to: "/waitlist", keywords: ["kelganda eslating", "kutilmoqda", "ожидаемые"] }] },
+    { key: "dashboard", label: "dashboard", icon: "layout-dashboard", to: "/", keywords: ["analitika", "hisobot", "statistika", "DAU", "MAU", "retention", "funnel", "konversiya", "sessiya", "buyurtmalar", "foydalanuvchilar", "qidiruv analitikasi", "platforma", "аналитика", "analytics"] },
   ] },
   { key: "content", title: "content", items: [
     { key: "stories", label: "stories", icon: "images", to: "/stories", keywords: ["slayd", "video", "hikoya", "сторис"] },
     { key: "banners", label: "banners", icon: "gallery-horizontal", to: "/banners", keywords: ["reklama", "aylanma", "баннер"] },
     { key: "broadcast", label: "broadcast", icon: "send", to: "/broadcast", keywords: ["xabar tarqatish", "rassilka", "рассылка", "aksiya", "yangilik", "broadcast"] },
-    { key: "catalog", label: "catalog", icon: "package", to: "/catalog", keywords: ["mahsulot", "kategoriya", "yashirish", "tavsiya", "chegirma", "tartib", "товары", "products"] },
+  ] },
+  { key: "control", title: "control", items: [
+    { key: "catalog", label: "catalog", icon: "package", to: "/catalog", keywords: ["mahsulot", "kategoriya", "yashirish", "tavsiya", "chegirma", "tartib", "товары", "products", "nazorat"] },
+    { key: "waitlist", label: "waitlist", icon: "bell", to: "/waitlist", keywords: ["kelganda eslating", "kutilmoqda", "ожидаемые", "istaklarim", "like", "yurakcha", "favourites", "избранное"] },
   ] },
   { key: "integration", title: "integration", items: [
     { key: "bito", label: "bito", icon: "plug", to: "/integration/bito", keywords: ["API kalit", "sinxronlash", "webhook", "tashkilot", "ombor", "narx", "ulanish", "интеграция"] },

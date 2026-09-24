@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Plus, Bell, BellRing } from "lucide-react";
+import { Plus, Bell, BellRing, Heart } from "lucide-react";
 import type { Product } from "../lib/api.ts";
 import { useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
@@ -7,6 +7,7 @@ import { money, stockLabel } from "../lib/format.ts";
 import { haptic } from "../lib/telegram.ts";
 import { Img, QtyStepper } from "./ui.tsx";
 import { cardVariants, tapScale } from "../lib/motion.ts";
+import { useFavorites } from "../store/favorites.ts";
 
 export function useCatalogFmt() {
   const { t, v, lang } = useT();
@@ -20,6 +21,7 @@ export function useCatalogFmt() {
     canOrderOut: v<boolean>("catalog", "allowOrderOutOfStock", false),
     notifyEnabled: v<boolean>("catalog", "notifyEnabled", true),
     quickAdd: v<boolean>("catalog", "quickAddEnabled", true),
+    favoritesEnabled: v<boolean>("catalog", "favoritesEnabled", true),
     showSku: v<boolean>("catalog", "showSku", false),
   };
 }
@@ -32,6 +34,8 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
   const setQty = useCart((s) => s.setQty);
   const st = f.stock(p);
   const out = p.stock <= 0 && !f.canOrderOut;
+  const fav = useFavorites((s) => s.isFav(p));
+  const toggleFav = useFavorites((s) => s.toggle);
   return (
     <motion.div layout {...cardVariants(index)} className="card overflow-hidden flex flex-col">
       <motion.button whileTap={{ scale: tapScale() }} onClick={() => { haptic.light(); onOpen(p); }} className="text-left">
@@ -39,6 +43,12 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
           <Img src={p.image} alt={p.name} className={`aspect-square w-full ${out ? "opacity-60 grayscale-[35%]" : ""}`} />
           {st && (
             <span className={`absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.out ? "bg-slate-800/80 text-white" : "bg-white/90 text-slate-700"}`}>{st.text}</span>
+          )}
+          {f.favoritesEnabled && (
+            <motion.span role="button" whileTap={{ scale: 0.8 }} onClick={(e) => { e.stopPropagation(); haptic.light(); void toggleFav(p); }}
+              className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/85 backdrop-blur flex items-center justify-center shadow-sm">
+              <Heart size={17} className={fav ? "fill-red-500 text-red-500" : "text-slate-400"} />
+            </motion.span>
           )}
           {p.discountPercent ? <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>-{p.discountPercent}%</span> : p.featured && <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>★</span>}
         </div>

@@ -1,15 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Send, MessageSquare, Users } from "lucide-react";
+import { Trash2, Plus, Send, MessageSquare, Users, Bell, Heart } from "lucide-react";
 import { api } from "../lib/api.ts";
 import { ImageUpload, PageTitle, Spinner, Toggle, useToast, confirmDialog } from "../components/ui.tsx";
 import { LinkPicker } from "../components/LinkPicker.tsx";
 
-/* ============ Kutilayotgan mahsulotlar ============ */
+/* ============ Kutilayotgan mahsulotlar + Istaklarim ============ */
 interface W { id: number; createdAt: string; notifiedAt: string | null; product: { id: number; name: string; stock: number; image: string | null }; user: { id: number; name: string | null; phone: string | null; username: string | null; telegramId: string } }
+interface F { id: number; createdAt: string; product: { id: number; name: string; stock: number; image: string | null }; user: { id: number; name: string | null; phone: string | null; username: string | null; telegramId: string } }
+interface FavData { items: F[]; top: { productId: number; name: string; image: string | null; count: number }[] }
+
 export function WaitlistPage() {
   const qc = useQueryClient();
+  const [tab, setTab] = useState<"wait" | "fav">("wait");
   const q = useQuery({ queryKey: ["waitlist"], queryFn: () => api.get<W[]>("/waitlist"), refetchInterval: 30000 });
+  const fav = useQuery({ queryKey: ["favorites"], queryFn: () => api.get<FavData>("/favorites"), enabled: tab === "fav", staleTime: 15000 });
+  const tabs = (
+    <div className="flex gap-2 mb-4">
+      <button onClick={() => setTab("wait")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${tab === "wait" ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}><Bell size={16} /> Kutilayotgan mahsulotlar</button>
+      <button onClick={() => setTab("fav")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${tab === "fav" ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}><Heart size={16} /> Istaklarim (like)</button>
+    </div>
+  );
   if (q.isLoading) return <Spinner />;
   const list = q.data || [];
   const pending = list.filter((w) => !w.notifiedAt);
@@ -23,11 +34,48 @@ export function WaitlistPage() {
       <button className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50" onClick={() => { if (confirmDialog("O'chirilsinmi?")) void api.del(`/waitlist/${w.id}`).then(() => qc.invalidateQueries({ queryKey: ["waitlist"] })); }}><Trash2 size={16} /></button>
     </div>
   );
+  const FavRow = ({ r }: { r: F }) => (
+    <div className="flex items-center gap-3 px-3 py-2">
+      {r.product.image ? <img src={r.product.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-slate-100" />}
+      <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{r.product.name}</div><div className="text-xs text-slate-500">qoldiq: {r.product.stock} · {new Date(r.createdAt).toLocaleString()}</div></div>
+      <div className="text-sm text-right"><div>{r.user.name || "—"}{r.user.username ? ` (@${r.user.username})` : ""}</div><div className="text-xs text-slate-500">{r.user.phone || r.user.telegramId}</div></div>
+      <Heart size={16} className="fill-red-500 text-red-500 shrink-0" />
+    </div>
+  );
   return (
     <div>
-      <PageTitle title="Kutilayotgan mahsulotlar" description="Mijozlar 'Kelganda eslating' tugmasini bosgan mahsulotlar. Bito'da qoldiq paydo bo'lishi bilan mijozga avtomatik xabar boradi." />
-      <div className="card mb-4"><div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Kutilmoqda ({pending.length})</div><div className="divide-y divide-slate-100">{pending.map((w) => <Row key={w.id} w={w} />)}{!pending.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}</div></div>
-      <div className="card"><div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Xabar berilganlar ({done.length})</div><div className="divide-y divide-slate-100">{done.map((w) => <Row key={w.id} w={w} />)}{!done.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}</div></div>
+      <PageTitle title="Nazorat: mijozlar qiziqishi" description="Mijozlar 'Kelganda eslating' bosgan va ❤️ bilan istaklariga qo'shgan mahsulotlar" />
+      {tabs}
+      {tab === "wait" ? (
+        <>
+          <div className="card mb-4"><div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Kutilmoqda ({pending.length})</div><div className="divide-y divide-slate-100">{pending.map((w) => <Row key={w.id} w={w} />)}{!pending.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}</div></div>
+          <div className="card"><div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Xabar berilganlar ({done.length})</div><div className="divide-y divide-slate-100">{done.map((w) => <Row key={w.id} w={w} />)}{!done.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}</div></div>
+        </>
+      ) : fav.isLoading ? <Spinner /> : (
+        <>
+          <div className="card mb-4">
+            <div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Eng ko'p yoqtirilgan mahsulotlar</div>
+            <div className="divide-y divide-slate-100">
+              {(fav.data?.top || []).map((t) => (
+                <div key={t.productId} className="flex items-center gap-3 px-3 py-2">
+                  {t.image ? <img src={t.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-slate-100" />}
+                  <div className="flex-1 min-w-0 text-sm font-medium truncate">{t.name}</div>
+                  <span className="badge bg-red-50 text-red-600">❤️ {t.count}</span>
+                </div>
+              ))}
+              {!fav.data?.top.length && <div className="p-6 text-center text-slate-400 text-sm">Hali hech kim ❤️ bosmagan</div>}
+            </div>
+          </div>
+          <div className="card">
+            <div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Kim nimani yoqtirgan ({fav.data?.items.length || 0})</div>
+            <div className="divide-y divide-slate-100">
+              {(fav.data?.items || []).map((r) => <FavRow key={r.id} r={r} />)}
+              {!fav.data?.items.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}
+            </div>
+          </div>
+          <div className="help mt-3">Bu ro'yxatdagilarga to'g'ridan-to'g'ri xabar yuborish uchun: <b>Kontent → Post</b> → tugmaga shu mahsulotni tanlang → «Faqat shu mahsulotni istaklariga qo'shganlarga» belgisini qo'ying.</div>
+        </>
+      )}
     </div>
   );
 }
@@ -93,14 +141,24 @@ export function BroadcastPage() {
   const [language, setLanguage] = useState("all");
   const [buttonText, setButtonText] = useState("");
   const [buttonTarget, setButtonTarget] = useState("");
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [busy, setBusy] = useState(false);
+  const targetProductId = /^product:(\d+)$/.exec(buttonTarget)?.[1] || "";
+  // Tanlangan mahsulotni nechta mijoz istaklariga qo'shgan
+  const favCount = useQuery({
+    queryKey: ["fav-count", targetProductId],
+    queryFn: () => api.get<FavData>("/favorites").then((d) => d.top.find((t) => String(t.productId) === targetProductId)?.count ?? 0),
+    enabled: !!targetProductId,
+    staleTime: 15000,
+  });
+  useEffect(() => { if (!targetProductId) setOnlyFavorites(false); }, [targetProductId]);
   const send = async () => {
     if (!text.trim()) return;
     if (buttonText.trim() && (!buttonTarget || buttonTarget === "product:" || buttonTarget === "category:" || buttonTarget === "https://")) { toast("Tugma uchun havola/mahsulot/kategoriyani tanlang", "err"); return; }
-    if (!confirmDialog("Barcha ro'yxatdan o'tgan mijozlarga yuborilsinmi?")) return;
+    if (!confirmDialog(onlyFavorites ? "Faqat shu mahsulotni istaklariga qo'shgan mijozlarga yuborilsinmi?" : "Barcha ro'yxatdan o'tgan mijozlarga yuborilsinmi?")) return;
     setBusy(true);
     try {
-      const r = await api.post<{ total: number }>("/broadcast", { text, media: media || undefined, hd, language, buttonText: buttonText.trim() || undefined, buttonTarget: buttonText.trim() ? buttonTarget : undefined });
+      const r = await api.post<{ total: number }>("/broadcast", { text, media: media || undefined, hd, language, buttonText: buttonText.trim() || undefined, buttonTarget: buttonText.trim() ? buttonTarget : undefined, onlyFavorites: onlyFavorites || undefined });
       toast(`Yuborilmoqda: ${r.total} ta mijoz`); setText(""); setMedia(""); setButtonText(""); setButtonTarget("");
     } catch (e) { toast((e as Error).message, "err"); } finally { setBusy(false); }
   };
@@ -116,8 +174,14 @@ export function BroadcastPage() {
           <div><label className="label">Tugma matni</label><input className="input" placeholder="Masalan: 🛍 Buyurtma berish" value={buttonText} onChange={(e) => setButtonText(e.target.value)} /></div>
           <div><label className="label">Tugma qayerga olib boradi</label><LinkPicker value={buttonTarget} onChange={setButtonTarget} /></div>
           <div className="help">Mahsulot yoki kategoriya tanlansa — mijoz tugmani bosganda Mini App ochilib, to'g'ridan-to'g'ri o'sha mahsulot/kategoriya ko'rsatiladi.</div>
+          {targetProductId && (
+            <div className="pt-1 border-t border-slate-200">
+              <Toggle value={onlyFavorites} onChange={setOnlyFavorites} label="Faqat shu mahsulotni «Istaklarim»ga qo'shganlarga yuborish" />
+              <div className="help">Tanlangan mahsulotni ❤️ bilan belgilaganlar: <b>{favCount.isLoading ? "…" : favCount.data ?? 0}</b> ta mijoz. Til filtri ham birga ishlaydi.</div>
+            </div>
+          )}
         </div>
-        <div><label className="label">Kimlarga</label><select className="input max-w-xs" value={language} onChange={(e) => setLanguage(e.target.value)}><option value="all">Barchaga</option><option value="uz">Faqat o'zbek tilidagilarga</option><option value="ru">Faqat rus tilidagilarga</option><option value="en">Faqat ingliz tilidagilarga</option></select></div>
+        <div><label className="label">Kimlarga</label>{onlyFavorites && <div className="help mb-1 text-amber-600">Faqat tanlangan mahsulotni istaklariga qo'shganlarga yuboriladi</div>}<select className="input max-w-xs" value={language} onChange={(e) => setLanguage(e.target.value)}><option value="all">Barchaga</option><option value="uz">Faqat o'zbek tilidagilarga</option><option value="ru">Faqat rus tilidagilarga</option><option value="en">Faqat ingliz tilidagilarga</option></select></div>
         <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={() => { void send(); }}><Send size={16} /> Yuborish</button>
       </div>
     </div>

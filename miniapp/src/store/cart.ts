@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Product } from "../lib/api.ts";
+import { api, type Product } from "../lib/api.ts";
 import { track } from "../lib/analytics.ts";
 
 export interface CartItem {
@@ -26,6 +26,15 @@ interface CartState {
   total: () => number;
 }
 
+/** Savatcha nusxasini serverga yuborish ("X ta insonning savatida" ko'rsatkichi uchun) — 2 soniya kechikish bilan */
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+function syncCart(items: { productId: number; qty: number }[]) {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    api.put("/cart", { items: items.map((x) => ({ productId: x.productId, qty: x.qty })) }).catch(() => {});
+  }, 2000);
+}
+
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
@@ -38,13 +47,16 @@ export const useCart = create<CartState>()(
         if (i >= 0) items[i] = { ...items[i], ...snap, qty: items[i].qty + qty, boxCount: items[i].boxCount + boxCount };
         else items.push({ productId: p.id, qty, boxCount, ...snap });
         set({ items });
+        syncCart(items);
       },
       setQty(productId, qty) {
-        if (qty <= 0) { set({ items: get().items.filter((x) => x.productId !== productId) }); return; }
-        set({ items: get().items.map((x) => (x.productId === productId ? { ...x, qty, boxCount: x.boxItem > 0 && qty % x.boxItem === 0 && x.boxCount > 0 ? qty / x.boxItem : 0 } : x)) });
+        if (qty <= 0) { const items = get().items.filter((x) => x.productId !== productId); set({ items }); syncCart(items); return; }
+        const items = get().items.map((x) => (x.productId === productId ? { ...x, qty, boxCount: x.boxItem > 0 && qty % x.boxItem === 0 && x.boxCount > 0 ? qty / x.boxItem : 0 } : x));
+        set({ items });
+        syncCart(items);
       },
-      remove(productId) { set({ items: get().items.filter((x) => x.productId !== productId) }); },
-      clear() { set({ items: [] }); },
+      remove(productId) { const items = get().items.filter((x) => x.productId !== productId); set({ items }); syncCart(items); },
+      clear() { set({ items: [] }); syncCart([]); },
       refreshSnapshot(rows) {
         const items = get().items
           .map((it) => { const r = rows.find((x) => x.id === it.productId); return r ? (r.available ? { ...it, price: r.price, stock: r.stock, name: r.name, image: r.image, boxItem: r.boxItem, measure: r.measure } : null) : it; })
