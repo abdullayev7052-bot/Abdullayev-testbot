@@ -2,6 +2,7 @@
  * Bito'dagi savdolar (trades) va to'lovlar (transactions) → mijozga Telegram xabar.
  * Webhook orqali tezkor, polling orqali kafolatli.
  */
+import { InlineKeyboard } from "grammy";
 import { prisma } from "../db.ts";
 import { bito } from "./client.ts";
 import { getSettings, lt } from "../settings/store.ts";
@@ -156,6 +157,13 @@ export async function paymentText(tx: BitoTransaction, lang: Lang, tradeNumber?:
   return lines.join("\n");
 }
 
+/** Chek ostidagi tugmalar: hozircha — Excelda yuklab olish */
+export function receiptKeyboard(t: BitoTrade, lang: Lang): InlineKeyboard | undefined {
+  const b = getSettings().bot;
+  if (!b.receiptExcelEnabled || !t._id) return undefined;
+  return new InlineKeyboard().text(lt(b.receiptExcelButton as never, lang), `xls:${t._id}`);
+}
+
 /** Bitta savdoni qayta ishlash (webhook yoki polling) */
 export async function processTrade(tradeId: string, preloaded?: BitoTrade): Promise<void> {
   const s = getSettings();
@@ -168,7 +176,7 @@ export async function processTrade(tradeId: string, preloaded?: BitoTrade): Prom
   if (!user) return;
   if (await alreadySent(`trade:${t._id}`)) return;
   const text = receiptText(t, user.language as Lang);
-  await sendToUser(user.telegramId, text);
+  await sendToUser(user.telegramId, text, { reply_markup: receiptKeyboard(t, user.language as Lang) });
   await activity("receipt_sent", `Chek yuborildi: №${t.number} → ${user.name || user.phone}`);
 }
 

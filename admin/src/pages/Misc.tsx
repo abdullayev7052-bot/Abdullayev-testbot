@@ -2,80 +2,91 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Send, MessageSquare, Users, Bell, Heart } from "lucide-react";
 import { api } from "../lib/api.ts";
-import { ImageUpload, PageTitle, Spinner, Toggle, useToast, confirmDialog } from "../components/ui.tsx";
+import { ImageUpload, Modal, PageTitle, Spinner, Toggle, useToast, confirmDialog } from "../components/ui.tsx";
 import { LinkPicker } from "../components/LinkPicker.tsx";
 
-/* ============ Kutilayotgan mahsulotlar + Istaklarim ============ */
-interface W { id: number; createdAt: string; notifiedAt: string | null; product: { id: number; name: string; stock: number; image: string | null }; user: { id: number; name: string | null; phone: string | null; username: string | null; telegramId: string } }
-interface F { id: number; createdAt: string; product: { id: number; name: string; stock: number; image: string | null }; user: { id: number; name: string | null; phone: string | null; username: string | null; telegramId: string } }
-interface FavData { items: F[]; top: { productId: number; name: string; image: string | null; count: number }[] }
+/* ============ Nazorat: Kutilayotgan mahsulotlar va Istaklar ============ */
+interface InterestRow { productId: number; name: string; stock: number; sku: string | null; gone: boolean; hidden: boolean; count: number; lastAt: string | null }
+interface InterestUser { id: number; createdAt: string; user: { id: number; name: string | null; phone: string | null; username: string | null; telegramId: string; registered: boolean } }
+
+/** Mahsulot bo'yicha guruhlangan ro'yxat (eng ko'p kutilgan/yoqtirilgan yuqorida) */
+function InterestList({ kind }: { kind: "wait" | "fav" }) {
+  const qc = useQueryClient();
+  const path = kind === "wait" ? "/waitlist" : "/favorites";
+  const q = useQuery({ queryKey: [kind === "wait" ? "waitlist" : "favorites"], queryFn: () => api.get<InterestRow[]>(path), refetchInterval: 30000 });
+  const [open, setOpen] = useState<InterestRow | null>(null);
+  const users = useQuery({
+    queryKey: [kind, "users", open?.productId],
+    queryFn: () => api.get<InterestUser[]>(`${path}/product/${open!.productId}`),
+    enabled: !!open,
+  });
+  const rows = q.data || [];
+  const total = rows.reduce((a, r) => a + r.count, 0);
+  if (q.isLoading) return <Spinner />;
+  return (
+    <>
+      <div className="card">
+        <div className="px-4 py-2.5 text-sm font-semibold border-b border-slate-100 flex items-center justify-between">
+          <span>{kind === "wait" ? "Kutilmoqda" : "Yoqtirilgan"}: {rows.length} ta mahsulot</span>
+          <span className="text-slate-400 font-normal">jami {total} ta so'rov</span>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {rows.map((r) => (
+            <button key={r.productId} onClick={() => setOpen(r)} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50">
+              <span className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-sm font-bold ${kind === "wait" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"}`}>{r.count}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium truncate">{r.name}</span>
+                <span className="block text-xs text-slate-500">
+                  {r.gone ? <span className="text-red-500">Bito'da yo'q</span> : <>qoldiq: {r.stock}</>}
+                  {r.hidden && <span className="text-slate-400"> · yashirilgan</span>}
+                  {r.sku && <span className="text-slate-400"> · {r.sku}</span>}
+                  {r.lastAt && <span className="text-slate-400"> · oxirgisi {new Date(r.lastAt).toLocaleDateString()}</span>}
+                </span>
+              </span>
+              <span className="text-xs text-slate-400 shrink-0">{kind === "wait" ? "kim kutmoqda" : "kim yoqtirgan"} →</span>
+            </button>
+          ))}
+          {!rows.length && <div className="p-8 text-center text-slate-400 text-sm">{kind === "wait" ? "Hozircha hech kim mahsulot kutmayapti" : "Hozircha hech kim ❤️ bosmagan"}</div>}
+        </div>
+      </div>
+
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open ? `${open.name} — ${open.count} ta mijoz` : ""}>
+        {users.isLoading ? <Spinner /> : (
+          <div className="divide-y divide-slate-100 -m-1">
+            {(users.data || []).map((r) => (
+              <div key={r.id} className="flex items-center gap-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{r.user.name || "—"}{r.user.username ? <span className="text-slate-400"> @{r.user.username}</span> : null}</div>
+                  <div className="text-xs text-slate-500 font-mono">{r.user.phone || r.user.telegramId}{!r.user.registered && <span className="text-amber-600 font-sans"> · ro'yxatdan o'tmagan</span>}</div>
+                </div>
+                <div className="text-xs text-slate-400 shrink-0">{new Date(r.createdAt).toLocaleString()}</div>
+                <button className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 shrink-0"
+                  onClick={() => { if (confirmDialog("Ro'yxatdan o'chirilsinmi?")) void api.del(`${path}/${r.id}`).then(() => { void users.refetch(); void qc.invalidateQueries({ queryKey: [kind === "wait" ? "waitlist" : "favorites"] }); }); }}><Trash2 size={15} /></button>
+              </div>
+            ))}
+            {!users.data?.length && <div className="py-6 text-center text-slate-400 text-sm">Ro'yxat bo'sh</div>}
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+}
 
 export function WaitlistPage() {
-  const qc = useQueryClient();
   const [tab, setTab] = useState<"wait" | "fav">("wait");
-  const q = useQuery({ queryKey: ["waitlist"], queryFn: () => api.get<W[]>("/waitlist"), refetchInterval: 30000 });
-  const fav = useQuery({ queryKey: ["favorites"], queryFn: () => api.get<FavData>("/favorites"), enabled: tab === "fav", staleTime: 15000 });
-  const tabs = (
-    <div className="flex gap-2 mb-4">
-      <button onClick={() => setTab("wait")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${tab === "wait" ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}><Bell size={16} /> Kutilayotgan mahsulotlar</button>
-      <button onClick={() => setTab("fav")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${tab === "fav" ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}><Heart size={16} /> Istaklarim (like)</button>
-    </div>
-  );
-  if (q.isLoading) return <Spinner />;
-  const list = q.data || [];
-  const pending = list.filter((w) => !w.notifiedAt);
-  const done = list.filter((w) => w.notifiedAt);
-  const Row = ({ w }: { w: W }) => (
-    <div className="flex items-center gap-3 px-3 py-2">
-      {w.product.image ? <img src={w.product.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-slate-100" />}
-      <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{w.product.name}</div><div className="text-xs text-slate-500">qoldiq: {w.product.stock} · {new Date(w.createdAt).toLocaleString()}</div></div>
-      <div className="text-sm text-right"><div>{w.user.name || "—"}{w.user.username ? ` (@${w.user.username})` : ""}</div><div className="text-xs text-slate-500">{w.user.phone || w.user.telegramId}</div></div>
-      {w.notifiedAt ? <span className="badge bg-emerald-50 text-emerald-700">xabar berildi</span> : <span className="badge bg-amber-50 text-amber-700">kutilmoqda</span>}
-      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50" onClick={() => { if (confirmDialog("O'chirilsinmi?")) void api.del(`/waitlist/${w.id}`).then(() => qc.invalidateQueries({ queryKey: ["waitlist"] })); }}><Trash2 size={16} /></button>
-    </div>
-  );
-  const FavRow = ({ r }: { r: F }) => (
-    <div className="flex items-center gap-3 px-3 py-2">
-      {r.product.image ? <img src={r.product.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-slate-100" />}
-      <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{r.product.name}</div><div className="text-xs text-slate-500">qoldiq: {r.product.stock} · {new Date(r.createdAt).toLocaleString()}</div></div>
-      <div className="text-sm text-right"><div>{r.user.name || "—"}{r.user.username ? ` (@${r.user.username})` : ""}</div><div className="text-xs text-slate-500">{r.user.phone || r.user.telegramId}</div></div>
-      <Heart size={16} className="fill-red-500 text-red-500 shrink-0" />
-    </div>
-  );
   return (
-    <div>
-      <PageTitle title="Nazorat: mijozlar qiziqishi" description="Mijozlar 'Kelganda eslating' bosgan va ❤️ bilan istaklariga qo'shgan mahsulotlar" />
-      {tabs}
-      {tab === "wait" ? (
-        <>
-          <div className="card mb-4"><div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Kutilmoqda ({pending.length})</div><div className="divide-y divide-slate-100">{pending.map((w) => <Row key={w.id} w={w} />)}{!pending.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}</div></div>
-          <div className="card"><div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Xabar berilganlar ({done.length})</div><div className="divide-y divide-slate-100">{done.map((w) => <Row key={w.id} w={w} />)}{!done.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}</div></div>
-        </>
-      ) : fav.isLoading ? <Spinner /> : (
-        <>
-          <div className="card mb-4">
-            <div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Eng ko'p yoqtirilgan mahsulotlar</div>
-            <div className="divide-y divide-slate-100">
-              {(fav.data?.top || []).map((t) => (
-                <div key={t.productId} className="flex items-center gap-3 px-3 py-2">
-                  {t.image ? <img src={t.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-slate-100" />}
-                  <div className="flex-1 min-w-0 text-sm font-medium truncate">{t.name}</div>
-                  <span className="badge bg-red-50 text-red-600">❤️ {t.count}</span>
-                </div>
-              ))}
-              {!fav.data?.top.length && <div className="p-6 text-center text-slate-400 text-sm">Hali hech kim ❤️ bosmagan</div>}
-            </div>
-          </div>
-          <div className="card">
-            <div className="px-3 py-2 font-semibold text-sm border-b border-slate-100">Kim nimani yoqtirgan ({fav.data?.items.length || 0})</div>
-            <div className="divide-y divide-slate-100">
-              {(fav.data?.items || []).map((r) => <FavRow key={r.id} r={r} />)}
-              {!fav.data?.items.length && <div className="p-6 text-center text-slate-400 text-sm">Hozircha yo'q</div>}
-            </div>
-          </div>
-          <div className="help mt-3">Bu ro'yxatdagilarga to'g'ridan-to'g'ri xabar yuborish uchun: <b>Kontent → Post</b> → tugmaga shu mahsulotni tanlang → «Faqat shu mahsulotni istaklariga qo'shganlarga» belgisini qo'ying.</div>
-        </>
-      )}
+    <div className="max-w-4xl">
+      <PageTitle title="Kutilayotgan mahsulotlar va Istaklar" description="Mijozlar qaysi mahsulotlarni kutmoqda va qaysilarini ❤️ bilan belgilagan — eng ko'p so'ralgani yuqorida" />
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setTab("wait")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${tab === "wait" ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}><Bell size={16} /> Kutilayotgan mahsulotlar</button>
+        <button onClick={() => setTab("fav")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${tab === "fav" ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-600"}`}><Heart size={16} /> Istaklar</button>
+      </div>
+      {tab === "wait" ? <InterestList kind="wait" /> : <InterestList kind="fav" />}
+      <div className="help mt-3">
+        {tab === "wait"
+          ? "Bito'da qoldiq paydo bo'lishi bilan kutayotgan mijozlarga xabar avtomatik yuboriladi va ular ro'yxatdan chiqadi."
+          : "Aynan bitta mahsulotni yoqtirganlarga xabar yuborish: Kontent → Post → tugmaga shu mahsulotni tanlang → «Faqat shu mahsulotni istaklariga qo'shganlarga»."}
+      </div>
     </div>
   );
 }
@@ -147,7 +158,7 @@ export function BroadcastPage() {
   // Tanlangan mahsulotni nechta mijoz istaklariga qo'shgan
   const favCount = useQuery({
     queryKey: ["fav-count", targetProductId],
-    queryFn: () => api.get<FavData>("/favorites").then((d) => d.top.find((t) => String(t.productId) === targetProductId)?.count ?? 0),
+    queryFn: () => api.get<InterestRow[]>("/favorites").then((d) => d.find((t) => String(t.productId) === targetProductId)?.count ?? 0),
     enabled: !!targetProductId,
     staleTime: 15000,
   });

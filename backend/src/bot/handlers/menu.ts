@@ -3,11 +3,12 @@ import { InputFile, InlineKeyboard } from "grammy";
 import type { MyContext, BotTextKey } from "../context.ts";
 import { languageKeyboard, mainKeyboard, openAppInline, storeKeyboard } from "../keyboards.ts";
 import { isMultiStore, userStore, getStore } from "../../bito/stores.ts";
-import { getSettings, lt, normalizeLang } from "../../settings/store.ts";
+import { fill, getSettings, lt, normalizeLang } from "../../settings/store.ts";
 import type { Lang } from "../../settings/schema.ts";
 import { LANGS } from "../../settings/schema.ts";
 import { prisma } from "../../db.ts";
 import { bito } from "../../bito/client.ts";
+import { buildTradeExcel, receiptFileName } from "../../bito/receiptExcel.ts";
 import { fetchBalances, fetchCustomer } from "../../bito/customers.ts";
 import { stageName, stageOf, type Stage } from "../../bito/orders.ts";
 import { esc, fmtDate, money, prettyPhone, qty } from "../../utils/format.ts";
@@ -258,6 +259,30 @@ export function registerMenu(bot: Bot<MyContext>) {
     await ctx.answerCallbackQuery().catch(() => {});
     if (ctx.user?.step !== "done") return;
     await sendOrderDetail(ctx, `od:${ctx.match[1]}:${ctx.match[2]}`);
+  });
+
+  // Chek ostidagi «Excelda yuklash» tugmasi
+  bot.callbackQuery(/^xls:([a-f0-9]{24})$/, async (ctx) => {
+    const id = ctx.match![1];
+    const lang = ctx.lang;
+    const b = getSettings().bot;
+    await ctx.answerCallbackQuery().catch(() => {});
+    try {
+      const trade = await bito.tradeForBot(id);
+      if (!trade || !trade._id) throw new Error("savdo topilmadi");
+      // Xavfsizlik: faqat o'z savdosini yuklab olsin
+      const owner = trade.customer?._id || trade.customer_id;
+      if (owner && ctx.user.bitoCustomerId && owner !== ctx.user.bitoCustomerId) { await ctx.answerCallbackQuery({ text: "⛔️", show_alert: false }).catch(() => {}); return; }
+      const buf = await buildTradeExcel(trade, lang, { customerName: ctx.user.name, customerPhone: ctx.user.phone });
+      await ctx.replyWithDocument(new InputFile(buf, receiptFileName(trade)), {
+        caption: fill(lt(b.receiptExcelCaption as never, lang), { number: String(trade.number || "") }),
+        parse_mode: "HTML",
+      });
+      await activity("receipt_excel", `Chek Excel: №${trade.number} → ${ctx.user.name || ctx.user.phone}`);
+    } catch (e) {
+      log.warn("receipt excel", errMsg(e));
+      await ctx.reply(lt(b.receiptExcelError as never, lang)).catch(() => {});
+    }
   });
 
   bot.callbackQuery(/^lang:(uz|ru|en)$/, async (ctx) => {

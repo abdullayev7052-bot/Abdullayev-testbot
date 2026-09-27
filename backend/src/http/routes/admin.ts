@@ -351,35 +351,61 @@ adminRouter.post("/catalog/categories/reorder", async (req, res) => {
 });
 
 // ---------- Kutilayotgan mahsulotlar ----------
-adminRouter.get("/waitlist", async (_req, res) => {
-  const rows = await prisma.waitlist.findMany({ orderBy: { createdAt: "desc" }, include: { user: true, product: true }, take: 500 });
-  res.json(rows.map((w) => ({
-    id: w.id, createdAt: w.createdAt, notifiedAt: w.notifiedAt,
-    product: { id: w.product.id, name: w.product.name, stock: w.product.stock, image: bito.fileUrl(w.product.image) },
-    user: { id: w.user.id, name: w.user.name || w.user.tgFirstName, phone: w.user.phone, username: w.user.tgUsername, telegramId: String(w.user.telegramId) },
-  })));
-});
-/** "Istaklarim" — qaysi mijoz qaysi mahsulotni yoqtirgan */
-adminRouter.get("/favorites", async (req, res) => {
-  const take = Math.min(500, Number(req.query.limit || 300));
-  const [rows, top] = await Promise.all([
-    prisma.favorite.findMany({ orderBy: { createdAt: "desc" }, take, include: { product: true, user: true } }),
-    prisma.favorite.groupBy({ by: ["productId"], _count: { userId: true }, orderBy: { _count: { userId: "desc" } }, take: 20 }),
-  ]);
-  const prods = await prisma.product.findMany({ where: { id: { in: top.map((t) => t.productId) } } });
-  const byId = new Map(prods.map((p) => [p.id, p]));
-  res.json({
-    items: rows.map((r) => ({
-      id: r.id, createdAt: r.createdAt,
-      product: { id: r.product.id, name: r.product.name, image: bito.fileUrl(r.product.image), stock: r.product.stock },
-      user: { id: r.user.id, name: r.user.name, phone: r.user.phone, username: r.user.tgUsername, telegramId: String(r.user.telegramId) },
-    })),
-    top: top.map((t) => ({ productId: t.productId, name: byId.get(t.productId)?.name || `#${t.productId}`, image: bito.fileUrl(byId.get(t.productId)?.image || null), count: t._count.userId })),
+/**
+ * Nazorat: "Kutilayotgan mahsulotlar" va "Istaklar" — mahsulot bo'yicha guruhlangan,
+ * eng ko'p kutilgan/yoqtirilgan yuqorida. Rasmlar yuborilmaydi (serverga ortiqcha yuk).
+ */
+async function interestGroups(kind: "wait" | "fav") {
+  const rows = kind === "wait"
+    ? await prisma.waitlist.groupBy({ by: ["productId"], where: { notifiedAt: null }, _count: { userId: true }, _max: { createdAt: true } })
+    : await prisma.favorite.groupBy({ by: ["productId"], _count: { userId: true }, _max: { createdAt: true } });
+  const products = await prisma.product.findMany({
+    where: { id: { in: rows.map((r) => r.productId) } },
+    select: { id: true, name: true, stock: true, sku: true, isDeleted: true, hidden: true },
   });
-});
-adminRouter.delete("/favorites/:id", async (req, res) => { await prisma.favorite.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
+  const byId = new Map(products.map((p) => [p.id, p]));
+  return rows
+    .map((r) => {
+      const p = byId.get(r.productId);
+      return {
+        productId: r.productId,
+        name: p?.name || `#${r.productId}`,
+        stock: p?.stock ?? 0,
+        sku: p?.sku || null,
+        gone: !p || p.isDeleted,
+        hidden: !!p?.hidden,
+        count: r._count.userId,
+        lastAt: r._max.createdAt,
+      };
+    })
+    .sort((a, b) => b.count - a.count || (b.lastAt?.getTime() || 0) - (a.lastAt?.getTime() || 0));
+}
 
+async function interestUsers(kind: "wait" | "fav", productId: number) {
+  const rows = kind === "wait"
+    ? await prisma.waitlist.findMany({ where: { productId, notifiedAt: null }, orderBy: { createdAt: "desc" }, include: { user: true } })
+    : await prisma.favorite.findMany({ where: { productId }, orderBy: { createdAt: "desc" }, include: { user: true } });
+  return rows.map((r) => ({
+    id: r.id, createdAt: r.createdAt,
+    user: { id: r.user.id, name: r.user.name || r.user.tgFirstName, phone: r.user.phone, username: r.user.tgUsername, telegramId: String(r.user.telegramId), registered: r.user.step === "done" },
+  }));
+}
+
+adminRouter.get("/waitlist", async (_req, res) => { res.json(await interestGroups("wait")); });
+adminRouter.get("/waitlist/product/:productId", async (req, res) => { res.json(await interestUsers("wait", Number(req.params.productId))); });
 adminRouter.delete("/waitlist/:id", async (req, res) => { await prisma.waitlist.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
+adminRouter.delete("/waitlist/product/:productId", async (req, res) => {
+  const r = await prisma.waitlist.deleteMany({ where: { productId: Number(req.params.productId) } });
+  res.json({ ok: true, count: r.count });
+});
+
+adminRouter.get("/favorites", async (_req, res) => { res.json(await interestGroups("fav")); });
+adminRouter.get("/favorites/product/:productId", async (req, res) => { res.json(await interestUsers("fav", Number(req.params.productId))); });
+adminRouter.delete("/favorites/:id", async (req, res) => { await prisma.favorite.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
+adminRouter.delete("/favorites/product/:productId", async (req, res) => {
+  const r = await prisma.favorite.deleteMany({ where: { productId: Number(req.params.productId) } });
+  res.json({ ok: true, count: r.count });
+});
 
 // ---------- Guruhlar va xodimlar ----------
 adminRouter.get("/groups", async (_req, res) => { res.json(await prisma.adminGroup.findMany({ orderBy: { createdAt: "desc" } })); });

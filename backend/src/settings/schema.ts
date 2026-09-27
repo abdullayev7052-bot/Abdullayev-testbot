@@ -315,6 +315,10 @@ export const settingsSchema: SectionDef[] = [
       {
         title: "Savdo cheki va to'lovlar (Bito'dan avtomatik)",
         fields: [
+          { key: "receiptExcelEnabled", label: "Chek ostida «Excelda yuklash» tugmasi", type: "boolean", default: true, help: "Mijoz bosganda o'sha savdo Excel (.xlsx) fayl bo'lib yuboriladi" },
+          { key: "receiptExcelButton", label: "Tugma matni", type: "ltext", default: L("📊 Excelda yuklash", "📊 Скачать в Excel", "📊 Download as Excel") },
+          { key: "receiptExcelCaption", label: "Fayl ostidagi izoh", type: "ltext", default: L("№{number} savdo cheki", "Чек продажи №{number}", "Sales receipt №{number}"), placeholders: ["{number}"] },
+          { key: "receiptExcelError", label: "Xatolik matni", type: "ltext", default: L("Faylni tayyorlab bo'lmadi. Keyinroq urinib ko'ring.", "Не удалось подготовить файл. Попробуйте позже.", "Could not prepare the file. Try again later.") },
           { key: "notifyTrades", label: "Har bir savdoda mijozga chek yuborish", type: "boolean", default: true },
           { key: "notifyPayments", label: "Har bir to'lov/balans to'ldirilganda xabar yuborish", type: "boolean", default: true },
           { key: "notifyPaymentsWithTrade", label: "Savdo bilan BIR VAQTDA qilingan to'lovni ham alohida yuborish (chekdan tashqari)", type: "boolean", default: false, help: "Keyinroq qilingan qarz to'lovlari bu sozlamadan qat'i nazar har doim yuboriladi" },

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { RefreshCw, Users, UserPlus, Activity, Moon, Repeat, ShoppingBag, Wallet, Receipt, XCircle, Bell, Package, Search, Smartphone, Filter, Info, Timer, Heart } from "lucide-react";
@@ -107,6 +107,21 @@ export function Dashboard() {
   const Card = ({ title, icon, children, hint, info }: { title: string; icon?: React.ReactNode; children: React.ReactNode; hint?: string; info?: React.ReactNode }) => (
     <div className="card p-5"><div className="font-semibold flex items-center gap-2 mb-3">{icon}{title}{info}{hint && <span className="text-xs font-normal text-slate-400 ml-auto">{hint}</span>}</div>{children}</div>
   );
+  /** Qidiruv so'rovlari: 10 tasi ko'rinadi, qolgani "yana" bilan ochiladi */
+  const SearchTable = ({ rows }: { rows: { q: string; count: number }[] }) => {
+    const [all, setAll] = useState(false);
+    const shown = all ? rows : rows.slice(0, 10);
+    return (
+      <>
+        <Table head={["So'rov", "Marta"]} rows={shown.map((s) => [`"${s.q}"`, fmtN(s.count)])} />
+        {rows.length > 10 && (
+          <button onClick={() => setAll((x) => !x)} className="text-xs font-semibold text-[var(--primary)] mt-1.5 hover:underline">
+            {all ? "Yig'ish" : `Yana ${rows.length - 10} ta →`}
+          </button>
+        )}
+      </>
+    );
+  };
   const Table = ({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) => (
     <div className="overflow-x-auto -mx-2"><table className="w-full text-sm min-w-[320px]"><thead><tr className="text-xs text-slate-400 text-left">{head.map((h, i) => <th key={i} className={`px-2 pb-2 font-medium ${i ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
       <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-slate-100">{r.map((c, j) => <td key={j} className={`px-2 py-1.5 ${j ? "text-right tabular-nums" : ""}`}>{c}</td>)}</tr>)}{!rows.length && <tr><td colSpan={head.length} className="px-2 py-4 text-center text-slate-400">Ma'lumot yo'q</td></tr>}</tbody></table></div>
@@ -320,8 +335,8 @@ Natijasiz: "adidas" — 96 marta`}</Example>
             <div className="flex justify-between"><span>Qidiruv → buyurtma berdi</span><b>{fmtPct(d.search.toOrder.pct)}</b></div>
           </div>
           <div className="font-semibold text-sm mb-1">Eng ko'p qidirilganlar</div>
-          <Table head={["So'rov", "Marta"]} rows={d.search.top.slice(0, 8).map((s) => [`"${s.q}"`, fmtN(s.count)])} />
-          {d.search.zeroResult.length > 0 && <><div className="font-semibold text-sm mt-3 mb-1 text-red-600">Natija chiqmagan qidiruvlar</div><Table head={["So'rov", "Marta"]} rows={d.search.zeroResult.slice(0, 8).map((s) => [`"${s.q}"`, fmtN(s.count)])} /></>}
+          <SearchTable rows={d.search.top} />
+          {d.search.zeroResult.length > 0 && <><div className="font-semibold text-sm mt-3 mb-1 text-red-600">Natija chiqmagan qidiruvlar</div><SearchTable rows={d.search.zeroResult} /></>}
         </Card>
         <div className="space-y-4">
           <Card title="Qurilma va platforma" icon={<Smartphone size={16} />}>
