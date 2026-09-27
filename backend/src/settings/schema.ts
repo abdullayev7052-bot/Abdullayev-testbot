@@ -626,15 +626,30 @@ export const settingsSchema: SectionDef[] = [
         ],
       },
       {
-        title: "Bosh sahifadagi bloklar",
-        description: "Bloklarning tartibi va ko'rinishi. Yangi bloklar (masalan «Hafta bestsellerlari», «Mualliflar») Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari bo'limida yaratiladi.",
+        title: "Bosh sahifadagi bloklar — tartibi",
+        description: "Bloklar qaysi ketma-ketlikda turishini shu yerda belgilaysiz. Har bir blokni ko'rsatish yoki yashirish esa o'sha blokning o'z bo'limida (Storis, Bannerlar, Hero, pastdagi bloklar) yoki Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari da.",
         fields: [
-          { key: "homeOrder", label: "Bloklar tartibi", type: "homeLayout", default: [] },
-          { key: "featuredShow", label: "Tavsiya etilgan mahsulotlar", type: "boolean", default: true },
+          { key: "homeOrder", label: "Tartib", type: "homeLayout", default: [] },
+        ],
+      },
+      {
+        title: "«Tavsiya etamiz» bloki",
+        fields: [
+          { key: "featuredShow", label: "Ko'rsatish", type: "boolean", default: true },
           { key: "featuredTitle", label: "Sarlavha", type: "ltext", default: L("Tavsiya etamiz", "Рекомендуем", "Recommended") },
-          { key: "categoriesShow", label: "Kategoriyalar bloki", type: "boolean", default: true },
+        ],
+      },
+      {
+        title: "«Kategoriyalar» bloki",
+        fields: [
+          { key: "categoriesShow", label: "Ko'rsatish", type: "boolean", default: true },
           { key: "categoriesTitle", label: "Sarlavha", type: "ltext", default: L("Kategoriyalar", "Категории", "Categories") },
-          { key: "newShow", label: "Yangi mahsulotlar", type: "boolean", default: false },
+        ],
+      },
+      {
+        title: "«Yangi kelganlar» bloki",
+        fields: [
+          { key: "newShow", label: "Ko'rsatish", type: "boolean", default: false },
           { key: "newTitle", label: "Sarlavha", type: "ltext", default: L("Yangi kelganlar", "Новинки", "New arrivals") },
         ],
       },

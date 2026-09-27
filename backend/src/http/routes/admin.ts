@@ -410,6 +410,19 @@ adminRouter.delete("/favorites/product/:productId", async (req, res) => {
   res.json({ ok: true, count: r.count });
 });
 
+/**
+ * Admin panelda yuklangan fayl manzili (/uploads/...) — Bito fayl serveriga tegishli emas.
+ * Bito manzili bilan noto'g'ri saqlangan eski qiymatlarni ham tozalaydi.
+ */
+function localImage(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const m = /^https?:\/\/[^/]+(?:\/[^/]*)*?(\/uploads\/[\w.-]+)$/.exec(s);
+  if (m) return m[1];
+  return s;
+}
+
 // ---------- Bosh sahifa bloklari ----------
 adminRouter.get("/home-blocks", async (_req, res) => {
   const blocks = await prisma.homeBlock.findMany({ orderBy: { sortOrder: "asc" }, include: { items: { orderBy: { sortOrder: "asc" } } } });
@@ -418,7 +431,7 @@ adminRouter.get("/home-blocks", async (_req, res) => {
   const byId = new Map(products.map((p) => [p.id, p]));
   res.json(blocks.map((b) => ({
     ...b,
-    items: b.items.map((i) => ({ ...i, image: bito.fileUrl(i.image), productName: i.productId ? byId.get(i.productId)?.name || `#${i.productId}` : null })),
+    items: b.items.map((i) => ({ ...i, image: localImage(i.image), productName: i.productId ? byId.get(i.productId)?.name || `#${i.productId}` : null })),
   })));
 });
 const blockSchema = z.object({
@@ -435,11 +448,12 @@ adminRouter.post("/home-blocks", async (req, res) => {
   const b = blockSchema.parse(req.body);
   const max = (await prisma.homeBlock.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
   const created = await prisma.homeBlock.create({ data: { ...b, title: (b.title || {}) as object, style: (b.style || {}) as object, sortOrder: max + 1 } });
-  res.json(created);
+  res.json({ ...created, items: [] });
 });
 adminRouter.put("/home-blocks/:id", async (req, res) => {
   const b = blockSchema.parse(req.body);
-  res.json(await prisma.homeBlock.update({ where: { id: Number(req.params.id) }, data: { ...b, title: b.title as object | undefined, style: b.style as object | undefined } }));
+  const updated = await prisma.homeBlock.update({ where: { id: Number(req.params.id) }, data: { ...b, title: b.title as object | undefined, style: b.style as object | undefined }, include: { items: { orderBy: { sortOrder: "asc" } } } });
+  res.json({ ...updated, items: updated.items.map((i) => ({ ...i, image: localImage(i.image) })) });
 });
 adminRouter.delete("/home-blocks/:id", async (req, res) => {
   await prisma.homeBlock.delete({ where: { id: Number(req.params.id) } });
@@ -462,7 +476,7 @@ adminRouter.put("/home-blocks/:id/items", async (req, res) => {
     await prisma.homeBlockItem.createMany({ data: body.products.map((productId, i) => ({ blockId: id, productId, sortOrder: i })) });
   }
   if (body.entries?.length) {
-    await prisma.homeBlockItem.createMany({ data: body.entries.map((e, i) => ({ blockId: id, value: e.value, image: e.image || null, title: e.title || null, sortOrder: i })) });
+    await prisma.homeBlockItem.createMany({ data: body.entries.map((e, i) => ({ blockId: id, value: e.value, image: localImage(e.image) || null, title: e.title || null, sortOrder: i })) });
   }
   res.json({ ok: true });
 });

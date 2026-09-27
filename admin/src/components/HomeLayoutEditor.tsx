@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Eye, EyeOff } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 import { api } from "../lib/api.ts";
 import type { HomeBlock } from "../pages/HomeBlocks.tsx";
 
@@ -40,21 +40,17 @@ export function HomeLayoutEditor({ value, onChange }: { value: LayoutRow[]; onCh
   return (
     <div className="space-y-1.5">
       {rows.map((r, i) => {
-        const on = r.show !== false;
         return (
-          <div key={r.key} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${on ? "border-slate-200" : "border-slate-100 bg-slate-50/60 opacity-70"}`}>
-            <span className="w-6 text-xs text-slate-400 tabular-nums">{i + 1}</span>
+          <div key={r.key} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+            <GripVertical size={15} className="text-slate-300 shrink-0" />
+            <span className="w-5 text-xs text-slate-400 tabular-nums">{i + 1}</span>
             <span className="flex-1 min-w-0 text-sm truncate">{label(r.key)}</span>
-            <button type="button" onClick={() => onChange(rows.map((x, n) => (n === i ? { ...x, show: !on } : x)))}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center ${on ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-100"}`}>
-              {on ? <Eye size={16} /> : <EyeOff size={16} />}
-            </button>
             <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center"><ArrowUp size={15} /></button>
             <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center"><ArrowDown size={15} /></button>
           </div>
         );
       })}
-      <div className="help">Yangi bloklar <b>Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari</b> da yaratiladi va shu ro'yxatda paydo bo'ladi.</div>
+      <div className="help">Yuqoridagi blok bosh sahifada ham eng tepada turadi. Yangi bloklar <b>Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari</b> da yaratiladi va shu ro'yxatda paydo bo'ladi.</div>
     </div>
   );
 }

@@ -23,17 +23,18 @@ export function useCatalogFmt() {
     quickAdd: v<boolean>("catalog", "quickAddEnabled", true),
     favoritesEnabled: v<boolean>("catalog", "favoritesEnabled", true),
     faceLabelShow: v<boolean>("catalog", "faceLabelShow", false),
+    faceSize: v<number>("catalog", "faceSize", 12),
     faceStyle: {
       color: v<string>("catalog", "faceColor", "#64748b"),
       fontSize: v<number>("catalog", "faceSize", 12),
       fontWeight: v<string>("catalog", "faceWeight", "500"),
       fontStyle: v<boolean>("catalog", "faceItalic", false) ? "italic" : "normal",
     } as React.CSSProperties,
-    nameStyle: {
-      color: v<string>("catalog", "nameColor", ""),
-      fontSize: v<number>("catalog", "nameSize", 13),
-      fontWeight: v<string>("catalog", "nameWeight", "500"),
-    } as React.CSSProperties,
+    nameSize: v<number>("catalog", "nameSize", 13),
+    nameColor: v<string>("catalog", "nameColor", ""),
+    nameWeight: v<string>("catalog", "nameWeight", "500"),
+    /** Karta yuzida qo'shimcha matn sozlanganmi — barcha kartochkalarda joy ajratiladi */
+    faceConfigured: ((v<{ face?: boolean; show?: boolean }[]>("catalog", "productFields", []) || []).some((f) => f?.face && f?.show !== false)),
     showSku: v<boolean>("catalog", "showSku", false),
   };
 }
@@ -46,10 +47,17 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
   const setQty = useCart((s) => s.setQty);
   const st = f.stock(p);
   const out = p.stock <= 0 && !f.canOrderOut;
+  // Uzun nomlar uchun shriftni biroz kichraytiramiz (kartochkalar bir xil bo'lib qolsin)
+  const len = p.name.length;
+  const shrink = len > 64 ? 0.8 : len > 46 ? 0.87 : len > 32 ? 0.93 : 1;
+  const fontSize = Math.max(10, Math.round(f.nameSize * shrink * 10) / 10);
+  const lineHeight = 1.25;
+  const nameBox = Math.round(fontSize * lineHeight * 2);
+  const nameStyle: React.CSSProperties = { color: f.nameColor || undefined, fontSize, fontWeight: f.nameWeight, lineHeight };
   const fav = useFavorites((s) => s.isFav(p));
   const toggleFav = useFavorites((s) => s.toggle);
   return (
-    <motion.div layout {...cardVariants(index)} className="card overflow-hidden flex flex-col">
+    <motion.div layout {...cardVariants(index)} className="card overflow-hidden flex flex-col h-full">
       <motion.button whileTap={{ scale: tapScale() }} onClick={() => { haptic.light(); onOpen(p); }} className="text-left">
         <div className="relative">
           <Img src={p.image} alt={p.name} name={p.name} className={`aspect-square w-full ${out ? "opacity-60 grayscale-[35%]" : ""}`} />
@@ -65,9 +73,12 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
           {p.discountPercent ? <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>-{p.discountPercent}%</span> : p.featured && <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>★</span>}
         </div>
         <div className="px-3 pt-2.5">
-          <div className="leading-snug line-clamp-2" style={f.nameStyle}>{p.name}</div>
-          {p.face?.value ? (
-            <div className="line-clamp-1 mt-0.5" style={f.faceStyle}>{f.faceLabelShow ? `${p.face.label}: ` : ""}{p.face.value}</div>
+          {/* Nomi doim 2 qatorga sig'adi: uzun bo'lsa shrift avtomatik kichrayadi, ortiqchasi kesiladi */}
+          <div className="line-clamp-2 overflow-hidden" style={{ ...nameStyle, height: nameBox }}>{p.name}</div>
+          {(p.face?.value || f.faceConfigured) ? (
+            <div className="line-clamp-1 overflow-hidden mt-0.5" style={{ ...f.faceStyle, height: Math.round(f.faceSize * 1.35) }}>
+              {p.face?.value ? `${f.faceLabelShow ? `${p.face.label}: ` : ""}${p.face.value}` : ""}
+            </div>
           ) : null}
           {f.showSku && p.sku && <div className="text-[11px] text-slate-400 mt-0.5">#{p.sku}</div>}
           <div className="font-bold mt-1 flex items-baseline gap-1.5 flex-wrap">{f.price(p.price)}{p.discountPercent && p.basePrice ? <span className="text-[11px] font-normal text-slate-400 line-through">{f.price(p.basePrice)}</span> : null}</div>

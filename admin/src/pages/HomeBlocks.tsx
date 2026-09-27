@@ -81,7 +81,7 @@ export function HomeBlocksTab({ products, options }: { products: P[]; options?: 
               <div className="text-xs text-slate-500">
                 {b.kind === "chips" ? "Mini bloklar" : "Mahsulotlar"} · {SOURCES.find((x) => x.value === b.source)?.label || b.source}
                 {b.fieldKey ? ` · ${fieldOptions.find((f) => f.value === b.fieldKey)?.label || b.fieldKey}` : ""}
-                {b.items.length ? ` · ${b.items.length} ta tanlangan` : ""}
+                {b.items?.length ? ` · ${b.items.length} ta tanlangan` : ""}
               </div>
             </div>
             <Toggle value={b.active} onChange={(v) => { void api.put(`/home-blocks/${b.id}`, { active: v }).then(refresh); }} />
@@ -102,10 +102,11 @@ function BlockEditor({ block, products, fieldOptions, onClose, onSaved }: {
   block: HomeBlock; products: P[]; fieldOptions: { value: string; label: string }[]; onClose: () => void; onSaved: () => void;
 }) {
   const toast = useToast((s) => s.show);
-  const [b, setB] = useState<HomeBlock>(block);
-  const [picked, setPicked] = useState<number[]>(block.items.filter((i) => i.productId).map((i) => i.productId!));
+  const items = block.items || [];
+  const [b, setB] = useState<HomeBlock>({ ...block, items });
+  const [picked, setPicked] = useState<number[]>(items.filter((i) => i.productId).map((i) => i.productId!));
   const [entries, setEntries] = useState<{ value: string; image?: string; title?: string }[]>(
-    block.items.filter((i) => i.value).map((i) => ({ value: i.value!, image: i.image || undefined, title: i.title || undefined })),
+    items.filter((i) => i.value).map((i) => ({ value: i.value!, image: i.image || undefined, title: i.title || undefined })),
   );
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);

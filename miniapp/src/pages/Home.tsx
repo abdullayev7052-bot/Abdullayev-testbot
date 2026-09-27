@@ -68,7 +68,7 @@ export function Home() {
   );
   const featuredRow = (
     <Section title={t("design", "featuredTitle")} onMore={() => nav("/catalog")}>
-            <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll">
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll items-stretch">
               {data.featured.map((p, i) => (
                 <div key={p.id} className="w-[46%] shrink-0"><ProductCard p={withWait(p, wl.overrides)} index={i} onOpen={setOpen} onWaitlist={onWaitlist} /></div>
               ))}
@@ -90,7 +90,7 @@ export function Home() {
   );
   const newRow = (
     <Section title={t("design", "newTitle")}>
-            <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll">
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll items-stretch">
               {data.newest.map((p, i) => (
                 <div key={p.id} className="w-[46%] shrink-0"><ProductCard p={withWait(p, wl.overrides)} index={i} onOpen={setOpen} onWaitlist={onWaitlist} /></div>
               ))}
@@ -117,7 +117,7 @@ function BlockRow({ b, onOpen, onWaitlist, overrides }: { b: HomeBlock; onOpen: 
     const radius = shape === "circle" ? size : shape === "square" ? 0 : Number(style.radius ?? 16);
     return (
       <Section title={b.title}>
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll">
+        <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll items-stretch">
           {(b.entries || []).map((e, i) => (
             <motion.button key={e.value} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i }} whileTap={{ scale: 0.95 }}
               onClick={() => { haptic.light(); nav(`/catalog?f_${encodeURIComponent(b.fieldKey || "")}=${encodeURIComponent(e.value)}`); }}
@@ -134,7 +134,7 @@ function BlockRow({ b, onOpen, onWaitlist, overrides }: { b: HomeBlock; onOpen: 
   }
   return (
     <Section title={b.title} onMore={() => nav("/catalog")}>
-      <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll">
+      <div className="flex gap-3 overflow-x-auto px-4 pb-2 hide-scroll items-stretch">
         {(b.items || []).map((p, i) => (
           <div key={p.id} className="w-[46%] shrink-0"><ProductCard p={withWait(p, overrides)} index={i} onOpen={onOpen} onWaitlist={onWaitlist} /></div>
         ))}

@@ -20,20 +20,31 @@ const BUILTIN: Record<string, Record<Lang, string>> = {
 
 type CF = { id?: string; name?: string; value?: string };
 
-/** Mahsulotdagi bitta kalitning xom qiymati */
+/** Bo'sh hisoblanadigan qiymatlar: "", " ", "-", "—", "null", "undefined" */
+function clean(v: unknown): string | null {
+  if (v === null || v === undefined || typeof v === "boolean") return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (/^(-+|—+|null|undefined|nan)$/i.test(s)) return null;
+  return s;
+}
+
+/** Mahsulotdagi bitta kalitning xom qiymati (bo'sh bo'lsa — null, ya'ni umuman ko'rsatilmaydi) */
 function rawValue(p: Product, key: string): { value: string; bitoName: string } | null {
   if (key.startsWith("cf:")) {
     const id = key.slice(3);
     const list = (p.customFields as CF[]) || [];
     const cf = list.find((x) => x.id === id);
-    if (!cf || !String(cf.value ?? "").trim()) return null;
-    return { value: String(cf.value), bitoName: cf.name || "" };
+    if (!cf) return null;
+    const v = clean(cf.value);
+    return v ? { value: v, bitoName: cf.name || "" } : null;
   }
+  const by = (v: unknown) => { const c = clean(v); return c ? { value: c, bitoName: "" } : null; };
   switch (key) {
-    case "category": return p.categoryName ? { value: p.categoryName, bitoName: "" } : null;
-    case "note": return p.note ? { value: p.note, bitoName: "" } : null;
-    case "sku": return p.sku ? { value: p.sku, bitoName: "" } : null;
-    case "measure": return p.measure ? { value: p.measure, bitoName: "" } : null;
+    case "category": return by(p.categoryName);
+    case "note": return by(p.note);
+    case "sku": return by(p.sku);
+    case "measure": return by(p.measure);
     case "box": return p.boxItem > 0 ? { value: String(p.boxItem), bitoName: "" } : null;
     default: return null;
   }
@@ -56,12 +67,14 @@ function labelOf(f: ProductField, key: string, bitoName: string, lang: Lang): st
   return b ? b[lang] : key;
 }
 
-/** Mahsulot ichidagi ro'yxat (tartiblangan, yoqilganlari) */
-export function detailsFor(p: Product, lang: Lang): ProductDetail[] {
+/** Mahsulot ichidagi ro'yxat (tartiblangan, yoqilganlari). Qiymati bo'lmagan maydon umuman chiqmaydi. */
+export function detailsFor(p: Product, lang: Lang, fallback?: Product[]): ProductDetail[] {
   const out: ProductDetail[] = [];
   for (const f of configuredFields(p)) {
     if (f.show === false) continue;
-    const raw = rawValue(p, f.key);
+    let raw = rawValue(p, f.key);
+    // Ota kartochkada bo'sh bo'lsa — variantlaridan qidiramiz
+    if (!raw && fallback?.length) for (const k of fallback) { raw = rawValue(k, f.key); if (raw) break; }
     if (!raw) continue;
     out.push({ key: f.key, label: labelOf(f, f.key, raw.bitoName, lang), value: raw.value });
   }
@@ -69,10 +82,11 @@ export function detailsFor(p: Product, lang: Lang): ProductDetail[] {
 }
 
 /** Kartochka betidagi qo'shimcha matn (masalan muallif ismi) */
-export function faceTextFor(p: Product, lang: Lang): { label: string; value: string } | null {
+export function faceTextFor(p: Product, lang: Lang, fallback?: Product[]): { label: string; value: string } | null {
   const f = configuredFields(p).find((x) => x.face && x.show !== false);
   if (!f) return null;
-  const raw = rawValue(p, f.key);
+  let raw = rawValue(p, f.key);
+  if (!raw && fallback?.length) for (const k of fallback) { raw = rawValue(k, f.key); if (raw) break; }
   if (!raw) return null;
   return { label: labelOf(f, f.key, raw.bitoName, lang), value: raw.value };
 }

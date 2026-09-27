@@ -51,8 +51,8 @@ function serializeProduct(p: Product, user: PUser, marks?: Marks) {
     isParent: p.isParent && variants.length > 0,
     variants,
     // Kartochka betidagi qo'shimcha matn (masalan muallif) va ichidagi to'liq ro'yxat
-    face: faceTextFor(p, lang),
-    details: marks?.details ? detailsFor(p, lang) : undefined,
+    face: faceTextFor(p, lang, kids),
+    details: marks?.details ? detailsFor(p, lang, kids) : undefined,
     createdAt: p.syncedAt,
   };
 }
@@ -166,7 +166,7 @@ async function homeBlocks(user: User, products: Product[], marks: Marks, lang: L
         if (v) counts.set(v, (counts.get(v) || 0) + 1);
       }
       if (manual.length) {
-        entries = manual.map((i) => ({ value: i.value!, image: bito.fileUrl(i.image), title: i.title, count: counts.get(i.value!) || 0 }));
+        entries = manual.map((i) => ({ value: i.value!, image: i.image || null, title: i.title, count: counts.get(i.value!) || 0 }));
       } else {
         entries = [...counts.entries()].sort((a, b2) => b2[1] - a[1] || a[0].localeCompare(b2[0], "uz")).slice(0, b.limit).map(([value, count]) => ({ value, image: null, title: null, count }));
       }
