@@ -78,4 +78,4 @@ export interface Purchase { id: string; number: string; date: string; total: num
 export interface BalanceLine { organization: string; amount: number; currency: string }
 
 export interface FilterField { key: string; label: string; values: { value: string; count: number }[] }
-export interface FiltersData { fields: FilterField[]; price: { min: number; max: number } | null; total: number }
+export interface FiltersData { fields: FilterField[]; price: { min: number; max: number } | null; sort?: boolean; total: number }

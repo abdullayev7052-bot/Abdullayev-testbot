@@ -5,6 +5,7 @@ import { LatLngPicker } from "./LatLngPicker.tsx";
 import { StoresEditor, PriceExceptionsEditor, type StoreDef, type PriceException } from "./StoresEditor.tsx";
 import { ProductFieldsEditor, type PField } from "./ProductFieldsEditor.tsx";
 import { HomeLayoutEditor, type LayoutRow } from "./HomeLayoutEditor.tsx";
+import { FilterFieldsEditor, type FilterRow } from "./FilterFieldsEditor.tsx";
 import { ThemePresets } from "./ThemePresets.tsx";
 
 const LANGS: { k: Lang; label: string }[] = [{ k: "uz", label: "🇺🇿 UZ" }, { k: "ru", label: "🇷🇺 RU" }, { k: "en", label: "🇬🇧 EN" }];
@@ -43,6 +44,15 @@ export function Field({ def, value, onChange, options, onPatch }: { def: FieldDe
       return (
         <div>
           <ThemePresets onApply={(vals) => (onPatch ? onPatch(vals) : onChange(vals))} />
+          {help}
+        </div>
+      );
+
+    case "filterFields":
+      return (
+        <div>
+          <label className="label">{def.label}</label>
+          <FilterFieldsEditor value={(value as FilterRow[]) || []} onChange={onChange} options={options} />
           {help}
         </div>
       );

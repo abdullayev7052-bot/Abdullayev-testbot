@@ -93,6 +93,7 @@ export function FilterSheet({ open, onClose, category, value, onApply }: {
           <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
         ) : (
           <>
+            {data.data?.sort !== false && (
             <div className="mb-5">
               <div className="text-sm font-semibold mb-2">{t("catalog", "sortTitle")}</div>
               <div className="flex flex-wrap gap-2">
@@ -104,6 +105,7 @@ export function FilterSheet({ open, onClose, category, value, onApply }: {
                 ))}
               </div>
             </div>
+            )}
 
             {price && price.max > price.min && (
               <div className="mb-5">

@@ -25,6 +25,7 @@ export type FieldType =
   | "priceExceptions"
   | "productFields"
   | "homeLayout"
+  | "filterFields"
   | "themePresets";
 
 export interface FieldDef {
@@ -813,6 +814,8 @@ export const settingsSchema: SectionDef[] = [
           { key: "searchMinChars", label: "Minimal harflar soni", type: "number", default: 3, min: 1, max: 5 },
           { key: "searchFuzzy", label: "Aqlli (kirill/lotin, xatolarga chidamli) qidiruv", type: "boolean", default: true },
           { key: "filterEnabled", label: "Qidiruv yonida filtr tugmasi", type: "boolean", default: true, help: "Qo'shimcha maydonlar (muallif, nashriyot...), narx oralig'i va saralash bo'yicha filtrlash" },
+          { key: "filterFields", label: "Filtrda qaysi ko'rsatkichlar chiqsin", type: "filterFields", default: [], source: "bito:productFields",
+            help: "Masalan «Sahifa» ni o'chirib qo'ysangiz — filtr oynasida umuman ko'rinmaydi" },
           { key: "filterMaxValues", label: "Har bir filtrda nechta qiymat ko'rinsin", type: "number", default: 12, min: 4, max: 40 },
           { key: "filterTitle", label: "Filtr oynasi sarlavhasi", type: "ltext", default: L("Filtr", "Фильтр", "Filter") },
           { key: "filterApply", label: "Qo'llash tugmasi", type: "ltext", default: L("Ko'rsatish", "Показать", "Show") },

@@ -30,7 +30,8 @@ function clean(v: unknown): string | null {
 }
 
 /** Mahsulotdagi bitta kalitning xom qiymati (bo'sh bo'lsa — null, ya'ni umuman ko'rsatilmaydi) */
-function rawValue(p: Product, key: string): { value: string; bitoName: string } | null {
+function rawValue(p: Product, key: string | undefined | null): { value: string; bitoName: string } | null {
+  if (!key || typeof key !== "string") return null;
   if (key.startsWith("cf:")) {
     const id = key.slice(3);
     const list = (p.customFields as CF[]) || [];
@@ -52,7 +53,9 @@ function rawValue(p: Product, key: string): { value: string; bitoName: string } 
 
 /** Sozlamadagi ro'yxat; bo'sh bo'lsa — standart tartib (izoh, kategoriya, keyin Bito maydonlari) */
 export function configuredFields(p?: Product): ProductField[] {
-  const cfg = (getSettings().catalog.productFields as ProductField[]) || [];
+  const raw = getSettings().catalog.productFields as ProductField[] | undefined;
+  // Nosoz yozuvlar (kaliti yo'q) e'tiborsiz qoldiriladi — sozlama xato bo'lsa ham ilova ishlaydi
+  const cfg = (Array.isArray(raw) ? raw : []).filter((f) => f && typeof f.key === "string" && f.key);
   if (cfg.length) return cfg;
   const auto: ProductField[] = [{ key: "note", show: true }, { key: "category", show: true }];
   for (const cf of ((p?.customFields as CF[]) || [])) if (cf.id) auto.push({ key: `cf:${cf.id}`, show: true });
@@ -91,12 +94,33 @@ export function faceTextFor(p: Product, lang: Lang, fallback?: Product[]): { lab
   return { label: labelOf(f, f.key, raw.bitoName, lang), value: raw.value };
 }
 
-/** Mini App filtrlari uchun: qaysi maydonlar bo'yicha filtrlash mumkin va ularning qiymatlari */
+/** Filtr oynasi sozlamasi: qaysi ko'rsatkichlar chiqadi va qaysi tartibda */
+function filterConfig(): { key: string; show?: boolean }[] {
+  const cfg = getSettings().catalog.filterFields as { key: string; show?: boolean }[] | undefined;
+  return (Array.isArray(cfg) ? cfg : []).filter((r) => r && typeof r.key === "string" && r.key);
+}
+
+/** Narx oralig'i va saralash filtr oynasida ko'rsatiladimi */
+export function filterPartEnabled(key: "__price" | "__sort"): boolean {
+  const row = filterConfig().find((r) => r.key === key);
+  return !row || row.show !== false;
+}
+
+/**
+ * Mini App filtrlari uchun maydonlar: admin belgilagan tartibda va faqat yoqilganlari.
+ * Matnli maydonlar (izoh, artikul) filtrga chiqmaydi.
+ */
 export function filterableFields(): ProductField[] {
-  return configuredFields().filter((f) => f.show !== false && f.key !== "note" && f.key !== "sku");
+  const fields = configuredFields().filter((f) => f.show !== false && f.key !== "note" && f.key !== "sku");
+  const cfg = filterConfig().filter((r) => !r.key.startsWith("__"));
+  if (!cfg.length) return fields;
+  const order = new Map(cfg.map((r, i) => [r.key, i]));
+  return fields
+    .filter((f) => { const r = cfg.find((x) => x.key === f.key); return !r || r.show !== false; })
+    .sort((a, b) => (order.get(a.key) ?? 99) - (order.get(b.key) ?? 99));
 }
 
 /** Mahsulotdagi kalit qiymati (filtrlash uchun, nomlanmagan holda) */
-export function valueOf(p: Product, key: string): string | null {
+export function valueOf(p: Product, key: string | undefined | null): string | null {
   return rawValue(p, key)?.value ?? null;
 }

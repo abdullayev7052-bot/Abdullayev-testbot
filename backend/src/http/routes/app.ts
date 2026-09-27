@@ -17,7 +17,7 @@ import { esc } from "../../utils/format.ts";
 import { isMultiStore, listStores, priceFor, userStore, getStore } from "../../bito/stores.ts";
 import { EVENT_NAMES, isEventName, normPlatform, track } from "../../analytics/track.ts";
 import { inCartCounts, weeklySales } from "../../bito/sales.ts";
-import { detailsFor, faceTextFor, filterableFields, valueOf } from "../../bito/productFields.ts";
+import { detailsFor, faceTextFor, filterableFields, filterPartEnabled, valueOf } from "../../bito/productFields.ts";
 
 export const appRouter = Router();
 appRouter.use(appAuth);
@@ -527,10 +527,11 @@ appRouter.get("/filters", async (req, res) => {
       values: [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "uz")).slice(0, 60).map(([value, count]) => ({ value, count })),
     });
   }
-  const prices = list.map((p) => priceFor(p, user).price).filter((x) => x > 0);
+  const prices = filterPartEnabled("__price") ? list.map((p) => priceFor(p, user).price).filter((x) => x > 0) : [];
   res.json({
     fields,
     price: prices.length ? { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) } : null,
+    sort: filterPartEnabled("__sort"),
     total: list.length,
   });
 });

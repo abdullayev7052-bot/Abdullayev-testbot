@@ -52,6 +52,7 @@ export interface AppSettings {
     weeklySalesEnabled: boolean; weeklySalesSource: "bito" | "app"; weeklySalesDays: number; weeklySalesRefreshMin: number; weeklySalesMin: number; weeklySalesText: LText;
     inCartCountEnabled: boolean; inCartCountHours: number; inCartCountMin: number; inCartCountText: LText;
     productFields: { key: string; label?: LText | string; show?: boolean; face?: boolean }[];
+    filterFields: { key: string; show?: boolean }[];
     detailsTitleShow: boolean; faceLabelShow: boolean; faceColor: string; faceSize: number; faceWeight: string; faceItalic: boolean;
     nameColor: string; nameSize: number; nameWeight: string; detailLabelColor: string; detailValueColor: string;
     variantsEnabled: boolean; variantChooseLabel: LText; variantPickHint: LText; variantOutLabel: LText; variantFromLabel: LText;
@@ -120,6 +121,11 @@ export async function updateSection(section: string, patch: Record<string, unkno
   const next = { ...current };
   for (const [k, v] of Object.entries(patch)) {
     if (!(k in defaults[section])) continue;
+    // Kaliti yo'q yozuvlarni saqlamaymiz (nosoz ro'yxat ilovani buzmasligi uchun)
+    if ((k === "productFields" || k === "filterFields") && Array.isArray(v)) {
+      next[k] = (v as { key?: unknown }[]).filter((r) => r && typeof r.key === "string" && r.key);
+      continue;
+    }
     next[k] = v;
   }
   await prisma.setting.upsert({ where: { key: section }, create: { key: section, value: next as object }, update: { value: next as object } });
