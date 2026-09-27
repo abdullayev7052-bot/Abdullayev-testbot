@@ -108,13 +108,14 @@ Menyu tuzilmasi (chap tomonda; burchakdagi 🔍 yoki **Ctrl+K** — bo'lim, meny
 | **Kontent → Banner** | Aylanma bannerlar (rasm, sarlavha, izoh, havola, matn rangi) |
 | **Kontent → Post** | Mijozlarga bot orqali matn/rasm/video yuborish (tugma bilan). Filtrlar: til va **«faqat shu mahsulotni Istaklarimga qo'shganlarga»** |
 | **Nazorat → Katalog boshqaruvi** | Mahsulotlarni yashirish/ko'rsatish, tavsiyaga qo'shish (★), chegirma, tartib, kategoriyalarni yashirish va tartiblash |
-| **Nazorat → Kutilayotgan mahsulotlar** | Ikki bo'lim: "Kelganda eslating" so'rovlari va **Istaklarim (❤️)** — kim qaysi mahsulotni yoqtirgani, eng ko'p yoqtirilganlar |
+| **Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari** | Yangi bloklar: mahsulot to'plamlari («Hafta bestsellerlari») va rasmli mini bloklar («Mualliflar», «Nashriyotlar», «Brendlar») |
+| **Nazorat → Kutilayotgan mahsulotlar** | Ikki bo'lim: «Kelganda eslating» va **Istaklar (❤️)**. Mahsulot bo'yicha guruhlangan, eng ko'p so'ralgani yuqorida, yonida nechta mijoz; ustiga bosilsa — kim va qachon qo'shgani |
 | **Integratsiya → Bito** | Ulanish holati, sinxronizatsiya, webhook; API kalit, tashkilot, ombor, narx turi, do'konlar, narx istisnolari, sinxronizatsiya oraliqlari |
 | **Integratsiya → Bot** | Bot holati, ruxsat etilgan guruhlar soni, ommaviy manzil (ngrok), Mini App manzili, bot tokeni |
 | **Integratsiya → Guruh** | Buyurtma guruhlari (yoqish/o'chirish/test), holatni o'zgartira oladigan xodimlar |
 | **Sozlamalar → Umumiy** | Do'kon nomi, tillar, valyuta belgisi, aloqa, admin parol |
-| **Sozlamalar → Mini App → Dizayn** | Ranglar, animatsiya, splash, salomlashish, logo, storis/banner ko'rinishi, hero vidjet, bloklar, pastki navigatsiya |
-| **Sozlamalar → Mini App → Katalog** | Qoldiq ko'rinishi, "Kelganda eslating", **Istaklarim (❤️)**, mahsulot kartochkasidagi ko'rsatkichlar (*bu haftada X sotildi* — Bito yoki Mini App bo'yicha; *X ta insonning savatida*), **variantli mahsulotlar**, tartib, ustunlar, qidiruv, quti rejimi |
+| **Sozlamalar → Mini App → Dizayn** | **Tayyor uslub shablonlari**, shrift va matn, fon va yuzalar (shisha/blur), ranglar, animatsiya, splash, salomlashish, logo, storis, **banner animatsiyasi**, hero vidjet, **bosh sahifa bloklari tartibi**, **pastki navigatsiya uslubi** |
+| **Sozlamalar → Mini App → Katalog** | Qoldiq ko'rinishi, «Kelganda eslating», **Istaklar (❤️)**, kartochkadagi ko'rsatkichlar (*bu haftada X sotildi*, *X ta insonning savatida*), **variantli mahsulotlar**, **qo'shimcha maydonlar boshqaruvi** (add-1 → «Muallif» va h.k.), **filtr paneli**, rasmi yo'q mahsulot uchun rasm, tartib, ustunlar, qidiruv, quti rejimi |
 | **Sozlamalar → Mini App → Savatcha** | Savatcha matnlari va xatti-harakati (tozalash tasdig'i, surib o'chirish, …) |
 | **Sozlamalar → Mini App → Buyurtma** | Yetkazib berish / olib ketish, narxlar, minimal summa, xarita, majburiy joylashuv, rasmiylashtirish matnlari, muvaffaqiyat xabari, avto-yopilish |
 | **Sozlamalar → Mini App → Profil** | Profildagi bloklar va matnlar |
@@ -267,6 +268,23 @@ Mini App'da eski narx chizilgan holda va -X% belgisi bilan ko'rinadi; buyurtma B
 
 **Media limitlari (o'zgartirib bo'lmaydi):** storis 15 ta (har birida 10 slayd), banner 12 ta; rasm 5 MB, GIF 10 MB, video 25 MB, xabar tarqatish fayli 50 MB, umumiy 600 MB.
 Barcha yuklangan fayllar bazada saqlanadi — qayta deploy qilinganda yo'qolmaydi.
+
+**Chekni Excelda yuklab olish:** mijozga xarid cheki kelganda ostida «📊 Excelda yuklash» tugmasi chiqadi. Bosilganda o'sha savdo `.xlsx` bo'lib keladi: yuqorida *Tashkilot / Savdo raqami / Sana / Mijoz / Telefon / Sotuvchi*, ostida jadval (*№, Mahsulot nomi, O'lchov birligi, Miqdori, Narxi, Jami summa*) va eng pastda umumiy summa, chegirma, qarz. Mijoz faqat o'z savdosini yuklab oladi. *Sozlamalar → Bot → Bot matnlari → Savdo cheki* bo'limidan o'chirib qo'yish va matnlarni o'zgartirish mumkin.
+
+**Qo'shimcha maydonlar (add-1 … add-4, Izoh, Kategoriya):** Bito'dagi har bir maydonni Mini App'da **o'z nomi bilan** ko'rsatish mumkin — masalan `add-1` → «Muallif», `add-2` → «Sahifa», `add-4` → «Nashriyot», izoh → «Kitob haqida». Har birini yoqish/o'chirish, tartibini o'zgartirish va bittasini **karta yuziga** chiqarish mumkin (mahsulot nomi ostida, masalan muallif ismi — rangi, o'lchami, qalinligi alohida sozlanadi). Bog'lanish maydon ID si bo'yicha, shuning uchun Bito'da yoki admin panelda nom o'zgarsa ham buzilmaydi. Qidiruv ham shu qiymatlar bo'yicha ishlaydi («Shayx Muhammad Sodiq» deb qidirsangiz — o'sha muallifning kitoblari chiqadi).
+
+**Filtr paneli:** qidiruv qutisi yonidagi tugma. Ichida saralash (arzonidan / qimmatidan / yangilari / ommaboplari / nomi bo'yicha), **narx oralig'i** (ikki tomondan siljitiladigan chiziqcha) va qo'shimcha maydonlar bo'yicha filtr (Muallif, Nashriyot, Janr, Kategoriya…). Mijoz tanlagan filtr faqat shu seansda ishlaydi — ilova qayta ochilganda admin belgilagan standart tartibga qaytadi.
+
+**Bosh sahifa bloklari:** *Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari* da yangi bloklar yaratiladi:
+- **Mahsulotlar bloki** — qo'lda tanlangan mahsulotlar («Hafta bestsellerlari») yoki tavsiya/yangi/ommabop
+- **Mini bloklar** — qo'shimcha maydon qiymatlari bo'yicha rasmli doiralar («Mualliflar», «Nashriyotlar», «Brendlar»). Har bir qiymatga rasm yuklanadi; shakli (doira / yumaloq burchak / kvadrat), o'lchami va burchagi sozlanadi. Mijoz bossa — katalog aynan shu qiymat bo'yicha filtrlanadi.
+Bloklarning bosh sahifadagi tartibi (yuqorida/o'rtada/pastda) *Sozlamalar → Mini App → Dizayn → Bosh sahifadagi bloklar* da o'zgartiriladi. Bu bloklar hech qaysi sohaga bog'lanmagan — kiyim, oziq-ovqat, texnika, qurilish do'koni uchun ham xuddi shunday ishlaydi.
+
+**Dizayn shablonlari:** *Sozlamalar → Mini App → Dizayn* dagi tayyor uslublar — Telegram, iOS 26 (Liquid Glass), Duolingo, Spotify Dark, Payme/Click, Soft & Calm, Ipak yo'li, Minimal Mono. Shablon bosilganda ranglar, shrift, fon va navigatsiya birdan to'ldiriladi, keyin xohlagan joyini alohida o'zgartirasiz. Alohida sozlanadi: 9 xil shrift, matn o'lchami, fon turi (bir xil rang / gradient / yumshoq dog'lar / rasm), kartochka uslubi (tekis / soya / shisha-blur / chiziqli), pastki navigatsiya (uslub, burchak yumaloqligi, blur, shaffoflik, balandlik, tanlangan bo'lim ko'rinishi). Mijoz esa Profil bo'limida matn o'lchamini o'zi tanlaydi (kichik / o'rtacha / katta).
+
+**Banner dizayni:** har bir bannerda matnni rasm ustiga, ostiga yoki yoniga (bo'sh joyga) qo'yish, tekislash, sarlavha o'lchami/qalinligi/rangi va **ikki rangli gradient**, izoh uslubi, nishon (masalan «-30%»), tugma. O'tish animatsiyasi: surilish, so'nish, **karusel** (yonidagilari ko'rinib turadi), qalqib chiqish, kattalashish, 3D ag'darilish yoki animatsiyasiz.
+
+**Rasmi yo'q mahsulot:** *Sozlamalar → Mini App → Katalog* da qurilma xotirasidan rasm yuklanadi (masalan kitob soyasi) — rasmi bo'lmagan barcha mahsulotlarda o'sha rasm ko'rinadi va markazida mahsulot nomi yoziladi.
 
 **Istaklarim (❤️):** mahsulot kartochkasidagi yurakcha — mijoz bosgan mahsulotlar *Profil → Istaklarim* da to'planadi. Admin panelda kim nimani yoqtirgani ko'rinadi (*Nazorat → Kutilayotgan mahsulotlar → Istaklarim*), va aynan shu mahsulotni yoqtirganlarga *Kontent → Post* orqali xabar yuborish mumkin. O'chirib qo'yilsa — Mini App'da yurakcha ham, "Istaklarim" bo'limi ham ko'rinmaydi.
 
