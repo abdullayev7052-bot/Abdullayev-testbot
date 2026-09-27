@@ -132,12 +132,13 @@ function variantLabelOf(p: BitoProduct, parentName: string | undefined, attrs: {
   return n;
 }
 
-function customFieldsOf(p: BitoProduct, defs: Map<string, string>): { name: string; value: string }[] {
-  const out: { name: string; value: string }[] = [];
+/** Bito qo'shimcha maydonlari: ID ham saqlanadi — Bito yoki admin panelda nomi o'zgarsa ham bog'lanish uzilmaydi */
+function customFieldsOf(p: BitoProduct, defs: Map<string, string>): { id: string; name: string; value: string }[] {
+  const out: { id: string; name: string; value: string }[] = [];
   for (const cf of p.custom_fields || []) {
     const name = defs.get(cf._id);
-    if (!name || cf.value === null || cf.value === undefined || cf.value === "") continue;
-    out.push({ name, value: String(cf.value) });
+    if (cf.value === null || cf.value === undefined || cf.value === "") continue;
+    out.push({ id: cf._id, name: name || "", value: String(cf.value) });
   }
   return out;
 }
@@ -257,9 +258,10 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
       // Ota mahsulotning rasmi bo'lmasa — birinchi variantning rasmi
       const kidImages = kids.flatMap((k) => (k.images && k.images.length ? k.images : k.image ? [k.image] : [])).filter(Boolean) as string[];
       const images = ownImages.length ? ownImages : kidImages;
+      const cfs = customFieldsOf(p, defs);
       const data = {
         name: p.name,
-        searchKey: buildSearchKey(p.name, p.sku, p.barcode, p.category?.name),
+        searchKey: buildSearchKey(p.name, p.sku, p.barcode, p.category?.name, parent?.name, ...cfs.map((c) => c.value), ...kids.map((k) => k.name)),
         image: images[0] || null,
         images,
         price,
@@ -274,7 +276,7 @@ export async function syncCatalog(reason = "interval"): Promise<typeof lastResul
         sku: p.sku || null,
         barcode: p.barcode || null,
         note: p.note || null,
-        customFields: customFieldsOf(p, defs),
+        customFields: cfs,
         categoryBitoId: p.category?._id || parent?.category?._id || null,
         categoryName: p.category?.name || parent?.category?.name || null,
         parentBitoId: p.is_parent ? null : p.parent_id || null,

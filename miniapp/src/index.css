@@ -87,3 +87,17 @@ img { display: block; }
 [data-theme="dark"] .bg-amber-50 { background-color: rgba(245,158,11,.15) !important; }
 [data-theme="dark"] .bg-blue-50, [data-theme="dark"] .bg-indigo-50, [data-theme="dark"] .bg-purple-50 { background-color: rgba(99,102,241,.18) !important; }
 [data-theme="dark"] .leaflet-container { filter: brightness(.85) contrast(1.05); }
+
+
+/* ===== Narx oralig'i (ikki tomonlama slider) ===== */
+.range-thumb { -webkit-appearance: none; appearance: none; height: 36px; }
+.range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 24px; height: 24px; border-radius: 999px; background: #fff;
+  border: 3px solid var(--primary); box-shadow: 0 1px 4px rgba(15,23,42,.25); cursor: pointer;
+}
+.range-thumb::-moz-range-thumb {
+  pointer-events: auto; width: 20px; height: 20px; border-radius: 999px; background: #fff;
+  border: 3px solid var(--primary); box-shadow: 0 1px 4px rgba(15,23,42,.25); cursor: pointer;
+}
+.range-thumb::-webkit-slider-runnable-track { background: transparent; }

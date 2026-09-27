@@ -44,7 +44,11 @@ export interface Variant {
 export interface Product {
   id: number; bitoId: string; name: string; image: string | null; images: (string | null)[]; price: number; basePrice?: number; discountPercent?: number; stock: number; boxItem: number;
   measure: string | null; measureDecimals: number; sku: string | null; categoryId: string | null; categoryName: string | null; note: string | null;
-  customFields: { name: string; value: string }[]; featured: boolean; inWaitlist: boolean;
+  customFields: { id?: string; name: string; value: string }[]; featured: boolean; inWaitlist: boolean;
+  /** Kartochka betidagi qo'shimcha matn (masalan muallif) */
+  face?: { label: string; value: string } | null;
+  /** Mahsulot ichidagi tartiblangan ma'lumotlar (faqat bitta mahsulot ochilganda) */
+  details?: { key: string; label: string; value: string }[];
   favorite?: boolean;
   isParent?: boolean;
   variants?: Variant[];
@@ -66,3 +70,6 @@ export interface OrderItem { productId: number; bitoId: string; name: string; pr
 export interface OrderRow { id: number; number: string; date: string; total: number; type: string; stage: string; status: string; items: OrderItem[]; address: string | null; comment: string | null; phone: string | null; source: "bot" | "bito" }
 export interface Purchase { id: string; number: string; date: string; total: number; debt: number; seller: string; isRefund: boolean; itemsCount: number }
 export interface BalanceLine { organization: string; amount: number; currency: string }
+
+export interface FilterField { key: string; label: string; values: { value: string; count: number }[] }
+export interface FiltersData { fields: FilterField[]; price: { min: number; max: number } | null; total: number }

@@ -3,6 +3,7 @@ import type { FieldDef, Lang, LText, Options } from "../lib/api.ts";
 import { ImageUpload, Toggle } from "./ui.tsx";
 import { LatLngPicker } from "./LatLngPicker.tsx";
 import { StoresEditor, PriceExceptionsEditor, type StoreDef, type PriceException } from "./StoresEditor.tsx";
+import { ProductFieldsEditor, type PField } from "./ProductFieldsEditor.tsx";
 
 const LANGS: { k: Lang; label: string }[] = [{ k: "uz", label: "🇺🇿 UZ" }, { k: "ru", label: "🇷🇺 RU" }, { k: "en", label: "🇬🇧 EN" }];
 
@@ -36,6 +37,15 @@ export function Field({ def, value, onChange, options }: { def: FieldDef; value:
         </div>
       );
     }
+    case "productFields":
+      return (
+        <div>
+          <label className="label">{def.label}</label>
+          <ProductFieldsEditor value={(value as PField[]) || []} onChange={onChange} options={options} />
+          {help}
+        </div>
+      );
+
     case "stores":
       return <div><label className="label">{def.label}</label><StoresEditor value={(value as StoreDef[]) || []} onChange={onChange} options={options} />{help}</div>;
     case "priceExceptions":

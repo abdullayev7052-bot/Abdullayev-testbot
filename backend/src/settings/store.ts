@@ -51,6 +51,9 @@ export interface AppSettings {
     favoritesEnabled: boolean; favoritesTitle: LText; favoritesEmpty: LText; favoritesEmptyHint: LText; favoriteAdded: LText; favoriteRemoved: LText;
     weeklySalesEnabled: boolean; weeklySalesSource: "bito" | "app"; weeklySalesDays: number; weeklySalesRefreshMin: number; weeklySalesMin: number; weeklySalesText: LText;
     inCartCountEnabled: boolean; inCartCountHours: number; inCartCountMin: number; inCartCountText: LText;
+    productFields: { key: string; label?: LText | string; show?: boolean; face?: boolean }[];
+    detailsTitleShow: boolean; faceLabelShow: boolean; faceColor: string; faceSize: number; faceWeight: string; faceItalic: boolean;
+    nameColor: string; nameSize: number; nameWeight: string; detailLabelColor: string; detailValueColor: string;
     variantsEnabled: boolean; variantChooseLabel: LText; variantPickHint: LText; variantOutLabel: LText; variantFromLabel: LText;
     [key: string]: unknown;
   };

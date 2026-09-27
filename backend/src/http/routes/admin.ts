@@ -87,8 +87,8 @@ adminRouter.get("/bito/options", async (req, res) => {
   const s = getSettings().bito;
   if (!s.apiKey) { res.json({ ok: false, error: "API kalit kiritilmagan" }); return; }
   try {
-    const [orgs, whs, prices, currencies, employees, me] = await Promise.all([
-      bito.organizations(), bito.warehouses(), bito.prices(), bito.currencies(), bito.employees(), bito.profile().catch(() => null),
+    const [orgs, whs, prices, currencies, employees, me, cfs] = await Promise.all([
+      bito.organizations(), bito.warehouses(), bito.prices(), bito.currencies(), bito.employees(), bito.profile().catch(() => null), bito.customFields(),
     ]);
     const orgId = s.organizationId || orgs.find((o) => o.is_default)?._id || orgs[0]?._id;
     const states = orgId ? (await bito.states("saleOrders", orgId)).filter((st) => st.organization_id === orgId) : [];
@@ -102,6 +102,8 @@ adminRouter.get("/bito/options", async (req, res) => {
       "bito:currencies": currencies.map((c) => ({ value: c._id, label: `${c.name} (${c.symbol || c.code || ""})` })),
       "bito:employees": emp,
       "bito:states": states.map((st) => ({ value: st._id, label: st.name + (st.default_key ? ` [${st.default_key}]` : "") })),
+      // Mahsulotning qo'shimcha maydonlari (Bito'dagi nomi bilan) — admin panelda qayta nomlash uchun
+      "bito:productFields": cfs.filter((c) => c.table_name === "products").map((c) => ({ value: `cf:${c._id}`, label: c.name })),
     };
     optionsCache = { at: Date.now(), data };
     res.json(data);

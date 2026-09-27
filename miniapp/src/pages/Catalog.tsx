@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { Search, X } from "lucide-react";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 import { api, type Product, type ProductPage } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
 import { ProductCard } from "../components/ProductCard.tsx";
 import { ProductSheet } from "../components/ProductSheet.tsx";
+import { FilterSheet, emptyFilters, filtersCount, type CatalogFilters } from "../components/FilterSheet.tsx";
 import { Page, Skeleton, Empty, useToast, Img } from "../components/ui.tsx";
 import { useWaitlist, withWait } from "../store/waitlist.ts";
 import { haptic } from "../lib/telegram.ts";
@@ -27,14 +28,28 @@ export function Catalog() {
   const minChars = v<number>("catalog", "searchMinChars", 3);
   const effQ = dq.length >= minChars ? dq : "";
   const [open, setOpen] = useState<Product | null>(null);
+  // Filtrlar faqat shu seans davomida saqlanadi (ilovadan chiqilsa — admin sozlamasiga qaytadi)
+  const [filters, setFilters] = useState<CatalogFilters>(emptyFilters);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterEnabled = v<boolean>("catalog", "filterEnabled", true);
+  const activeFilters = filtersCount(filters);
+  const filterQs = useMemo(() => {
+    const p = new URLSearchParams();
+    for (const [k, vals] of Object.entries(filters.fields)) if (vals.length) p.set(`f_${k}`, vals.join("|"));
+    if (filters.minPrice) p.set("minPrice", String(filters.minPrice));
+    if (filters.maxPrice) p.set("maxPrice", String(filters.maxPrice));
+    if (filters.sort) p.set("sort", filters.sort);
+    const qs = p.toString();
+    return qs ? "&" + qs : "";
+  }, [filters]);
   const wl = useWaitlist();
   const toast = useToast((s) => s.show);
   const cols = v<number>("catalog", "columns", 2);
   const sentinel = useRef<HTMLDivElement>(null);
 
   const query = useInfiniteQuery({
-    queryKey: ["products", category, effQ],
-    queryFn: ({ pageParam }) => api.get<ProductPage>(`/products?page=${pageParam}&limit=40&category=${encodeURIComponent(category)}&q=${encodeURIComponent(effQ)}`),
+    queryKey: ["products", category, effQ, filterQs],
+    queryFn: ({ pageParam }) => api.get<ProductPage>(`/products?page=${pageParam}&limit=40&category=${encodeURIComponent(category)}&q=${encodeURIComponent(effQ)}${filterQs}`),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
     staleTime: 20000,
@@ -80,12 +95,21 @@ export function Catalog() {
       <div className="sticky top-0 z-[450] bg-white/95 backdrop-blur safe-top">
         <div className="wrap pt-3 pb-2">
           <div className="text-2xl font-bold mb-2">{t("catalog", "catalogTitle")}</div>
-          <div className="relative">
-            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("catalog", "searchPlaceholder")} className="input pl-10 pr-10 py-3 rounded-2xl bg-slate-50 border-transparent" />
+          <div className="flex items-center gap-2">
+            {filterEnabled && (
+              <motion.button whileTap={{ scale: 0.92 }} onClick={() => { haptic.light(); setFilterOpen(true); }}
+                className="relative w-12 h-12 shrink-0 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500">
+                <SlidersHorizontal size={19} />
+                {activeFilters > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full text-[11px] font-bold text-white flex items-center justify-center" style={{ background: "var(--primary)" }}>{activeFilters}</span>}
+              </motion.button>
+            )}
+            <div className="relative flex-1">
+              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("catalog", "searchPlaceholder")} className="input pl-10 pr-10 py-3 rounded-2xl bg-slate-50 border-transparent" />
               {q && (
                 <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => setQ("")} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center"><X size={14} /></motion.button>
               )}
+            </div>
           </div>
         </div>
         <div className="flex gap-2 overflow-x-auto px-4 pb-3 hide-scroll">
@@ -119,6 +143,7 @@ export function Catalog() {
           </>
         )}
       </div>
+      <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} category={category} value={filters} onApply={setFilters} />
       <ProductSheet product={open ? withWait(open, wl.overrides) : null} onClose={() => { setOpen(null); if (params.get("product")) { const p = new URLSearchParams(params); p.delete("product"); setParams(p, { replace: true }); } }} onWaitlist={onWaitlist} />
     </Page>
   );

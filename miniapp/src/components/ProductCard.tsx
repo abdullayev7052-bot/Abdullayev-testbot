@@ -22,6 +22,18 @@ export function useCatalogFmt() {
     notifyEnabled: v<boolean>("catalog", "notifyEnabled", true),
     quickAdd: v<boolean>("catalog", "quickAddEnabled", true),
     favoritesEnabled: v<boolean>("catalog", "favoritesEnabled", true),
+    faceLabelShow: v<boolean>("catalog", "faceLabelShow", false),
+    faceStyle: {
+      color: v<string>("catalog", "faceColor", "#64748b"),
+      fontSize: v<number>("catalog", "faceSize", 12),
+      fontWeight: v<string>("catalog", "faceWeight", "500"),
+      fontStyle: v<boolean>("catalog", "faceItalic", false) ? "italic" : "normal",
+    } as React.CSSProperties,
+    nameStyle: {
+      color: v<string>("catalog", "nameColor", ""),
+      fontSize: v<number>("catalog", "nameSize", 13),
+      fontWeight: v<string>("catalog", "nameWeight", "500"),
+    } as React.CSSProperties,
     showSku: v<boolean>("catalog", "showSku", false),
   };
 }
@@ -53,7 +65,10 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
           {p.discountPercent ? <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>-{p.discountPercent}%</span> : p.featured && <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style={{ background: "var(--accent)" }}>★</span>}
         </div>
         <div className="px-3 pt-2.5">
-          <div className="text-[13px] font-medium leading-snug line-clamp-2 min-h-[36px]">{p.name}</div>
+          <div className="leading-snug line-clamp-2" style={f.nameStyle}>{p.name}</div>
+          {p.face?.value ? (
+            <div className="line-clamp-1 mt-0.5" style={f.faceStyle}>{f.faceLabelShow ? `${p.face.label}: ` : ""}{p.face.value}</div>
+          ) : null}
           {f.showSku && p.sku && <div className="text-[11px] text-slate-400 mt-0.5">#{p.sku}</div>}
           <div className="font-bold mt-1 flex items-baseline gap-1.5 flex-wrap">{f.price(p.price)}{p.discountPercent && p.basePrice ? <span className="text-[11px] font-normal text-slate-400 line-through">{f.price(p.basePrice)}</span> : null}</div>
         </div>

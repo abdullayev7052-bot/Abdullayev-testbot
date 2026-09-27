@@ -63,6 +63,8 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
   const fav = useFavorites((s) => (product ? s.isFav(product) : false));
   const toggleFav = useFavorites((s) => s.toggle);
   const favoritesEnabled = v<boolean>("catalog", "favoritesEnabled", true);
+  const labelColor = v<string>("catalog", "detailLabelColor", "#64748b");
+  const valueColor = v<string>("catalog", "detailValueColor", "");
 
   const boxEnabled = v<boolean>("catalog", "boxModeEnabled", true) && (eff?.boxItem || 0) > 0;
   const manual = v<boolean>("catalog", "allowManualQty", true);
@@ -72,16 +74,16 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
   const needsVariant = variants.length > 0 && !current;
   const fromLabel = needsVariant ? t("catalog", "variantFromLabel") : "";
   const out = !!eff && eff.stock <= 0 && !f.canOrderOut && !needsVariant;
-  const bullets = useMemo(() => {
-    if (!product) return [] as string[];
-    const b: string[] = [];
-    for (const cf of product.customFields || []) b.push(`${cf.name}: ${cf.value}`);
-    if (product.note) for (const line of product.note.split(/\r?\n|•|;/)) { const s = line.trim(); if (s) b.push(s); }
-    if (product.categoryName) b.push(`${t("design", "categoriesTitle")}: ${product.categoryName}`);
-    if (product.boxItem > 0) b.push(t("catalog", "boxHint", { n: fq(product.boxItem) }));
-    if (f.showSku && product.sku) b.push(`SKU: ${product.sku}`);
+  // Admin paneldagi tartib va nomlar bo'yicha (backend tayyorlab beradi)
+  const details = useMemo(() => {
+    if (!product) return [] as { key: string; label: string; value: string }[];
+    if (product.details?.length) return product.details;
+    const b: { key: string; label: string; value: string }[] = [];
+    for (const cf of product.customFields || []) b.push({ key: cf.id || cf.name, label: cf.name, value: cf.value });
+    if (product.note) b.push({ key: "note", label: "", value: product.note });
+    if (product.categoryName) b.push({ key: "category", label: t("design", "categoriesTitle"), value: product.categoryName });
     return b;
-  }, [product, t, f.showSku]);
+  }, [product, t]);
   const vImages = (current?.images?.filter(Boolean) as string[] | undefined) || (current?.image ? [current.image] : []);
   const images = (vImages.length ? vImages : (product?.images?.filter(Boolean) as string[] | undefined)) || [];
   useEffect(() => { setImg(0); }, [current?.id]);
@@ -162,6 +164,7 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
 
           <div className="px-5 pt-4">
             <div className="text-xl font-bold leading-snug">{product.name}{current ? <span className="text-slate-400 font-semibold"> / {current.label}</span> : null}</div>
+            {product.face?.value && !details.some((d) => d.value === product.face!.value) ? <div className="text-sm text-slate-500 mt-0.5">{product.face.value}</div> : null}
             <div className="text-2xl font-extrabold mt-1 flex items-baseline gap-2 flex-wrap" style={{ color: "var(--primary)" }}>
               {f.price(eff?.price || 0)}
               {needsVariant && fromLabel ? <span className="text-sm font-semibold text-slate-400">{fromLabel}</span> : null}
@@ -223,16 +226,21 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
             )}
 
             <div className="mt-5">
-              <div className="text-sm font-semibold text-slate-700 mb-2">{t("catalog", "descriptionTitle")}</div>
-              {bullets.length ? (
-                <ul className="space-y-1.5">
-                  {bullets.map((b, i) => (
-                    <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }} className="flex gap-2 text-[15px] text-slate-700">
-                      <span className="mt-[9px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--primary)" }} /><span>{b}</span>
-                    </motion.li>
+              {v<boolean>("catalog", "detailsTitleShow", true) && <div className="text-sm font-semibold text-slate-700 mb-2">{t("catalog", "descriptionTitle")}</div>}
+              {details.length ? (
+                <div className="space-y-2">
+                  {details.map((d, i) => (
+                    <motion.div key={d.key + i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.04 * i }} className="flex gap-2 text-[15px]">
+                      <span className="mt-[9px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--primary)" }} />
+                      <span className="min-w-0">
+                        {d.label ? <span style={{ color: labelColor }}>{d.label}: </span> : null}
+                        <span style={{ color: valueColor }} className="whitespace-pre-line">{d.value}</span>
+                      </span>
+                    </motion.div>
                   ))}
-                </ul>
+                </div>
               ) : <div className="text-sm text-slate-400">{t("catalog", "noDescription")}</div>}
+              {f.showSku && product.sku ? <div className="text-xs text-slate-400 mt-2">SKU: {product.sku}</div> : null}
             </div>
 
             {!out && (

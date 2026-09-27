@@ -22,7 +22,8 @@ export type FieldType =
   | "tags"
   | "latlng"
   | "stores"
-  | "priceExceptions";
+  | "priceExceptions"
+  | "productFields";
 
 export interface FieldDef {
   key: string;
@@ -637,6 +638,28 @@ export const settingsSchema: SectionDef[] = [
         ],
       },
       {
+        title: "Mahsulotning qo'shimcha ma'lumotlari",
+        description: "Bito'dagi qo'shimcha maydonlar (add-1, add-2, …), izoh va kategoriya Mini App'da qanday nomda, qaysi tartibda ko'rinishi. Bito'da yoki bu yerda nom o'zgarsa ham bog'lanish uzilmaydi — maydon ID bo'yicha bog'lanadi.",
+        fields: [
+          { key: "productFields", label: "Maydonlar", type: "productFields", default: [], source: "bito:productFields" },
+          { key: "detailsTitleShow", label: "«Mahsulot haqida» sarlavhasini ko'rsatish", type: "boolean", default: true },
+          { key: "faceLabelShow", label: "Kartochka betidagi maydon nomi bilan ko'rsatilsin", type: "boolean", default: false, help: "O'chiq bo'lsa faqat qiymat ko'rinadi: «Shayx Muhammad Sodiq»" },
+          { key: "faceColor", label: "Kartochka betidagi qo'shimcha matn rangi", type: "color", default: "#64748b" },
+          { key: "faceSize", label: "Kartochka betidagi matn o'lchami (px)", type: "number", default: 12, min: 9, max: 20 },
+          { key: "faceWeight", label: "Kartochka betidagi matn qalinligi", type: "select", default: "500", options: [
+            { value: "400", label: "Oddiy" }, { value: "500", label: "O'rtacha" }, { value: "600", label: "Yarim qalin" }, { value: "700", label: "Qalin" },
+          ] },
+          { key: "faceItalic", label: "Kartochka betidagi matn qiyshiq (italic)", type: "boolean", default: false },
+          { key: "nameColor", label: "Mahsulot nomi rangi", type: "color", default: "#0f172a" },
+          { key: "nameSize", label: "Mahsulot nomi o'lchami (px)", type: "number", default: 13, min: 10, max: 22 },
+          { key: "nameWeight", label: "Mahsulot nomi qalinligi", type: "select", default: "500", options: [
+            { value: "400", label: "Oddiy" }, { value: "500", label: "O'rtacha" }, { value: "600", label: "Yarim qalin" }, { value: "700", label: "Qalin" },
+          ] },
+          { key: "detailLabelColor", label: "Ichidagi maydon nomi rangi", type: "color", default: "#64748b" },
+          { key: "detailValueColor", label: "Ichidagi qiymat rangi", type: "color", default: "#0f172a" },
+        ],
+      },
+      {
         title: "Variantli mahsulotlar",
         description: "Bito'da variant (atribut) bilan ochilgan mahsulotlar — masalan «Futbolka / Qora / S»",
         fields: [
@@ -676,6 +699,21 @@ export const settingsSchema: SectionDef[] = [
           { key: "searchPlaceholder", label: "Qidiruv maydoni matni", type: "ltext", default: L("Mahsulot qidirish...", "Поиск товара...", "Search products...") },
           { key: "searchMinChars", label: "Minimal harflar soni", type: "number", default: 3, min: 1, max: 5 },
           { key: "searchFuzzy", label: "Aqlli (kirill/lotin, xatolarga chidamli) qidiruv", type: "boolean", default: true },
+          { key: "filterEnabled", label: "Qidiruv yonida filtr tugmasi", type: "boolean", default: true, help: "Qo'shimcha maydonlar (muallif, nashriyot...), narx oralig'i va saralash bo'yicha filtrlash" },
+          { key: "filterMaxValues", label: "Har bir filtrda nechta qiymat ko'rinsin", type: "number", default: 12, min: 4, max: 40 },
+          { key: "filterTitle", label: "Filtr oynasi sarlavhasi", type: "ltext", default: L("Filtr", "Фильтр", "Filter") },
+          { key: "filterApply", label: "Qo'llash tugmasi", type: "ltext", default: L("Ko'rsatish", "Показать", "Show") },
+          { key: "filterReset", label: "Tozalash tugmasi", type: "ltext", default: L("Tozalash", "Сбросить", "Reset") },
+          { key: "filterPrice", label: "Narx bo'limi nomi", type: "ltext", default: L("Narx oralig'i", "Диапазон цен", "Price range") },
+          { key: "filterMore", label: "«Yana» matni", type: "ltext", default: L("yana", "ещё", "more") },
+          { key: "filterEmpty", label: "Filtr uchun ma'lumot yo'q", type: "ltext", default: L("Filtrlash uchun ma'lumot yo'q", "Нет данных для фильтрации", "Nothing to filter by") },
+          { key: "sortTitle", label: "Saralash bo'limi nomi", type: "ltext", default: L("Saralash", "Сортировка", "Sort") },
+          { key: "sortDefault", label: "Standart tartib", type: "ltext", default: L("Standart", "По умолчанию", "Default") },
+          { key: "sortPriceAsc", label: "Arzonidan qimmatga", type: "ltext", default: L("Arzonidan", "Сначала дешёвые", "Cheapest first") },
+          { key: "sortPriceDesc", label: "Qimmatdan arzonga", type: "ltext", default: L("Qimmatidan", "Сначала дорогие", "Most expensive first") },
+          { key: "sortNewest", label: "Eng yangilari", type: "ltext", default: L("Yangilari", "Новинки", "Newest") },
+          { key: "sortPopular", label: "Ommaboplari", type: "ltext", default: L("Ommaboplari", "Популярные", "Popular") },
+          { key: "sortNameAsc", label: "Nomi bo'yicha", type: "ltext", default: L("Nomi bo'yicha", "По названию", "By name") },
         ],
       },
       {

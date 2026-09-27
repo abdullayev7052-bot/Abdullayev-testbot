@@ -17,6 +17,7 @@ import { esc } from "../../utils/format.ts";
 import { isMultiStore, listStores, priceFor, userStore, getStore } from "../../bito/stores.ts";
 import { EVENT_NAMES, isEventName, normPlatform, track } from "../../analytics/track.ts";
 import { inCartCounts, weeklySales } from "../../bito/sales.ts";
+import { detailsFor, faceTextFor, filterableFields, valueOf } from "../../bito/productFields.ts";
 
 export const appRouter = Router();
 appRouter.use(appAuth);
@@ -26,8 +27,9 @@ const u = (req: Request) => (req as AppRequest).user;
 const plat = (req: Request) => normPlatform(req.header("x-platform"));
 
 type PUser = Pick<User, "storeId" | "bitoCustomerId">;
-interface Marks { waitIds?: Set<number>; favIds?: Set<number>; variants?: Map<number, Product[]> }
+interface Marks { waitIds?: Set<number>; favIds?: Set<number>; variants?: Map<number, Product[]>; lang?: Lang; details?: boolean }
 function serializeProduct(p: Product, user: PUser, marks?: Marks) {
+  const lang = marks?.lang || "uz";
   const pr = priceFor(p, user);
   const kids = marks?.variants?.get(p.id) || [];
   const variants = kids.map((k) => {
@@ -48,6 +50,9 @@ function serializeProduct(p: Product, user: PUser, marks?: Marks) {
     favorite: marks?.favIds ? marks.favIds.has(p.id) : false,
     isParent: p.isParent && variants.length > 0,
     variants,
+    // Kartochka betidagi qo'shimcha matn (masalan muallif) va ichidagi to'liq ro'yxat
+    face: faceTextFor(p, lang),
+    details: marks?.details ? detailsFor(p, lang) : undefined,
     createdAt: p.syncedAt,
   };
 }
@@ -78,7 +83,7 @@ async function visibleProducts(): Promise<Product[]> {
 }
 export function invalidateProductCache() { productCache = null; }
 
-function sortProducts(list: Product[], user: PUser): Product[] {
+function sortProducts(list: Product[], user: PUser, override?: string): Product[] {
   const s = getSettings().catalog;
   const cmp: Record<string, (a: Product, b: Product) => number> = {
     manual: (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
@@ -87,8 +92,10 @@ function sortProducts(list: Product[], user: PUser): Product[] {
     price_asc: (a, b) => a.price - b.price,
     price_desc: (a, b) => b.price - a.price,
     newest: (a, b) => createdTs(b) - createdTs(a),
+    popular: (a, b) => Number(b.featured) - Number(a.featured) || b.sortOrder - a.sortOrder,
   };
-  const base = cmp[s.sortMode] || cmp.manual;
+  // Mijoz Mini App'da vaqtincha tanlagan tartib (sessiya davomida); bo'lmasa — admin sozlamasi
+  const base = (override && cmp[override]) || cmp[s.sortMode] || cmp.manual;
   const out = [...list].sort(base);
   if (s.outOfStockLast) out.sort((a, b) => Number(priceFor(b, user).stock > 0) - Number(priceFor(a, user).stock > 0));
   return out;
@@ -136,9 +143,9 @@ function inUserStore(p: Product, user: PUser): boolean {
 }
 
 /** Ro'yxat uchun belgilar (istaklar, kutilayotganlar, variantlar) */
-async function marksFor(list: Product[], user: User): Promise<Marks> {
+async function marksFor(list: Product[], user: User, details = false): Promise<Marks> {
   const [waitIds, favIds, variants] = await Promise.all([userWaitIds(user.id), userFavIds(user.id), variantsFor(list, user)]);
-  return { waitIds, favIds, variants };
+  return { waitIds, favIds, variants, lang: normalizeLang(user.language), details };
 }
 
 // ---------- Boshlang'ich ma'lumot ----------
@@ -204,12 +211,34 @@ appRouter.get("/products", async (req, res) => {
     while (grew) { grew = false; for (const c of cats) if (c.parentId && ids.has(c.parentId) && !ids.has(c.bitoId)) { ids.add(c.bitoId); grew = true; } }
     list = list.filter((p) => p.categoryBitoId && ids.has(p.categoryBitoId));
   }
+  // Qo'shimcha maydon filtrlari: f_cf:<id>=qiymat, f_category=..., narx: minPrice/maxPrice
+  const fieldFilters: { key: string; values: string[] }[] = [];
+  for (const [qk, qv] of Object.entries(req.query)) {
+    if (!qk.startsWith("f_") || !qv) continue;
+    const values = String(qv).split("|").map((x) => x.trim()).filter(Boolean);
+    if (values.length) fieldFilters.push({ key: qk.slice(2), values });
+  }
+  if (fieldFilters.length) {
+    list = list.filter((p) => fieldFilters.every((f) => {
+      const v = valueOf(p, f.key);
+      return !!v && f.values.some((x) => x.toLowerCase() === v.toLowerCase());
+    }));
+  }
+  const minPrice = Number(req.query.minPrice || 0);
+  const maxPrice = Number(req.query.maxPrice || 0);
+  if (minPrice > 0 || maxPrice > 0) {
+    list = list.filter((p) => {
+      const pr = priceFor(p, user).price;
+      return (!minPrice || pr >= minPrice) && (!maxPrice || pr <= maxPrice);
+    });
+  }
+
   if (q && q.length >= Math.max(1, s.searchMinChars)) {
     const scored = list.map((p) => ({ p, sc: matchScore(q, p.searchKey, s.searchFuzzy) })).filter((x) => x.sc > 0);
     scored.sort((a, b) => b.sc - a.sc || a.p.sortOrder - b.p.sortOrder);
     list = scored.map((x) => x.p);
   } else {
-    list = sortProducts(list, user);
+    list = sortProducts(list, user, String(req.query.sort || ""));
   }
   const total = list.length;
   const slice = list.slice((page - 1) * limit, page * limit);
@@ -223,7 +252,7 @@ appRouter.get("/products/:id", async (req, res) => {
   const user = u(req);
   const p = await prisma.product.findUnique({ where: { id: Number(req.params.id) } });
   if (!p || p.isDeleted || p.hidden) { res.status(404).json({ error: "not found" }); return; }
-  const marks = await marksFor([p], user);
+  const marks = await marksFor([p], user, true);
   res.json({ ...serializeProduct(p, user, marks), stats: await productStats(p, marks.variants?.get(p.id) || []) });
 });
 
@@ -419,6 +448,44 @@ appRouter.post("/orders", async (req, res) => {
     log.error("createOrder", e);
     res.status(500).json({ error: errMsg(e), code: "server" });
   }
+});
+
+// ---------- Filtrlar (qo'shimcha maydonlar va narx oralig'i) ----------
+appRouter.get("/filters", async (req, res) => {
+  const user = u(req);
+  const category = String(req.query.category || "");
+  let list = forUser(await visibleProducts(), user);
+  if (category) {
+    const cats = await prisma.category.findMany({ where: { isDeleted: false }, select: { bitoId: true, parentId: true } });
+    const ids = new Set<string>([category]);
+    let grew = true;
+    while (grew) { grew = false; for (const c of cats) if (c.parentId && ids.has(c.parentId) && !ids.has(c.bitoId)) { ids.add(c.bitoId); grew = true; } }
+    list = list.filter((p) => p.categoryBitoId && ids.has(p.categoryBitoId));
+  }
+  const lang = normalizeLang(user.language);
+  const fields: { key: string; label: string; values: { value: string; count: number }[] }[] = [];
+  for (const f of filterableFields()) {
+    const counts = new Map<string, number>();
+    for (const p of list) {
+      const v = valueOf(p, f.key);
+      if (!v) continue;
+      counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    if (counts.size < 2) continue; // bitta qiymat bo'lsa filtrlashdan ma'no yo'q
+    const details = list.length ? detailsFor(list.find((p) => valueOf(p, f.key))!, lang) : [];
+    const label = details.find((d) => d.key === f.key)?.label || f.key;
+    fields.push({
+      key: f.key,
+      label,
+      values: [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "uz")).slice(0, 60).map(([value, count]) => ({ value, count })),
+    });
+  }
+  const prices = list.map((p) => priceFor(p, user).price).filter((x) => x > 0);
+  res.json({
+    fields,
+    price: prices.length ? { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) } : null,
+    total: list.length,
+  });
 });
 
 // ---------- Istaklarim (Favourites) ----------
