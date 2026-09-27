@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw, Moon, Sun, Heart } from "lucide-react";
+import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw, Moon, Sun, Heart, Type } from "lucide-react";
 import { api, type BalanceLine, type Lang, type OrderRow, type Purchase, type Product } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
@@ -14,6 +14,7 @@ import { fmtDate, qty as fq, LANG_NAMES } from "../lib/format.ts";
 import { haptic, openLink } from "../lib/telegram.ts";
 import { StorePicker } from "../components/StorePicker.tsx";
 import { track } from "../lib/analytics.ts";
+import { getUserScale, setUserScale, type UserScale } from "../lib/theme-apply.ts";
 
 type Sheet = null | "orders" | "purchases" | "card" | "address" | "language" | "favorites";
 
@@ -33,6 +34,7 @@ export function Profile() {
   useEffect(() => { track("profile_open"); }, []);
   const [orderOpen, setOrderOpen] = useState<OrderRow | null>(null);
   const [productOpen, setProductOpen] = useState<Product | null>(null);
+  const [scale, setScale] = useState<UserScale>(() => getUserScale());
   const toast = useToast((s) => s.show);
   const cart = useCart();
 
@@ -111,6 +113,19 @@ export function Profile() {
               <span className={`relative w-11 h-6 rounded-full transition-colors ${theme === "dark" ? "bg-[var(--primary)]" : "bg-slate-300"}`}><span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${theme === "dark" ? "left-[22px]" : "left-0.5"}`} /></span>
             </button>
           )}
+            {v<boolean>("design", "userFontSize", true) && (
+              <div className="w-full flex items-center gap-3 px-4 py-3.5 border-t border-slate-100">
+                <span className="text-[var(--primary)]"><Type size={20} /></span>
+                <span className="flex-1 font-medium">{t("design", "userFontLabel")}</span>
+                <div className="flex gap-1.5">
+                  {(["sm", "md", "lg"] as UserScale[]).map((sz) => (
+                    <button key={sz} onClick={() => { haptic.select(); setUserScale(sz); app.syncTheme(); setScale(sz); }}
+                      className={`w-9 h-9 rounded-xl font-bold ${scale === sz ? "bg-[var(--primary)] text-white" : "bg-slate-100 text-slate-500"}`}
+                      style={{ fontSize: sz === "sm" ? 12 : sz === "md" ? 15 : 18 }}>A</button>
+                  ))}
+                </div>
+              </div>
+            )}
           {(supportTg || supportPhone) && (
             <button onClick={() => openLink(supportTg ? `https://t.me/${supportTg.replace("@", "")}` : `tel:${supportPhone}`)} className="w-full flex items-center gap-3 px-4 py-3.5 border-t border-slate-100 text-left">
               <span className="text-[var(--primary)]"><LifeBuoy size={20} /></span><span className="flex-1 font-medium">{t("profile", "support")}</span><span className="text-sm text-slate-400">{supportTg ? `@${supportTg.replace("@", "")}` : supportPhone}</span>

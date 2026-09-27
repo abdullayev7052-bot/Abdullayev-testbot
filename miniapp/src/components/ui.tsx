@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { X, Trash2 } from "lucide-react";
 import { haptic } from "../lib/telegram.ts";
 import { pageVariants, spring, tapScale } from "../lib/motion.ts";
+import { useT } from "../store/app.ts";
 
 /** Chiqish animatsiyasi uchun elementni biroz ushlab turish (AnimatePresence o'rniga, ishonchli) */
 export function usePresence(open: boolean, ms = 220): { mounted: boolean; visible: boolean } {
@@ -189,7 +190,7 @@ export function Empty({ emoji = "🛒", title, hint, action }: { emoji?: string;
 }
 
 /* ---------- Rasm (yuklanish animatsiyasi bilan) ---------- */
-export function Img({ src, alt = "", className = "", fallback = "🖼" }: { src: string | null | undefined; alt?: string; className?: string; fallback?: string }) {
+export function Img({ src, alt = "", className = "", fallback = "🖼", name }: { src: string | null | undefined; alt?: string; className?: string; fallback?: string; name?: string }) {
   const [state, setState] = useState<"loading" | "ok" | "err">(src ? "loading" : "err");
   const ref = useRef<HTMLImageElement>(null);
   useEffect(() => {
@@ -198,12 +199,36 @@ export function Img({ src, alt = "", className = "", fallback = "🖼" }: { src:
     const t = setTimeout(() => { const el = ref.current; if (el && el.complete) setState(el.naturalWidth > 0 ? "ok" : "err"); }, 50);
     return () => clearTimeout(t);
   }, [src]);
-  if (!src || state === "err") return <div className={`flex items-center justify-center bg-slate-100 text-slate-300 text-3xl ${className}`}>{fallback}</div>;
+  if (!src || state === "err") return <ImgPlaceholder className={className} fallback={fallback} name={name} />;
   return (
     <div className={`relative overflow-hidden bg-slate-100 ${className}`}>
       {state === "loading" && <div className="absolute inset-0 skeleton rounded-none" />}
       <img ref={ref} src={src} alt={alt} loading="lazy" onLoad={() => setState("ok")} onError={() => setState("err")}
         className={`w-full h-full object-cover transition-opacity duration-300 ${state === "ok" ? "opacity-100" : "opacity-0"}`} />
+    </div>
+  );
+}
+
+/** Rasmi yo'q mahsulot: admin yuklagan rasm + ustida mahsulot nomi */
+function ImgPlaceholder({ className, fallback, name }: { className: string; fallback: string; name?: string }) {
+  const { v } = useT();
+  const img = v<string>("catalog", "placeholderImage", "");
+  const showName = v<boolean>("catalog", "placeholderName", true) && !!name;
+  const emoji = v<string>("catalog", "placeholderEmoji", "") || fallback;
+  if (!img) {
+    return (
+      <div className={`relative flex items-center justify-center bg-slate-100 text-slate-300 text-3xl ${className}`}>
+        {showName ? <span className="px-2 text-center leading-tight line-clamp-3" style={{ color: v<string>("catalog", "placeholderNameColor", "#334155"), fontSize: v<number>("catalog", "placeholderNameSize", 13) }}>{name}</span> : emoji}
+      </div>
+    );
+  }
+  return (
+    <div className={`relative overflow-hidden bg-slate-100 flex items-center justify-center ${className}`}>
+      <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ opacity: v<number>("catalog", "placeholderOpacity", 100) / 100 }} />
+      {showName && (
+        <span className="relative px-2 text-center font-semibold leading-tight line-clamp-3"
+          style={{ color: v<string>("catalog", "placeholderNameColor", "#334155"), fontSize: v<number>("catalog", "placeholderNameSize", 13) }}>{name}</span>
+      )}
     </div>
   );
 }

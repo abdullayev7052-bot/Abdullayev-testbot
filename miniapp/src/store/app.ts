@@ -6,6 +6,7 @@ import { track } from "../lib/analytics.ts";
 import { useFavorites } from "./favorites.ts";
 import { useCart } from "./cart.ts";
 import { applyTheme as applyDark, resolveTheme, setUserPref, type ThemeMode } from "../lib/theme.ts";
+import { applyDesign } from "../lib/theme-apply.ts";
 
 interface AppState {
   data: Bootstrap | null;
@@ -46,6 +47,7 @@ export const useApp = create<AppState>((set, get) => ({
       r.setProperty("--bg", String(d.bgColor || "#ffffff")); r.setProperty("--card", "#ffffff"); r.setProperty("--text", String(d.textColor || "#0f172a"));
     }
     applyDark(theme, { bg: d.darkBg as string, card: d.darkCard as string, text: d.darkText as string });
+    applyDesign(d, theme);
     set({ theme });
   },
   async load() {

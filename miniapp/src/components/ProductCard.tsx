@@ -52,7 +52,7 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
     <motion.div layout {...cardVariants(index)} className="card overflow-hidden flex flex-col">
       <motion.button whileTap={{ scale: tapScale() }} onClick={() => { haptic.light(); onOpen(p); }} className="text-left">
         <div className="relative">
-          <Img src={p.image} alt={p.name} className={`aspect-square w-full ${out ? "opacity-60 grayscale-[35%]" : ""}`} />
+          <Img src={p.image} alt={p.name} name={p.name} className={`aspect-square w-full ${out ? "opacity-60 grayscale-[35%]" : ""}`} />
           {st && (
             <span className={`absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.out ? "bg-slate-800/80 text-white" : "bg-white/90 text-slate-700"}`}>{st.text}</span>
           )}

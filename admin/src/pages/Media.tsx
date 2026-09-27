@@ -22,7 +22,7 @@ function LimitsBar({ kind }: { kind: "stories" | "banners" }) {
 
 interface Slide { id: number; image: string; caption: string | null; link: string | null; duration: number; buttonText?: string | null; sortOrder: number }
 interface Story { id: number; title: string; cover: string; active: boolean; sortOrder: number; expiresAt: string | null; slides: Slide[] }
-interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string; active: boolean; sortOrder: number }
+interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string; active: boolean; sortOrder: number ; design?: Record<string, unknown> }
 
 /* ================= STORIS ================= */
 export function StoriesPage() {
@@ -137,6 +137,76 @@ export function StoriesPage() {
   );
 }
 
+/* ================= BANNER DIZAYNI ================= */
+type BDesign = Record<string, unknown>;
+const bs = (d: BDesign, k: string, def = "") => (typeof d[k] === "string" && d[k] !== "" ? String(d[k]) : def);
+const bn = (d: BDesign, k: string, def: number) => { const v = Number(d[k]); return Number.isFinite(v) && d[k] !== undefined && d[k] !== "" ? v : def; };
+
+/** Banner matni va foni: joylashuv, shrift, gradient, tugma, nishon */
+function BannerDesign({ edit, setEdit }: { edit: Partial<Banner>; setEdit: (b: Partial<Banner>) => void }) {
+  const d = (edit.design || {}) as BDesign;
+  const set = (k: string, v: unknown) => setEdit({ ...edit, design: { ...d, [k]: v } });
+  const Color = ({ k, label, def }: { k: string; label: string; def: string }) => (
+    <div><label className="label">{label}</label>
+      <div className="flex gap-1.5"><input type="color" value={bs(d, k, def)} onChange={(e) => set(k, e.target.value)} className="w-9 h-9 rounded-lg border p-0.5 shrink-0" />
+        <input className="input !w-[104px] font-mono !py-1.5" value={bs(d, k, "")} placeholder={def} onChange={(e) => set(k, e.target.value)} /></div>
+    </div>
+  );
+  const Num = ({ k, label, def, min, max, step }: { k: string; label: string; def: number; min: number; max: number; step?: number }) => (
+    <div><label className="label">{label}</label><input type="number" className="input !w-24" min={min} max={max} step={step || 1} value={bn(d, k, def)} onChange={(e) => set(k, Number(e.target.value))} /></div>
+  );
+  const Sel = ({ k, label, def, opts }: { k: string; label: string; def: string; opts: [string, string][] }) => (
+    <div><label className="label">{label}</label>
+      <select className="input !w-auto min-w-[150px]" value={bs(d, k, def)} onChange={(e) => set(k, e.target.value)}>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+  );
+
+  return (
+    <div className="rounded-xl border border-slate-200 p-3 space-y-3">
+      <div className="font-semibold text-sm">Matn va fon dizayni</div>
+      <div className="flex flex-wrap gap-3 items-end">
+        <Sel k="layout" label="Matn joylashuvi" def="overlay" opts={[["overlay", "Rasm ustida"], ["below", "Rasm ostida (bo'sh joyda)"], ["side", "Yonida (bo'sh joyda)"]]} />
+        <Sel k="align" label="Gorizontal" def="left" opts={[["left", "Chapda"], ["center", "O'rtada"], ["right", "O'ngda"]]} />
+        <Sel k="valign" label="Vertikal" def="center" opts={[["top", "Tepada"], ["center", "O'rtada"], ["bottom", "Pastda"]]} />
+        <Num k="pad" label="Chekka bo'shliq" def={20} min={0} max={48} />
+      </div>
+      {bs(d, "layout", "overlay") === "overlay" ? (
+        <div className="flex flex-wrap gap-3 items-end">
+          <Sel k="overlay" label="Qoraytirish (overlay)" def="left" opts={[["left", "Chapdan gradient"], ["bottom", "Pastdan gradient"], ["full", "Butun rasm"], ["none", "Yo'q"]]} />
+          <Color k="overlayFrom" label="Overlay boshi" def="#00000080" />
+          <Color k="overlayTo" label="Overlay oxiri" def="#00000000" />
+          <Toggle value={d.textShadow !== false} onChange={(v) => set("textShadow", v)} label="Matn soyasi" />
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-3 items-end"><Color k="bgColor" label="Matn qismi foni" def="#ffffff" /></div>
+      )}
+      <div className="flex flex-wrap gap-3 items-end">
+        <Num k="titleSize" label="Sarlavha (px)" def={20} min={12} max={44} />
+        <Sel k="titleWeight" label="Qalinligi" def="700" opts={[["400", "Oddiy"], ["500", "O'rtacha"], ["600", "Yarim qalin"], ["700", "Qalin"], ["800", "Juda qalin"]]} />
+        <Color k="titleColor" label="Sarlavha rangi" def="#ffffff" />
+        <Color k="titleColor2" label="Gradient 2-rang" def="" />
+        <Num k="titleAngle" label="Gradient burchagi" def={90} min={0} max={360} step={15} />
+        <Toggle value={!!d.titleItalic} onChange={(v) => set("titleItalic", v)} label="Qiyshiq" />
+      </div>
+      <div className="flex flex-wrap gap-3 items-end">
+        <Num k="subSize" label="Izoh (px)" def={13} min={10} max={28} />
+        <Color k="subColor" label="Izoh rangi" def="#ffffff" />
+        <Num k="subOpacity" label="Izoh shaffofligi %" def={90} min={30} max={100} step={5} />
+      </div>
+      <div className="flex flex-wrap gap-3 items-end">
+        <div><label className="label">Nishon (badge)</label><input className="input !w-40" placeholder="masalan: -30%" value={bs(d, "badge", "")} onChange={(e) => set("badge", e.target.value)} /></div>
+        <Color k="badgeColor" label="Nishon foni" def="#ffffff" />
+        <Color k="badgeTextColor" label="Nishon matni" def="#0f172a" />
+      </div>
+      <div className="flex flex-wrap gap-3 items-end">
+        <div><label className="label">Tugma matni</label><input className="input !w-40" placeholder="Ko'rish" value={bs(d, "buttonText", "")} onChange={(e) => set("buttonText", e.target.value)} /></div>
+        <Color k="buttonColor" label="Tugma foni" def="#ffffff" />
+        <Color k="buttonTextColor" label="Tugma matni" def="#0f172a" />
+      </div>
+      <div className="help">Bannerlarning umumiy balandligi, burchagi va o'tish animatsiyasi: <b>Sozlamalar → Mini App → Dizayn → Bannerlar</b>.</div>
+    </div>
+  );
+}
+
 /* ================= BANNERLAR ================= */
 export function BannersPage() {
   const qc = useQueryClient();
@@ -147,7 +217,7 @@ export function BannersPage() {
   const save = async () => {
     if (!edit?.image) { toast("Rasm kerak", "err"); return; }
     try {
-      const body = { image: edit.image, title: edit.title || null, subtitle: edit.subtitle || null, link: edit.link || null, textColor: edit.textColor || "#ffffff", active: edit.active ?? true };
+      const body = { image: edit.image, title: edit.title || null, subtitle: edit.subtitle || null, link: edit.link || null, textColor: edit.textColor || "#ffffff", active: edit.active ?? true, design: edit.design || {} };
       if (edit.id) await api.put(`/banners/${edit.id}`, body); else await api.post("/banners", body);
       setEdit(null); toast("Saqlandi"); await refresh();
     } catch (e) { toast((e as Error).message, "err"); }
@@ -177,14 +247,14 @@ export function BannersPage() {
           </div>
         ))}
       </div>
-      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Bannerni tahrirlash" : "Yangi banner"}>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Bannerni tahrirlash" : "Yangi banner"} width={700}>
         {edit && (
           <div className="space-y-4">
             <ImageUpload video value={edit.image || ""} onChange={(v) => setEdit({ ...edit, image: v })} hint="Tavsiya: 1200×480 px rasm, GIF yoki qisqa video" />
             <div><label className="label">Sarlavha</label><input className="input" value={edit.title || ""} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></div>
             <div><label className="label">Izoh</label><input className="input" value={edit.subtitle || ""} onChange={(e) => setEdit({ ...edit, subtitle: e.target.value })} /></div>
             <div><label className="label">Havola</label><LinkPicker value={edit.link || ""} onChange={(v) => setEdit({ ...edit, link: v })} /></div>
-            <div><label className="label">Matn rangi</label><div className="flex gap-2"><input type="color" value={edit.textColor || "#ffffff"} onChange={(e) => setEdit({ ...edit, textColor: e.target.value })} className="w-10 h-10 rounded-lg border p-0.5" /><input className="input max-w-[140px] font-mono" value={edit.textColor || ""} onChange={(e) => setEdit({ ...edit, textColor: e.target.value })} /></div></div>
+            <BannerDesign edit={edit} setEdit={setEdit} />
             <Toggle value={edit.active ?? true} onChange={(v) => setEdit({ ...edit, active: v })} label="Faol" />
             <div className="flex justify-end gap-2"><button className="btn btn-ghost" onClick={() => setEdit(null)}>Bekor</button><button className="btn btn-primary" onClick={() => { void save(); }}>Saqlash</button></div>
           </div>

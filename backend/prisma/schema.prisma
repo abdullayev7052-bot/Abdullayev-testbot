@@ -185,6 +185,9 @@ model Banner {
   active    Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
+  /// Matn va fon dizayni: { layout, align, valign, pad, titleSize, titleWeight, titleFont, titleColor2,
+  /// subSize, subColor, overlay, overlayFrom, overlayTo, bgColor, bgColor2, bgAngle, textShadow, badge, badgeColor, buttonText, buttonColor }
+  design    Json     @default("{}")
 }
 
 /// Admin paneldan boshqariladigan barcha sozlamalar (bo'limlar bo'yicha JSON)

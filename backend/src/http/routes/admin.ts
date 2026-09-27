@@ -281,16 +281,16 @@ adminRouter.post("/stories/reorder", async (req, res) => {
 
 // ---------- Bannerlar ----------
 adminRouter.get("/banners", async (_req, res) => { res.json(await prisma.banner.findMany({ orderBy: { sortOrder: "asc" } })); });
-const bannerSchema = z.object({ image: z.string().min(1), title: z.string().max(80).nullable().optional(), subtitle: z.string().max(160).nullable().optional(), link: z.string().max(300).nullable().optional(), textColor: z.string().max(20).optional(), active: z.boolean().optional() });
+const bannerSchema = z.object({ image: z.string().min(1), title: z.string().max(80).nullable().optional(), subtitle: z.string().max(160).nullable().optional(), link: z.string().max(300).nullable().optional(), textColor: z.string().max(20).optional(), active: z.boolean().optional(), design: z.record(z.string(), z.unknown()).optional() });
 adminRouter.post("/banners", async (req, res) => {
   const b = bannerSchema.parse(req.body);
   if ((await prisma.banner.count()) >= MEDIA_LIMITS.banners) { res.status(400).json({ error: `Bannerlar limiti: ko'pi bilan ${MEDIA_LIMITS.banners} ta. Eskisini o'chiring.` }); return; }
   const max = (await prisma.banner.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
-  res.json(await prisma.banner.create({ data: { image: b.image, title: b.title || null, subtitle: b.subtitle || null, link: b.link || null, textColor: b.textColor || "#ffffff", active: b.active ?? true, sortOrder: max + 1 } }));
+  res.json(await prisma.banner.create({ data: { image: b.image, title: b.title || null, subtitle: b.subtitle || null, link: b.link || null, textColor: b.textColor || "#ffffff", active: b.active ?? true, design: (b.design || {}) as object, sortOrder: max + 1 } }));
 });
 adminRouter.put("/banners/:id", async (req, res) => {
   const b = bannerSchema.partial().extend({ sortOrder: z.number().optional() }).parse(req.body);
-  res.json(await prisma.banner.update({ where: { id: Number(req.params.id) }, data: b }));
+  res.json(await prisma.banner.update({ where: { id: Number(req.params.id) }, data: { ...b, design: b.design as object | undefined } }));
 });
 adminRouter.delete("/banners/:id", async (req, res) => { const b = await prisma.banner.findUnique({ where: { id: Number(req.params.id) } }); await prisma.banner.delete({ where: { id: Number(req.params.id) } }); if (b) await dropUpload(b.image); res.json({ ok: true }); });
 adminRouter.post("/banners/reorder", async (req, res) => {

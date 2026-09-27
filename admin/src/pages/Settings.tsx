@@ -66,6 +66,8 @@ export function SettingsForm({ section, part, title, description, before }: Prop
   }, [focus, settings.isLoading, schema.isLoading, section, part]);
 
   const set = (k: string, v: unknown) => { setDraft((d) => ({ ...d, [k]: v })); setDirty(true); };
+  /** Bir nechta sozlamani birdaniga to'ldirish (uslub shablonlari) */
+  const patchMany = (vals: Record<string, unknown>) => { setDraft((d) => ({ ...d, ...vals })); setDirty(true); };
 
   const save = async () => {
     setSaving(true);
@@ -130,7 +132,7 @@ export function SettingsForm({ section, part, title, description, before }: Prop
             <div className="font-semibold mb-1">{g.title}</div>
             {g.description && <div className="text-sm text-slate-500 mb-3">{g.description}</div>}
             <div className="space-y-4 mt-3">
-              {g.fields.map((f) => <div key={f.key} id={`field-${f.key}`} className="rounded-xl -mx-2 px-2 py-1"><Field def={f} value={draft[f.key]} onChange={(v) => set(f.key, v)} options={options.data || null} /></div>)}
+              {g.fields.map((f) => <div key={f.key} id={`field-${f.key}`} className="rounded-xl -mx-2 px-2 py-1"><Field def={f} value={draft[f.key]} onChange={(v) => set(f.key, v)} options={options.data || null} onPatch={patchMany} /></div>)}
             </div>
           </div>
         ))}

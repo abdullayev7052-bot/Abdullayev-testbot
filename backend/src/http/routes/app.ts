@@ -234,7 +234,7 @@ appRouter.get("/bootstrap", async (req, res) => {
     store: { id: store.id, name: store.name(lang), pickupAddress: store.pickupAddress(lang), pickupLocation: store.pickupLocation },
     settings: publicSettings(),
     stories: stories.map((st) => ({ id: st.id, title: st.title, cover: st.cover, slides: st.slides.map((sl) => ({ id: sl.id, image: sl.image, caption: sl.caption, link: sl.link, duration: sl.duration || s.design.storiesDefaultDuration || 5, buttonText: sl.buttonText || null })) })).filter((st) => st.slides.length),
-    banners: banners.map((b) => ({ id: b.id, image: b.image, title: b.title, subtitle: b.subtitle, link: b.link, textColor: b.textColor })),
+    banners: banners.map((b) => ({ id: b.id, image: b.image, title: b.title, subtitle: b.subtitle, link: b.link, textColor: b.textColor, design: b.design })),
     categories: cats,
     featured, newest, productCount: products.length,
     blocks: await homeBlocks(user, blockSource, marks, lang),

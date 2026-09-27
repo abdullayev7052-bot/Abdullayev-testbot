@@ -113,7 +113,7 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
                 drag={images.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.15}
                 onDragEnd={(_, i) => { if (i.offset.x < -50) setImg((x) => (x + 1) % images.length); else if (i.offset.x > 50) setImg((x) => (x - 1 + images.length) % images.length); }}
                 onClick={() => { if (images.length) { haptic.light(); setFull(true); } }}>
-                <Img src={images[img] || product.image} className="w-full aspect-[4/3]" fallback="🛍" />
+                <Img src={images[img] || product.image} name={product.name} className="w-full aspect-[4/3]" fallback="🛍" />
               </motion.div>
             </AnimatePresence>
             {images.length > 0 && <button onClick={() => setFull(true)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/35 text-white flex items-center justify-center"><Expand size={15} /></button>}

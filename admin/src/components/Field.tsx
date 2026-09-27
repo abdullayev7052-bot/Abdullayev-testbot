@@ -5,10 +5,11 @@ import { LatLngPicker } from "./LatLngPicker.tsx";
 import { StoresEditor, PriceExceptionsEditor, type StoreDef, type PriceException } from "./StoresEditor.tsx";
 import { ProductFieldsEditor, type PField } from "./ProductFieldsEditor.tsx";
 import { HomeLayoutEditor, type LayoutRow } from "./HomeLayoutEditor.tsx";
+import { ThemePresets } from "./ThemePresets.tsx";
 
 const LANGS: { k: Lang; label: string }[] = [{ k: "uz", label: "🇺🇿 UZ" }, { k: "ru", label: "🇷🇺 RU" }, { k: "en", label: "🇬🇧 EN" }];
 
-export function Field({ def, value, onChange, options }: { def: FieldDef; value: unknown; onChange: (v: unknown) => void; options?: Options | null }) {
+export function Field({ def, value, onChange, options, onPatch }: { def: FieldDef; value: unknown; onChange: (v: unknown) => void; options?: Options | null; onPatch?: (values: Record<string, unknown>) => void }) {
   const [lang, setLang] = useState<Lang>("uz");
   const ph = def.placeholders?.length ? <div className="help">O'zgaruvchilar: {def.placeholders.map((p) => <code key={p} className="bg-slate-100 px-1 rounded mr-1">{p}</code>)}</div> : null;
   const help = def.help ? <div className="help">{def.help}</div> : null;
@@ -38,6 +39,14 @@ export function Field({ def, value, onChange, options }: { def: FieldDef; value:
         </div>
       );
     }
+    case "themePresets":
+      return (
+        <div>
+          <ThemePresets onApply={(vals) => (onPatch ? onPatch(vals) : onChange(vals))} />
+          {help}
+        </div>
+      );
+
     case "homeLayout":
       return (
         <div>

@@ -24,7 +24,8 @@ export type FieldType =
   | "stores"
   | "priceExceptions"
   | "productFields"
-  | "homeLayout";
+  | "homeLayout"
+  | "themePresets";
 
 export interface FieldDef {
   key: string;
@@ -434,6 +435,61 @@ export const settingsSchema: SectionDef[] = [
     description: "Ranglar, logo, salomlashish, bloklar",
     groups: [
       {
+        title: "Tayyor uslublar (shablonlar)",
+        description: "Dunyodagi eng chiroyli ilovalar uslubi asosida. Shablonni bosing — ranglar, shrift, fon va navigatsiya bir vaqtda to'ldiriladi, keyin xohlagan joyini o'zgartirasiz.",
+        fields: [
+          { key: "presetPicker", label: "Shablonni tanlang", type: "themePresets", default: "" },
+        ],
+      },
+      {
+        title: "Shrift va matn",
+        fields: [
+          { key: "fontFamily", label: "Shrift", type: "select", default: "system", options: [
+            { value: "system", label: "Tizim shrifti (eng tez)" },
+            { value: "inter", label: "Inter — zamonaviy, toza (Telegram uslubi)" },
+            { value: "manrope", label: "Manrope — yumshoq, do'stona" },
+            { value: "rubik", label: "Rubik — qalin, yorqin (Duolingo uslubi)" },
+            { value: "nunito", label: "Nunito — yumaloq, iliq" },
+            { value: "poppins", label: "Poppins — geometrik, chiroyli" },
+            { value: "montserrat", label: "Montserrat — kuchli sarlavhalar" },
+            { value: "golos", label: "Golos Text — kirill uchun qulay" },
+            { value: "onest", label: "Onest — neytral, o'qish oson" },
+          ] },
+          { key: "fontScale", label: "Matn o'lchami (%)", type: "number", default: 100, min: 85, max: 125, step: 5 },
+          { key: "headingWeight", label: "Sarlavhalar qalinligi", type: "select", default: "700", options: [
+            { value: "600", label: "Yarim qalin" }, { value: "700", label: "Qalin" }, { value: "800", label: "Juda qalin" },
+          ] },
+          { key: "letterSpacing", label: "Harflar orasi (px)", type: "number", default: 0, min: -1, max: 2, step: 0.1 },
+          { key: "userFontSize", label: "Mijoz matn o'lchamini o'zi tanlay olsin", type: "boolean", default: true, help: "Profil bo'limida: kichik / o'rtacha / katta" },
+          { key: "userFontLabel", label: "Profildagi nomi", type: "ltext", default: L("Matn o'lchami", "Размер текста", "Text size") },
+        ],
+      },
+      {
+        title: "Fon va yuzalar",
+        fields: [
+          { key: "bgStyle", label: "Fon turi", type: "select", default: "solid", options: [
+            { value: "solid", label: "Bir xil rang" },
+            { value: "gradient", label: "Gradient (ikki rang)" },
+            { value: "mesh", label: "Yumshoq dog'lar (mesh) — iOS uslubi" },
+            { value: "image", label: "Rasm" },
+          ] },
+          { key: "bgColor2", label: "Gradient / dog'lar uchun ikkinchi rang", type: "color", default: "#eef2ff" },
+          { key: "bgImage", label: "Fon rasmi", type: "image", default: "" },
+          { key: "bgImageOpacity", label: "Fon rasmi shaffofligi (%)", type: "number", default: 100, min: 10, max: 100, step: 5 },
+          { key: "surfaceStyle", label: "Kartochka uslubi", type: "select", default: "soft", options: [
+            { value: "flat", label: "Tekis (soyasiz)" },
+            { value: "soft", label: "Yumshoq soya" },
+            { value: "glass", label: "Shisha (Liquid Glass, blur)" },
+            { value: "outline", label: "Faqat chiziq (edgeless)" },
+          ] },
+          { key: "cardBlur", label: "Shisha effekt kuchi (px)", type: "number", default: 14, min: 0, max: 40 },
+          { key: "cardOpacity", label: "Kartochka shaffofligi (%)", type: "number", default: 100, min: 40, max: 100, step: 5 },
+          { key: "inputStyle", label: "Kiritish maydonlari", type: "select", default: "soft", options: [
+            { value: "soft", label: "Yumshoq to'ldirilgan" }, { value: "outline", label: "Chiziqli" }, { value: "glass", label: "Shisha" },
+          ] },
+        ],
+      },
+      {
         title: "Ranglar va uslub",
         fields: [
           { key: "primaryColor", label: "Asosiy rang", type: "color", default: "#2563eb" },
@@ -539,6 +595,22 @@ export const settingsSchema: SectionDef[] = [
           { key: "bannersInterval", label: "Avto-aylanish oralig'i (soniya)", type: "number", default: 4, min: 2, max: 30 },
           { key: "bannersHeight", label: "Balandligi (px)", type: "number", default: 160, min: 100, max: 320 },
           { key: "bannersRadius", label: "Burchak (px)", type: "number", default: 20, min: 0, max: 40 },
+          { key: "bannersAnimation", label: "Keyingisiga o'tish animatsiyasi", type: "select", default: "slide", options: [
+            { value: "slide", label: "Surilish (oddiy)" },
+            { value: "fade", label: "Yumshoq so'nish" },
+            { value: "carousel", label: "Karusel — yonidagilari ko'rinib turadi (Instagram)" },
+            { value: "stack", label: "Qalqib chiqish (ustma-ust)" },
+            { value: "zoom", label: "Kattalashib chiqish" },
+            { value: "flip", label: "Ag'darilish (3D)" },
+            { value: "none", label: "Animatsiyasiz" },
+          ] },
+          { key: "bannersSpeed", label: "Animatsiya tezligi (ms)", type: "number", default: 420, min: 120, max: 1200, step: 20 },
+          { key: "bannersPeek", label: "Karuselda yon banner qancha ko'rinsin (px)", type: "number", default: 16, min: 0, max: 60 },
+          { key: "bannersGap", label: "Karuselda oraliq (px)", type: "number", default: 10, min: 0, max: 30 },
+          { key: "bannersDots", label: "Nuqtalar", type: "select", default: "inside", options: [
+            { value: "inside", label: "Banner ichida" }, { value: "below", label: "Banner ostida" }, { value: "off", label: "Ko'rsatilmasin" },
+          ] },
+          { key: "bannersAutoplay", label: "Avtomatik aylanish", type: "boolean", default: true },
         ],
       },
       {
@@ -568,7 +640,24 @@ export const settingsSchema: SectionDef[] = [
       },
       {
         title: "Pastki navigatsiya",
+        description: "Bosh sahifa / Katalog / Savatcha / Profil paneli — Telegram, iOS va boshqa mashhur ilovalar uslubida sozlanadi",
         fields: [
+          { key: "navStyle", label: "Uslubi", type: "select", default: "glass", options: [
+            { value: "solid", label: "To'q (oddiy)" },
+            { value: "glass", label: "Shisha — blur (Telegram / iOS)" },
+            { value: "floating", label: "Suzuvchi panel (chetlardan ajralgan)" },
+            { value: "borderless", label: "Chegarasiz, toza" },
+          ] },
+          { key: "navRadius", label: "Burchak yumaloqligi (px)", type: "number", default: 0, min: 0, max: 40, help: "Suzuvchi panelda 20–28 chiroyli ko'rinadi" },
+          { key: "navBlur", label: "Blur kuchi (px)", type: "number", default: 18, min: 0, max: 40 },
+          { key: "navOpacity", label: "Fon shaffofligi (%)", type: "number", default: 85, min: 40, max: 100, step: 5 },
+          { key: "navHeight", label: "Balandligi (px)", type: "number", default: 64, min: 52, max: 88 },
+          { key: "navIconSize", label: "Belgilar o'lchami (px)", type: "number", default: 22, min: 16, max: 30 },
+          { key: "navLabels", label: "Belgilar ostida yozuvlar", type: "boolean", default: true },
+          { key: "navActive", label: "Tanlangan bo'lim ko'rinishi", type: "select", default: "pill", options: [
+            { value: "pill", label: "Yumaloq fon (pill)" }, { value: "dot", label: "Pastida nuqta" }, { value: "line", label: "Tepasida chiziq" }, { value: "plain", label: "Faqat rang" },
+          ] },
+          { key: "navShadow", label: "Soya", type: "boolean", default: true },
           { key: "navHome", label: "Bosh sahifa", type: "ltext", default: L("Bosh sahifa", "Главная", "Home") },
           { key: "navCatalog", label: "Katalog", type: "ltext", default: L("Katalog", "Каталог", "Catalog") },
           { key: "navCart", label: "Savatcha", type: "ltext", default: L("Savatcha", "Корзина", "Cart") },
@@ -689,6 +778,12 @@ export const settingsSchema: SectionDef[] = [
           { key: "showSku", label: "Artikul (SKU) ko'rsatish", type: "boolean", default: false },
           { key: "hideZeroPrice", label: "Narxi 0 bo'lgan mahsulotlarni yashirish", type: "boolean", default: true },
           { key: "quickAddEnabled", label: "Kartochkada ➕ tezkor qo'shish", type: "boolean", default: true },
+          { key: "placeholderImage", label: "Rasmi yo'q mahsulot uchun rasm", type: "image", default: "", help: "Qurilma xotirasidan yuklanadi. Rasmi bo'lmagan barcha mahsulotlarda shu rasm ko'rinadi." },
+          { key: "placeholderName", label: "Rasm ustida mahsulot nomi yozilsin", type: "boolean", default: true },
+          { key: "placeholderNameColor", label: "Nom rangi", type: "color", default: "#334155" },
+          { key: "placeholderNameSize", label: "Nom o'lchami (px)", type: "number", default: 13, min: 9, max: 24 },
+          { key: "placeholderOpacity", label: "Rasm shaffofligi (%)", type: "number", default: 100, min: 10, max: 100, step: 5 },
+          { key: "placeholderEmoji", label: "Rasm yuklanmagan bo'lsa belgi", type: "text", default: "🛍" },
           { key: "allCategoriesLabel", label: "'Barchasi' tegi", type: "ltext", default: L("Barchasi", "Все", "All") },
           { key: "catalogTitle", label: "Katalog sarlavhasi", type: "ltext", default: L("Katalog", "Каталог", "Catalog") },
           { key: "descriptionTitle", label: "Mahsulot izohi sarlavhasi", type: "ltext", default: L("Mahsulot haqida", "О товаре", "About the product") },
