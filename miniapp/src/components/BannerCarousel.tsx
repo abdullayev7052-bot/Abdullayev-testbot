@@ -14,7 +14,14 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const [dir, setDir] = useState(1);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const interval = Math.max(2, v<number>("design", "bannersInterval", 4)) * 1000;
+  // Balandlik rasm nisbatidan hisoblanadi — shunda rasmning hech bir qismi kesilmaydi
+  const ratioRaw = v<string>("design", "bannersRatio", "2.5");
+  const ratio = ratioRaw === "custom" ? 0 : Number(ratioRaw) || 2.5;
   const height = v<number>("design", "bannersHeight", 160);
+  const fit = v<string>("design", "bannersFit", "cover");
+  const emptyBg = v<string>("design", "bannersBg", "#f1f5f9");
+  /** Banner qutisining o'lchami: nisbat yoki qo'lda berilgan balandlik */
+  const box: React.CSSProperties = ratio ? { aspectRatio: String(ratio) } : { height };
   const radius = v<number>("design", "bannersRadius", 20);
   const anim = v<string>("design", "bannersAnimation", "slide");
   const speed = v<number>("design", "bannersSpeed", 420) / 1000;
@@ -41,11 +48,13 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
     if (r.path) nav(r.path); else if (r.url) openLink(r.url);
   };
 
-  const Slide = ({ b }: { b: Banner }) => <Media src={b.image} className="w-full h-full object-cover pointer-events-none" />;
+  const Slide = ({ b }: { b: Banner }) => (
+    <Media src={b.image} className={`w-full h-full pointer-events-none ${fit === "contain" ? "object-contain" : "object-cover"}`} />
+  );
 
   // ---- Karusel: barcha bannerlar yonma-yon, barmoq bilan 1:1 suriladi ----
   if (anim === "carousel") {
-    return <Carousel banners={banners} i={i} go={go} open={open} Slide={Slide} height={height} radius={radius} peek={peek} gap={gap} dots={dots} />;
+    return <Carousel banners={banners} i={i} go={go} open={open} Slide={Slide} box={box} bg={emptyBg} radius={radius} peek={peek} gap={gap} dots={dots} />;
   }
 
   const b = banners[i];
@@ -61,7 +70,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
 
   return (
     <div className="wrap my-2">
-      <div className="relative overflow-hidden" style={{ height, borderRadius: radius, perspective: anim === "flip" ? 900 : undefined }}>
+      <div className="relative overflow-hidden" style={{ ...box, background: fit === "contain" ? emptyBg : undefined, borderRadius: radius, perspective: anim === "flip" ? 900 : undefined }}>
         <AnimatePresence initial={false} custom={dir} mode={anim === "fade" || anim === "zoom" ? "sync" : "sync"}>
           <motion.div key={b.id} className="absolute inset-0" custom={dir}
             initial={vr.initial} animate={vr.animate} exit={vr.exit}
@@ -85,9 +94,9 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
 }
 
 /** Karusel: x qiymati barmoq bilan bevosita boshqariladi (animatsiya xalaqit bermaydi) */
-function Carousel({ banners, i, go, open, Slide, height, radius, peek, gap, dots }: {
+function Carousel({ banners, i, go, open, Slide, box, bg, radius, peek, gap, dots }: {
   banners: Banner[]; i: number; go: (n: number) => void; open: (b: Banner) => void;
-  Slide: (p: { b: Banner }) => React.ReactElement; height: number; radius: number; peek: number; gap: number; dots: string;
+  Slide: (p: { b: Banner }) => React.ReactElement; box: React.CSSProperties; bg: string; radius: number; peek: number; gap: number; dots: string;
 }) {
   const x = useMotionValue(0);
   const strip = useRef<HTMLDivElement>(null);
@@ -119,7 +128,7 @@ function Carousel({ banners, i, go, open, Slide, height, radius, peek, gap, dots
             else go(next);
           }}>
           {banners.map((b) => (
-            <div key={b.id} className="shrink-0 relative overflow-hidden" style={{ width: `calc(100% - ${peek}px)`, height, borderRadius: radius }} onClick={() => open(b)}>
+            <div key={b.id} className="shrink-0 relative overflow-hidden" style={{ width: `calc(100% - ${peek}px)`, ...box, background: bg, borderRadius: radius }} onClick={() => open(b)}>
               <Slide b={b} />
             </div>
           ))}

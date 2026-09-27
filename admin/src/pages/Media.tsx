@@ -182,7 +182,7 @@ export function BannersPage() {
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Bannerni tahrirlash" : "Yangi banner"}>
         {edit && (
           <div className="space-y-4">
-            <ImageUpload video value={edit.image || ""} onChange={(v) => setEdit({ ...edit, image: v })} hint="Tayyor rasmni yuklang (tavsiya: 1200×480 px). Matn va bezaklar rasmning o'zida bo'ladi." />
+            <ImageUpload video value={edit.image || ""} onChange={(v) => setEdit({ ...edit, image: v })} hint="Tayyor rasmni yuklang. Matn va bezaklar rasmning o'zida bo'ladi. O'lcham «Sozlamalar → Mini App → Dizayn → Bannerlar → Rasm nisbati» da tanlanadi (standart: 1200×480 px)." />
             <div><label className="label">Bosilganda qayerga olib boradi</label><LinkPicker value={edit.link || ""} onChange={(v) => setEdit({ ...edit, link: v })} /></div>
             {edit.productIds?.length ? (
               <div className="rounded-xl bg-blue-50 text-blue-700 text-sm px-3 py-2">

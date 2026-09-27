@@ -595,7 +595,20 @@ export const settingsSchema: SectionDef[] = [
         fields: [
           { key: "bannersShow", label: "Ko'rsatish", type: "boolean", default: true },
           { key: "bannersInterval", label: "Avto-aylanish oralig'i (soniya)", type: "number", default: 4, min: 2, max: 30 },
-          { key: "bannersHeight", label: "Balandligi (px)", type: "number", default: 160, min: 100, max: 320 },
+          { key: "bannersRatio", label: "Rasm nisbati (o'lchami)", type: "select", default: "2.5", options: [
+            { value: "2.5", label: "1200 × 480 (keng, tavsiya etiladi)" },
+            { value: "3", label: "1200 × 400 (juda keng, past)" },
+            { value: "2", label: "1200 × 600 (balandroq)" },
+            { value: "1.78", label: "1200 × 675 (16:9)" },
+            { value: "1.5", label: "1200 × 800 (baland)" },
+            { value: "custom", label: "Qo'lda: balandlikni o'zim beraman" },
+          ], help: "Banner balandligi ekran eniga qarab avtomatik hisoblanadi — rasm kesilmaydi" },
+          { key: "bannersFit", label: "Rasmni joylash", type: "select", default: "cover", options: [
+            { value: "cover", label: "To'ldirib (chetlari kesilishi mumkin)" },
+            { value: "contain", label: "To'liq ko'rsatish (bo'sh joy qolishi mumkin)" },
+          ] },
+          { key: "bannersBg", label: "Bo'sh joy rangi (to'liq ko'rsatishda)", type: "color", default: "#f1f5f9" },
+          { key: "bannersHeight", label: "Balandligi (px) — faqat «Qo'lda» tanlanganda", type: "number", default: 160, min: 100, max: 400 },
           { key: "bannersRadius", label: "Burchak (px)", type: "number", default: 20, min: 0, max: 40 },
           { key: "bannersAnimation", label: "Keyingisiga o'tish animatsiyasi", type: "select", default: "slide", options: [
             { value: "slide", label: "Surilish (oddiy)" },
