@@ -4,6 +4,7 @@ import { ImageUpload, Toggle } from "./ui.tsx";
 import { LatLngPicker } from "./LatLngPicker.tsx";
 import { StoresEditor, PriceExceptionsEditor, type StoreDef, type PriceException } from "./StoresEditor.tsx";
 import { ProductFieldsEditor, type PField } from "./ProductFieldsEditor.tsx";
+import { HomeLayoutEditor, type LayoutRow } from "./HomeLayoutEditor.tsx";
 
 const LANGS: { k: Lang; label: string }[] = [{ k: "uz", label: "🇺🇿 UZ" }, { k: "ru", label: "🇷🇺 RU" }, { k: "en", label: "🇬🇧 EN" }];
 
@@ -37,6 +38,15 @@ export function Field({ def, value, onChange, options }: { def: FieldDef; value:
         </div>
       );
     }
+    case "homeLayout":
+      return (
+        <div>
+          <label className="label">{def.label}</label>
+          <HomeLayoutEditor value={(value as LayoutRow[]) || []} onChange={onChange} />
+          {help}
+        </div>
+      );
+
     case "productFields":
       return (
         <div>

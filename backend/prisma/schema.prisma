@@ -288,3 +288,38 @@ model CartItem {
   @@unique([userId, productId])
   @@index([productId, updatedAt])
 }
+
+/// Bosh sahifadagi qo'shimcha bloklar: mahsulot to'plamlari ("Hafta bestsellerlari")
+/// va mini bloklar ("Mualliflar", "Nashriyotlar") — qo'shimcha maydon qiymatlari bo'yicha
+model HomeBlock {
+  id        Int      @id @default(autoincrement())
+  /// products — mahsulotlar qatori; chips — rasmli mini bloklar
+  kind      String   @default("products")
+  /// manual (qo'lda tanlangan) | featured | new | popular | field (qo'shimcha maydon qiymatlari)
+  source    String   @default("manual")
+  /// chips va field uchun: cf:<id> | category
+  fieldKey  String?
+  title     Json     @default("{}")
+  /// { shape, size, columns, radius, showTitle, cardStyle }
+  style     Json     @default("{}")
+  limit     Int      @default(12)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  items     HomeBlockItem[]
+}
+
+model HomeBlockItem {
+  id        Int       @id @default(autoincrement())
+  blockId   Int
+  block     HomeBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  /// products bloki uchun
+  productId Int?
+  /// chips bloki uchun: maydon qiymati (masalan "Tohir Malik")
+  value     String?
+  image     String?
+  title     String?
+  sortOrder Int       @default(0)
+
+  @@index([blockId, sortOrder])
+}

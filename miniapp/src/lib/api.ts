@@ -64,6 +64,12 @@ export interface Bootstrap {
   store: StoreInfo;
   settings: Record<string, Record<string, unknown>> & { filesUrl: string };
   stories: Story[]; banners: Banner[]; categories: Category[]; featured: Product[]; newest: Product[]; productCount: number;
+  blocks?: HomeBlock[];
+}
+export interface HomeChip { value: string; image: string | null; title: string | null; count: number }
+export interface HomeBlock {
+  id: number; key: string; kind: "products" | "chips"; title: string; fieldKey?: string | null;
+  style: Record<string, unknown>; items?: Product[]; entries?: HomeChip[];
 }
 export interface ProductPage { total: number; page: number; limit: number; hasMore: boolean; items: Product[] }
 export interface OrderItem { productId: number; bitoId: string; name: string; price: number; qty: number; boxCount?: number; boxItem?: number; measure?: string | null; image?: string | null }

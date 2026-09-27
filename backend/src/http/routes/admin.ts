@@ -21,6 +21,7 @@ import { invalidateProductCache } from "./app.ts";
 import { priceFor, storeIsUzs } from "../../bito/stores.ts";
 import { InputFile, InlineKeyboard } from "grammy";
 import { buildReport, presetRange, ymd, type Group } from "../../analytics/report.ts";
+import { valueOf } from "../../bito/productFields.ts";
 import { listStores } from "../../bito/stores.ts";
 
 export const adminRouter = Router();
@@ -407,6 +408,75 @@ adminRouter.delete("/favorites/:id", async (req, res) => { await prisma.favorite
 adminRouter.delete("/favorites/product/:productId", async (req, res) => {
   const r = await prisma.favorite.deleteMany({ where: { productId: Number(req.params.productId) } });
   res.json({ ok: true, count: r.count });
+});
+
+// ---------- Bosh sahifa bloklari ----------
+adminRouter.get("/home-blocks", async (_req, res) => {
+  const blocks = await prisma.homeBlock.findMany({ orderBy: { sortOrder: "asc" }, include: { items: { orderBy: { sortOrder: "asc" } } } });
+  const ids = blocks.flatMap((b) => b.items.map((i) => i.productId).filter(Boolean)) as number[];
+  const products = ids.length ? await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, image: true } }) : [];
+  const byId = new Map(products.map((p) => [p.id, p]));
+  res.json(blocks.map((b) => ({
+    ...b,
+    items: b.items.map((i) => ({ ...i, image: bito.fileUrl(i.image), productName: i.productId ? byId.get(i.productId)?.name || `#${i.productId}` : null })),
+  })));
+});
+const blockSchema = z.object({
+  kind: z.enum(["products", "chips"]).optional(),
+  source: z.enum(["manual", "featured", "new", "popular", "field"]).optional(),
+  fieldKey: z.string().max(80).nullable().optional(),
+  title: z.record(z.string(), z.string()).optional(),
+  style: z.record(z.string(), z.unknown()).optional(),
+  limit: z.number().int().min(1).max(60).optional(),
+  active: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+adminRouter.post("/home-blocks", async (req, res) => {
+  const b = blockSchema.parse(req.body);
+  const max = (await prisma.homeBlock.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
+  const created = await prisma.homeBlock.create({ data: { ...b, title: (b.title || {}) as object, style: (b.style || {}) as object, sortOrder: max + 1 } });
+  res.json(created);
+});
+adminRouter.put("/home-blocks/:id", async (req, res) => {
+  const b = blockSchema.parse(req.body);
+  res.json(await prisma.homeBlock.update({ where: { id: Number(req.params.id) }, data: { ...b, title: b.title as object | undefined, style: b.style as object | undefined } }));
+});
+adminRouter.delete("/home-blocks/:id", async (req, res) => {
+  await prisma.homeBlock.delete({ where: { id: Number(req.params.id) } });
+  res.json({ ok: true });
+});
+adminRouter.post("/home-blocks/reorder", async (req, res) => {
+  const ids = z.array(z.number()).parse((req.body as { ids?: number[] })?.ids || []);
+  await prisma.$transaction(ids.map((id, i) => prisma.homeBlock.update({ where: { id }, data: { sortOrder: i + 1 } })));
+  res.json({ ok: true });
+});
+/** Blok tarkibi: mahsulotlar (products) yoki qiymatlar+rasm (chips) */
+adminRouter.put("/home-blocks/:id/items", async (req, res) => {
+  const id = Number(req.params.id);
+  const body = z.object({
+    products: z.array(z.number()).max(200).optional(),
+    entries: z.array(z.object({ value: z.string().max(120), image: z.string().max(400).optional(), title: z.string().max(120).optional() })).max(200).optional(),
+  }).parse(req.body);
+  await prisma.homeBlockItem.deleteMany({ where: { blockId: id } });
+  if (body.products?.length) {
+    await prisma.homeBlockItem.createMany({ data: body.products.map((productId, i) => ({ blockId: id, productId, sortOrder: i })) });
+  }
+  if (body.entries?.length) {
+    await prisma.homeBlockItem.createMany({ data: body.entries.map((e, i) => ({ blockId: id, value: e.value, image: e.image || null, title: e.title || null, sortOrder: i })) });
+  }
+  res.json({ ok: true });
+});
+/** Qo'shimcha maydon qiymatlari (chips bloklari uchun tanlash ro'yxati) */
+adminRouter.get("/field-values", async (req, res) => {
+  const key = String(req.query.key || "");
+  if (!key) { res.json([]); return; }
+  const products = await prisma.product.findMany({ where: { isDeleted: false, hidden: false } });
+  const counts = new Map<string, number>();
+  for (const p of products) {
+    const v = valueOf(p, key);
+    if (v) counts.set(v, (counts.get(v) || 0) + 1);
+  }
+  res.json([...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "uz")).map(([value, count]) => ({ value, count })));
 });
 
 // ---------- Guruhlar va xodimlar ----------

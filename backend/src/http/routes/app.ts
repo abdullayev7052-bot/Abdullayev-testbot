@@ -148,6 +148,51 @@ async function marksFor(list: Product[], user: User, details = false): Promise<M
   return { waitIds, favIds, variants, lang: normalizeLang(user.language), details };
 }
 
+/** Bosh sahifadagi qo'shimcha bloklar (admin panelda yaratilgan) */
+async function homeBlocks(user: User, products: Product[], marks: Marks, lang: Lang) {
+  const blocks = await prisma.homeBlock.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" }, include: { items: { orderBy: { sortOrder: "asc" } } } });
+  if (!blocks.length) return [];
+  const out: unknown[] = [];
+  for (const b of blocks) {
+    const style = (b.style as Record<string, unknown>) || {};
+    const title = lt(b.title as never, lang);
+    if (b.kind === "chips") {
+      // Mini bloklar: qo'shimcha maydon qiymatlari (Mualliflar, Nashriyotlar, Brendlar...)
+      const manual = b.items.filter((i) => i.value);
+      let entries: { value: string; image: string | null; title: string | null; count: number }[];
+      const counts = new Map<string, number>();
+      for (const p of products) {
+        const v = b.fieldKey ? valueOf(p, b.fieldKey) : null;
+        if (v) counts.set(v, (counts.get(v) || 0) + 1);
+      }
+      if (manual.length) {
+        entries = manual.map((i) => ({ value: i.value!, image: bito.fileUrl(i.image), title: i.title, count: counts.get(i.value!) || 0 }));
+      } else {
+        entries = [...counts.entries()].sort((a, b2) => b2[1] - a[1] || a[0].localeCompare(b2[0], "uz")).slice(0, b.limit).map(([value, count]) => ({ value, image: null, title: null, count }));
+      }
+      entries = entries.filter((e) => e.count > 0 || !!e.image);
+      if (entries.length) out.push({ id: b.id, key: `block:${b.id}`, kind: "chips", title, fieldKey: b.fieldKey, style, entries });
+      continue;
+    }
+    // Mahsulot qatorlari
+    let list: Product[] = [];
+    if (b.source === "manual") {
+      const ids = b.items.map((i) => i.productId).filter(Boolean) as number[];
+      const order = new Map(ids.map((id, i) => [id, i]));
+      list = products.filter((p) => order.has(p.id)).sort((x, y) => (order.get(x.id) || 0) - (order.get(y.id) || 0));
+    } else if (b.source === "featured") list = sortProducts(products.filter((p) => p.featured), user);
+    else if (b.source === "new") list = [...products].sort((x, y) => createdTs(y) - createdTs(x));
+    else if (b.source === "popular") list = sortProducts(products, user, "popular");
+    else if (b.source === "field" && b.fieldKey) {
+      const wanted = new Set(b.items.map((i) => i.value).filter(Boolean) as string[]);
+      list = products.filter((p) => { const v = valueOf(p, b.fieldKey!); return !!v && (!wanted.size || wanted.has(v)); });
+    }
+    list = list.slice(0, b.limit);
+    if (list.length) out.push({ id: b.id, key: `block:${b.id}`, kind: "products", title, style, items: list.map((p) => serializeProduct(p, user, marks)) });
+  }
+  return out;
+}
+
 // ---------- Boshlang'ich ma'lumot ----------
 appRouter.get("/bootstrap", async (req, res) => {
   const user = u(req);
@@ -172,7 +217,8 @@ appRouter.get("/bootstrap", async (req, res) => {
     .filter((c) => c.count > 0);
   const featuredList = sortProducts(products.filter((p) => p.featured), user).slice(0, 20);
   const newestList = [...products].sort((a, b) => createdTs(b) - createdTs(a)).slice(0, 10);
-  const marks = await marksFor([...featuredList, ...newestList], user);
+  const blockSource = [...products];
+  const marks = await marksFor([...featuredList, ...newestList, ...blockSource.slice(0, 200)], user);
   const featured = featuredList.map((p) => serializeProduct(p, user, marks));
   const newest = newestList.map((p) => serializeProduct(p, user, marks));
   const lang = normalizeLang(user.language);
@@ -191,6 +237,7 @@ appRouter.get("/bootstrap", async (req, res) => {
     banners: banners.map((b) => ({ id: b.id, image: b.image, title: b.title, subtitle: b.subtitle, link: b.link, textColor: b.textColor })),
     categories: cats,
     featured, newest, productCount: products.length,
+    blocks: await homeBlocks(user, blockSource, marks, lang),
   });
 });
 

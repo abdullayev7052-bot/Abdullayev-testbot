@@ -23,7 +23,8 @@ export type FieldType =
   | "latlng"
   | "stores"
   | "priceExceptions"
-  | "productFields";
+  | "productFields"
+  | "homeLayout";
 
 export interface FieldDef {
   key: string;
@@ -554,7 +555,9 @@ export const settingsSchema: SectionDef[] = [
       },
       {
         title: "Bosh sahifadagi bloklar",
+        description: "Bloklarning tartibi va ko'rinishi. Yangi bloklar (masalan «Hafta bestsellerlari», «Mualliflar») Nazorat → Katalog boshqaruvi → Bosh sahifa bloklari bo'limida yaratiladi.",
         fields: [
+          { key: "homeOrder", label: "Bloklar tartibi", type: "homeLayout", default: [] },
           { key: "featuredShow", label: "Tavsiya etilgan mahsulotlar", type: "boolean", default: true },
           { key: "featuredTitle", label: "Sarlavha", type: "ltext", default: L("Tavsiya etamiz", "Рекомендуем", "Recommended") },
           { key: "categoriesShow", label: "Kategoriyalar bloki", type: "boolean", default: true },

@@ -29,7 +29,12 @@ export function Catalog() {
   const effQ = dq.length >= minChars ? dq : "";
   const [open, setOpen] = useState<Product | null>(null);
   // Filtrlar faqat shu seans davomida saqlanadi (ilovadan chiqilsa — admin sozlamasiga qaytadi)
-  const [filters, setFilters] = useState<CatalogFilters>(emptyFilters);
+  // Bosh sahifadagi mini blokdan kelgan filtr: /catalog?f_cf:<id>=Qiymat
+  const [filters, setFilters] = useState<CatalogFilters>(() => {
+    const fields: Record<string, string[]> = {};
+    for (const [k, val] of params.entries()) if (k.startsWith("f_") && val) fields[k.slice(2)] = val.split("|");
+    return Object.keys(fields).length ? { ...emptyFilters, fields } : emptyFilters;
+  });
   const [filterOpen, setFilterOpen] = useState(false);
   const filterEnabled = v<boolean>("catalog", "filterEnabled", true);
   const activeFilters = filtersCount(filters);
@@ -64,6 +69,16 @@ export function Catalog() {
     io.observe(el);
     return () => io.disconnect();
   }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage, query]);
+
+  // Mini blokdan kelgan f_ parametrlarini manzildan tozalaymiz (filtr o'zi saqlanib qoladi)
+  useEffect(() => {
+    const keys = [...params.keys()].filter((k) => k.startsWith("f_"));
+    if (!keys.length) return;
+    const p = new URLSearchParams(params);
+    for (const k of keys) p.delete(k);
+    setParams(p, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ?product=ID orqali ochish (banner havolasi)
   useEffect(() => {

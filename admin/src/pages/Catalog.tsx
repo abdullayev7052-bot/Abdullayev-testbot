@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, Star, ArrowUp, ArrowDown, RefreshCw, Search, ArrowDownAZ, Copy, ChevronsUp, ChevronsDown, Percent } from "lucide-react";
-import { api } from "../lib/api.ts";
+import { api, type Options } from "../lib/api.ts";
 import { Modal, PageTitle, Spinner, Toggle, useToast } from "../components/ui.tsx";
+import { HomeBlocksTab } from "./HomeBlocks.tsx";
 
 interface P { id: number; bitoId: string; name: string; image: string | null; price: number; stock: number; categoryId: string | null; categoryName: string | null; hidden: boolean; featured: boolean; sortOrder: number; boxItem: number; sku: string | null; finalPrice?: number; discountPercent?: number; roundStep?: number; roundMode?: string }
 interface C { id: number; bitoId: string; name: string; parentId: string | null; image: string | null; hidden: boolean; sortOrder: number; itemCount: number }
@@ -27,7 +28,8 @@ export function CatalogPage() {
   const qc = useQueryClient();
   const toast = useToast((s) => s.show);
   const q = useQuery({ queryKey: ["catalog"], queryFn: () => api.get<Data>("/catalog"), staleTime: 30000 });
-  const [tab, setTab] = useState<"products" | "categories">("products");
+  const options = useQuery({ queryKey: ["bito-options"], queryFn: () => api.get<Options>("/bito/options"), staleTime: 60000 });
+  const [tab, setTab] = useState<"products" | "categories" | "blocks">("products");
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("");
   const [sel, setSel] = useState<Set<number>>(new Set());
@@ -120,7 +122,10 @@ export function CatalogPage() {
       <div className="flex gap-2 mb-4">
         <button className={`btn ${tab === "products" ? "btn-primary" : "btn-ghost"}`} onClick={() => setTab("products")}>Mahsulotlar ({products.length})</button>
         <button className={`btn ${tab === "categories" ? "btn-primary" : "btn-ghost"}`} onClick={() => setTab("categories")}>Kategoriyalar ({cats.length})</button>
+        <button className={`btn ${tab === "blocks" ? "btn-primary" : "btn-ghost"}`} onClick={() => setTab("blocks")}>Bosh sahifa bloklari</button>
       </div>
+
+      {tab === "blocks" ? <HomeBlocksTab products={products} options={options.data || null} /> : null}
 
       {tab === "products" ? (
         <div className="card">
