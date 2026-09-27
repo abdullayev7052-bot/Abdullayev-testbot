@@ -125,7 +125,9 @@ function BlockRow({ b, onOpen, onWaitlist, overrides }: { b: HomeBlock; onOpen: 
               <div className="overflow-hidden bg-slate-100 flex items-center justify-center" style={{ width: size, height: size, borderRadius: radius }}>
                 {e.image ? <Img src={e.image} className="w-full h-full" /> : <span className="text-xl">🏷</span>}
               </div>
-              {style.showTitle !== false && <span className="text-[11px] leading-tight text-center line-clamp-2" style={{ width: size + 10 }}>{e.title || e.value}</span>}
+              {style.showTitle !== false && (
+                <span className="leading-tight text-center line-clamp-2" style={{ width: size + 10, fontSize: e.titleSize || Number(style.titleSize) || 11 }}>{e.title || e.value}</span>
+              )}
             </motion.button>
           ))}
         </div>

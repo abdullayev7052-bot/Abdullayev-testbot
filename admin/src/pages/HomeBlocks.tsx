@@ -7,7 +7,7 @@ import { ImageUpload, Modal, Spinner, Toggle, confirmDialog, useToast } from "..
 export interface HomeBlock {
   id: number; kind: "products" | "chips"; source: string; fieldKey: string | null;
   title: Partial<LText>; style: Record<string, unknown>; limit: number; active: boolean; sortOrder: number;
-  items: { id: number; productId: number | null; productName: string | null; value: string | null; image: string | null; title: string | null; sortOrder: number }[];
+  items: { id: number; productId: number | null; productName: string | null; value: string | null; image: string | null; title: string | null; titleSize?: number | null; sortOrder: number }[];
 }
 interface P { id: number; name: string; categoryName: string | null; image: string | null }
 
@@ -105,8 +105,8 @@ function BlockEditor({ block, products, fieldOptions, onClose, onSaved }: {
   const items = block.items || [];
   const [b, setB] = useState<HomeBlock>({ ...block, items });
   const [picked, setPicked] = useState<number[]>(items.filter((i) => i.productId).map((i) => i.productId!));
-  const [entries, setEntries] = useState<{ value: string; image?: string; title?: string }[]>(
-    items.filter((i) => i.value).map((i) => ({ value: i.value!, image: i.image || undefined, title: i.title || undefined })),
+  const [entries, setEntries] = useState<{ value: string; image?: string; title?: string; titleSize?: number }[]>(
+    items.filter((i) => i.value).map((i) => ({ value: i.value!, image: i.image || undefined, title: i.title || undefined, titleSize: i.titleSize || undefined })),
   );
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
@@ -184,6 +184,7 @@ function BlockEditor({ block, products, fieldOptions, onClose, onSaved }: {
               </div>
               <div><label className="label">O'lchami (px)</label><input type="number" className="input !w-28" min={40} max={140} value={Number(style.size || 72)} onChange={(e) => setStyle("size", Number(e.target.value))} /></div>
               <div><label className="label">Burchak (px)</label><input type="number" className="input !w-28" min={0} max={40} value={Number(style.radius ?? 16)} onChange={(e) => setStyle("radius", Number(e.target.value))} /></div>
+              <div><label className="label">Nom o'lchami (px)</label><input type="number" className="input !w-28" min={8} max={24} value={Number(style.titleSize || 11)} onChange={(e) => setStyle("titleSize", Number(e.target.value))} /></div>
               <Toggle value={style.showTitle !== false} onChange={(v) => setStyle("showTitle", v)} label="Rasm ostida nomi" />
             </>
           ) : (
@@ -231,6 +232,13 @@ function BlockEditor({ block, products, fieldOptions, onClose, onSaved }: {
                           <ImageUpload value={entries[idx].image || ""} onChange={(img) => setEntries(entries.map((e, i) => (i === idx ? { ...e, image: img } : e)))} hint="Doirada ko'rinadigan rasm" />
                           <div><label className="label">Ko'rinadigan nom (ixtiyoriy)</label>
                             <input className="input !w-52" placeholder={v.value} value={entries[idx].title || ""} onChange={(e) => setEntries(entries.map((x, i) => (i === idx ? { ...x, title: e.target.value } : x)))} /></div>
+                          <div><label className="label">Nom o'lchami (px)</label>
+                            <div className="flex items-center gap-2">
+                              <input type="number" className="input !w-24" min={8} max={24} placeholder={String(style.titleSize || 11)}
+                                value={entries[idx].titleSize ?? ""} onChange={(e) => setEntries(entries.map((x, i) => (i === idx ? { ...x, titleSize: e.target.value ? Number(e.target.value) : undefined } : x)))} />
+                              <span className="text-xs leading-tight" style={{ fontSize: entries[idx].titleSize || Number(style.titleSize) || 11 }}>{entries[idx].title || v.value}</span>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

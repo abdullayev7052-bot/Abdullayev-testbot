@@ -1,7 +1,7 @@
 /**
  * Savdo chekini Excel (.xlsx) shaklida tayyorlash.
- * Shablon: Tashkilot / Savdo raqami / Mijoz / Telefon + mahsulotlar jadvali + umumiy summa.
- * Hech qanday akkauntga bog'lanmagan — barcha ma'lumot savdoning o'zidan olinadi.
+ * Bitta toza varaq: yuqorida ma'lumotlar, ostida bitta jadval, eng pastda yakun.
+ * Birlashtirilgan kataklar ishlatilmaydi — fayl har qanday dasturda bir xil ochiladi.
  */
 import ExcelJS from "exceljs";
 import type { BitoTrade } from "./types.ts";
@@ -24,16 +24,16 @@ const T: Record<string, Record<Lang, string>> = {
   total: { uz: "Umumiy summa", ru: "Итого", en: "Grand total" },
   discount: { uz: "Chegirma", ru: "Скидка", en: "Discount" },
   debt: { uz: "Qarz", ru: "Долг", en: "Debt" },
+  totalQty: { uz: "Jami miqdor", ru: "Всего количество", en: "Total qty" },
   refund: { uz: "QAYTARISH", ru: "ВОЗВРАТ", en: "REFUND" },
   receipt: { uz: "Savdo cheki", ru: "Чек продажи", en: "Sales receipt" },
 };
 const t = (k: string, lang: Lang) => T[k]?.[lang] || k;
 
-const BORDER = { style: "thin" as const, color: { argb: "FFD0D7E2" } };
-const allBorders = { top: BORDER, left: BORDER, bottom: BORDER, right: BORDER };
+const THIN = { style: "thin" as const, color: { argb: "FFD0D7E2" } };
+const BOX = { top: THIN, left: THIN, bottom: THIN, right: THIN };
 
 export interface ReceiptMeta {
-  /** Mijoz nomi/telefoni — Bito bermasa, bizdagi foydalanuvchidan */
   customerName?: string | null;
   customerPhone?: string | null;
   organization?: string | null;
@@ -49,28 +49,27 @@ export async function buildTradeExcel(trade: BitoTrade, langRaw: string, meta: R
   const wb = new ExcelJS.Workbook();
   wb.creator = lt(s.general.shopName, lang) || "Shop";
   wb.created = new Date();
-  const ws = wb.addWorksheet(t("receipt", lang), { pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1 } });
+  const ws = wb.addWorksheet(t("receipt", lang));
+  ws.properties.defaultRowHeight = 18;
   ws.columns = [
-    { width: 6 },   // №
-    { width: 44 },  // nomi
-    { width: 14 },  // o'lchov
-    { width: 12 },  // miqdor
-    { width: 16 },  // narx
-    { width: 18 },  // jami
+    { key: "a", width: 6 },
+    { key: "b", width: 42 },
+    { key: "c", width: 14 },
+    { key: "d", width: 12 },
+    { key: "e", width: 16 },
+    { key: "f", width: 18 },
   ];
 
-  // --- Sarlavha ---
-  ws.mergeCells("A1:F1");
+  // --- 1-qator: do'kon nomi ---
   const title = ws.getCell("A1");
   title.value = `${lt(s.general.shopName, lang)} — ${trade.is_refund ? t("refund", lang) : t("receipt", lang)}`;
   title.font = { size: 14, bold: true };
-  title.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(1).height = 24;
 
-  // --- Ma'lumotlar bloki ---
+  // --- Ma'lumotlar: A ustunda nomi, B ustunda qiymati ---
   const org = meta.organization || trade.organization?.name || "";
   const seller = trade.responsible?.full_name || trade.created_by?.full_name || "";
-  const dateStr = new Date(trade.sold_at || trade.date || trade.created_at || Date.now()).toLocaleString(lang === "ru" ? "ru-RU" : lang === "en" ? "en-US" : "uz-UZ");
+  const dateStr = new Date(trade.sold_at || trade.date || trade.created_at || Date.now())
+    .toLocaleString(lang === "ru" ? "ru-RU" : lang === "en" ? "en-US" : "uz-UZ");
   const info: [string, string][] = ([
     [t("organization", lang), org],
     [t("number", lang), `№${trade.number || trade.uuid || ""}`],
@@ -78,20 +77,19 @@ export async function buildTradeExcel(trade: BitoTrade, langRaw: string, meta: R
     [t("customer", lang), trade.customer?.name || meta.customerName || ""],
     [t("phone", lang), trade.customer?.phone_number || meta.customerPhone || ""],
     [t("seller", lang), seller],
-  ] as [string, string][]).filter(([, v]) => v !== "");
+  ] as [string, string][]).filter(([, v]) => v !== "" && v !== "№");
 
   let row = 3;
   for (const [k, v] of info) {
     ws.getCell(`A${row}`).value = `${k}:`;
     ws.getCell(`A${row}`).font = { bold: true };
-    ws.mergeCells(`B${row}:F${row}`);
+    ws.getCell(`A${row}`).alignment = { horizontal: "left" };
     ws.getCell(`B${row}`).value = v;
     row++;
   }
 
   // --- Jadval sarlavhasi ---
-  row += 1;
-  const headRow = row;
+  const headRow = row + 1;
   const heads = [t("no", lang), t("product", lang), t("measure", lang), t("qty", lang), `${t("price", lang)}, ${suffix}`, `${t("sum", lang)}, ${suffix}`];
   heads.forEach((h, i) => {
     const c = ws.getCell(headRow, i + 1);
@@ -99,66 +97,70 @@ export async function buildTradeExcel(trade: BitoTrade, langRaw: string, meta: R
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } };
     c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    c.border = allBorders;
+    c.border = BOX;
   });
-  ws.getRow(headRow).height = 22;
+  ws.getRow(headRow).height = 24;
 
   // --- Mahsulotlar ---
   let total = 0;
   let totalQty = 0;
-  (trade.products || []).forEach((p, i) => {
+  const products = trade.products || [];
+  products.forEach((p, i) => {
     const r = headRow + 1 + i;
     const qty = Number(p.amount || 0);
     const price = Number(p.price || 0);
     const sum = Number(p.total_to_pay ?? p.total_price ?? price * qty);
     total += sum;
     totalQty += qty;
-    const cells: (string | number)[] = [i + 1, p.name || "", p.measure?.short_name || p.measure?.name || "", qty, price, sum];
-    cells.forEach((v, ci) => {
+    const values: (string | number)[] = [i + 1, p.name || "", p.measure?.short_name || p.measure?.name || "", qty, price, sum];
+    values.forEach((v, ci) => {
       const c = ws.getCell(r, ci + 1);
       c.value = v;
-      c.border = allBorders;
-      c.alignment = { vertical: "middle", horizontal: ci === 1 ? "left" : "center", wrapText: ci === 1 };
-      if (ci >= 3) c.numFmt = ci === 3 ? "#,##0.###" : moneyFmt;
-      if (ci >= 4) c.alignment = { vertical: "middle", horizontal: "right" };
+      c.border = BOX;
+      c.alignment = ci === 1 ? { vertical: "middle", horizontal: "left", wrapText: true }
+        : ci >= 4 ? { vertical: "middle", horizontal: "right" }
+          : { vertical: "middle", horizontal: "center" };
+      if (ci === 3) c.numFmt = "#,##0.###";
+      if (ci >= 4) c.numFmt = moneyFmt;
     });
   });
+  const lastItemRow = headRow + products.length;
 
-  const lastRow = headRow + (trade.products?.length || 0);
-  // --- Yakuniy qatorlar ---
-  let sumRow = lastRow + 1;
-  const addSummary = (label: string, value: number, bold = false) => {
-    ws.mergeCells(`A${sumRow}:E${sumRow}`);
-    const l = ws.getCell(`A${sumRow}`);
+  // --- Yakuniy qatorlar: nomi E ustunda, qiymati F ustunda (birlashtirishsiz) ---
+  let sumRow = lastItemRow + 1;
+  const addTotal = (label: string, value: number, bold = false, fmt = moneyFmt) => {
+    const l = ws.getCell(`E${sumRow}`);
     l.value = label;
-    l.alignment = { horizontal: "right", vertical: "middle" };
     l.font = { bold };
+    l.alignment = { horizontal: "right", vertical: "middle" };
+    l.border = BOX;
     const v = ws.getCell(`F${sumRow}`);
     v.value = value;
-    v.numFmt = moneyFmt;
+    v.numFmt = fmt;
     v.font = { bold };
     v.alignment = { horizontal: "right", vertical: "middle" };
-    l.border = allBorders;
-    v.border = allBorders;
+    v.border = BOX;
     if (bold) {
-      l.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF4FF" } };
-      v.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF4FF" } };
+      const fill = { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: "FFEFF4FF" } };
+      l.fill = fill;
+      v.fill = fill;
     }
     sumRow++;
   };
-  if (trade.total_discount) addSummary(`${t("discount", lang)}, ${suffix}:`, Number(trade.total_discount));
-  addSummary(`${t("total", lang)}, ${suffix}:`, Number(trade.total_to_pay ?? trade.total_price ?? total), true);
-  if (Number(trade.debt || 0) > 0 && !trade.is_refund) addSummary(`${t("debt", lang)}, ${suffix}:`, Number(trade.debt));
+  addTotal(`${t("totalQty", lang)}:`, totalQty, false, "#,##0.###");
+  if (trade.total_discount) addTotal(`${t("discount", lang)}:`, Number(trade.total_discount));
+  addTotal(`${t("total", lang)}, ${suffix}:`, Number(trade.total_to_pay ?? trade.total_price ?? total), true);
+  if (Number(trade.debt || 0) > 0 && !trade.is_refund) addTotal(`${t("debt", lang)}:`, Number(trade.debt));
 
-  // Miqdor yig'indisi izoh sifatida
-  ws.getCell(`A${sumRow + 1}`).value = `${t("qty", lang)}: ${totalQty}`;
-  ws.getCell(`A${sumRow + 1}`).font = { size: 9, color: { argb: "FF64748B" } };
+  // Chop etish uchun: bitta sahifa eniga sig'sin
+  ws.pageSetup = { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+  ws.views = [{ state: "frozen", ySplit: headRow }];
 
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);
 }
 
-/** Fayl nomi: chek-№123-2026-09-27.xlsx */
+/** Fayl nomi: chek-123-2026-09-27.xlsx */
 export function receiptFileName(trade: BitoTrade): string {
   const num = String(trade.number || trade.uuid || trade._id).replace(/[^\w-]+/g, "");
   const d = new Date(trade.sold_at || trade.date || trade.created_at || Date.now()).toISOString().slice(0, 10);

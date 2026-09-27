@@ -437,7 +437,7 @@ export const settingsSchema: SectionDef[] = [
     groups: [
       {
         title: "Tayyor uslublar (shablonlar)",
-        description: "Dunyodagi eng chiroyli ilovalar uslubi asosida. Shablonni bosing — ranglar, shrift, fon va navigatsiya bir vaqtda to'ldiriladi, keyin xohlagan joyini o'zgartirasiz.",
+        description: "Shablonni bosing — ranglar, shrift, fon va navigatsiya bir vaqtda to'ldiriladi, keyin xohlagan joyini o'zgartirasiz.",
         fields: [
           { key: "presetPicker", label: "Shablonni tanlang", type: "themePresets", default: "" },
         ],
@@ -447,9 +447,9 @@ export const settingsSchema: SectionDef[] = [
         fields: [
           { key: "fontFamily", label: "Shrift", type: "select", default: "system", options: [
             { value: "system", label: "Tizim shrifti (eng tez)" },
-            { value: "inter", label: "Inter — zamonaviy, toza (Telegram uslubi)" },
+            { value: "inter", label: "Inter — zamonaviy, toza" },
             { value: "manrope", label: "Manrope — yumshoq, do'stona" },
-            { value: "rubik", label: "Rubik — qalin, yorqin (Duolingo uslubi)" },
+            { value: "rubik", label: "Rubik — qalin, yorqin" },
             { value: "nunito", label: "Nunito — yumaloq, iliq" },
             { value: "poppins", label: "Poppins — geometrik, chiroyli" },
             { value: "montserrat", label: "Montserrat — kuchli sarlavhalar" },
@@ -471,7 +471,7 @@ export const settingsSchema: SectionDef[] = [
           { key: "bgStyle", label: "Fon turi", type: "select", default: "solid", options: [
             { value: "solid", label: "Bir xil rang" },
             { value: "gradient", label: "Gradient (ikki rang)" },
-            { value: "mesh", label: "Yumshoq dog'lar (mesh) — iOS uslubi" },
+            { value: "mesh", label: "Yumshoq dog'lar (mesh)" },
             { value: "image", label: "Rasm" },
           ] },
           { key: "bgColor2", label: "Gradient / dog'lar uchun ikkinchi rang", type: "color", default: "#eef2ff" },
@@ -512,13 +512,12 @@ export const settingsSchema: SectionDef[] = [
       },
       {
         title: "Animatsiya uslubi",
-        description: "Dunyodagi mashhur Mini App'lar (Telegram Wallet, Notcoin, Hamster, Blum, Major) uslublari asosida",
         fields: [
-          { key: "pageTransition", label: "Bo'limlar orasidagi o'tish", type: "select", default: "ios", options: [
-            { value: "ios", label: "iOS — yon tomondan surilish (Wallet, Telegram)" },
-            { value: "fade", label: "Yumshoq so'nish (Blum)" },
-            { value: "zoom", label: "Kattalashib chiqish (Notcoin)" },
-            { value: "up", label: "Pastdan ko'tarilish (Hamster)" },
+          { key: "pageTransition", label: "Bo'limlar orasidagi o'tish", type: "select", default: "slide", options: [
+            { value: "slide", label: "Yon tomondan surilish" },
+            { value: "fade", label: "Yumshoq so'nish" },
+            { value: "zoom", label: "Kattalashib chiqish" },
+            { value: "up", label: "Pastdan ko'tarilish" },
             { value: "none", label: "O'tish animatsiyasisiz" },
           ] },
           { key: "motionPreset", label: "Harakat xarakteri", type: "select", default: "smooth", options: [
@@ -546,6 +545,7 @@ export const settingsSchema: SectionDef[] = [
           { key: "splashImage", label: "Rasm", type: "image", default: "" },
           { key: "splashImageSize", label: "Rasm o'lchami (px)", type: "number", default: 96, min: 40, max: 240 },
           { key: "splashText", label: "Ostidagi matn", type: "ltext", default: L("", "", "") },
+          { key: "splashBgTransparent", label: "Fon ilova rangi bilan bir xil bo'lsin", type: "boolean", default: false },
           { key: "splashBg", label: "Fon rangi", type: "color", default: "#ffffff" },
           { key: "splashAnimation", label: "Animatsiya", type: "select", default: "pulse", options: [
             { value: "pulse", label: "Pulsatsiya" }, { value: "bounce", label: "Sakrash" }, { value: "spin", label: "Aylanish" }, { value: "fade", label: "So'nib chiqish" }, { value: "none", label: "Yo'q" },
@@ -575,7 +575,8 @@ export const settingsSchema: SectionDef[] = [
           { key: "logoPosition", label: "Joylashuvi", type: "select", default: "right", options: [
             { value: "right", label: "O'ng tomonda" }, { value: "left", label: "Chap tomonda" },
           ] },
-          { key: "logoBg", label: "Logo foni", type: "color", default: "#f1f5f9" },
+          { key: "logoBgTransparent", label: "Logo foni shaffof (rangsiz)", type: "boolean", default: false, help: "Yoqilsa logo orqasi ilovaning o'z foni bilan bir xil bo'ladi — PNG shaffof logolar uchun" },
+          { key: "logoBg", label: "Logo foni (shaffof bo'lmasa)", type: "color", default: "#f1f5f9" },
         ],
       },
       {
@@ -599,7 +600,7 @@ export const settingsSchema: SectionDef[] = [
           { key: "bannersAnimation", label: "Keyingisiga o'tish animatsiyasi", type: "select", default: "slide", options: [
             { value: "slide", label: "Surilish (oddiy)" },
             { value: "fade", label: "Yumshoq so'nish" },
-            { value: "carousel", label: "Karusel — yonidagilari ko'rinib turadi (Instagram)" },
+            { value: "carousel", label: "Karusel — yonidagilari ko'rinib turadi" },
             { value: "stack", label: "Qalqib chiqish (ustma-ust)" },
             { value: "zoom", label: "Kattalashib chiqish" },
             { value: "flip", label: "Ag'darilish (3D)" },
@@ -656,11 +657,11 @@ export const settingsSchema: SectionDef[] = [
       },
       {
         title: "Pastki navigatsiya",
-        description: "Bosh sahifa / Katalog / Savatcha / Profil paneli — Telegram, iOS va boshqa mashhur ilovalar uslubida sozlanadi",
+        description: "Bosh sahifa / Katalog / Savatcha / Profil paneli",
         fields: [
           { key: "navStyle", label: "Uslubi", type: "select", default: "glass", options: [
             { value: "solid", label: "To'q (oddiy)" },
-            { value: "glass", label: "Shisha — blur (Telegram / iOS)" },
+            { value: "glass", label: "Shisha — blur" },
             { value: "floating", label: "Suzuvchi panel (chetlardan ajralgan)" },
             { value: "borderless", label: "Chegarasiz, toza" },
           ] },
@@ -944,6 +945,17 @@ export const settingsSchema: SectionDef[] = [
       {
         title: "Bloklar",
         fields: [
+          { key: "today", label: "«Bugun»", type: "ltext", default: L("Bugun", "Сегодня", "Today") },
+          { key: "yesterday", label: "«Kecha»", type: "ltext", default: L("Kecha", "Вчера", "Yesterday") },
+          { key: "detailNumber", label: "Tafsilot: raqami", type: "ltext", default: L("Buyurtma raqami", "Номер заказа", "Order number") },
+          { key: "detailStatus", label: "Tafsilot: holati", type: "ltext", default: L("Holati", "Статус", "Status") },
+          { key: "detailOrg", label: "Tafsilot: tashkilot", type: "ltext", default: L("Tashkilot", "Организация", "Organization") },
+          { key: "detailDate", label: "Tafsilot: sana", type: "ltext", default: L("Sana", "Дата", "Date") },
+          { key: "detailProducts", label: "Tafsilot: mahsulotlar", type: "ltext", default: L("Mahsulotlar", "Товары", "Products") },
+          { key: "detailTotal", label: "Tafsilot: jami summa", type: "ltext", default: L("Jami summa", "Итого", "Total") },
+          { key: "orderDetailsTitle", label: "Buyurtma tafsilotlari sarlavhasi", type: "ltext", default: L("Buyurtma tafsilotlari", "Детали заказа", "Order details") },
+          { key: "purchaseDetailsTitle", label: "Xarid tafsilotlari sarlavhasi", type: "ltext", default: L("Xarid tafsilotlari", "Детали покупки", "Purchase details") },
+          { key: "pieceShort", label: "«dona» qisqartmasi", type: "ltext", default: L("dona", "шт", "pcs") },
           { key: "showBalance", label: "Balansni ko'rsatish", type: "boolean", default: true },
           { key: "showPurchases", label: "Xaridlar tarixini ko'rsatish", type: "boolean", default: true },
           { key: "showCard", label: "Sodiqlik kartasini ko'rsatish", type: "boolean", default: true },

@@ -28,6 +28,8 @@ export function Catalog() {
   const minChars = v<number>("catalog", "searchMinChars", 3);
   const effQ = dq.length >= minChars ? dq : "";
   const [open, setOpen] = useState<Product | null>(null);
+  // Bannerga biriktirilgan mahsulotlar: /catalog?ids=1,2,3
+  const [pinnedIds] = useState<string>(() => params.get("ids") || "");
   // Filtrlar faqat shu seans davomida saqlanadi (ilovadan chiqilsa — admin sozlamasiga qaytadi)
   // Bosh sahifadagi mini blokdan kelgan filtr: /catalog?f_cf:<id>=Qiymat
   const [filters, setFilters] = useState<CatalogFilters>(() => {
@@ -53,8 +55,8 @@ export function Catalog() {
   const sentinel = useRef<HTMLDivElement>(null);
 
   const query = useInfiniteQuery({
-    queryKey: ["products", category, effQ, filterQs],
-    queryFn: ({ pageParam }) => api.get<ProductPage>(`/products?page=${pageParam}&limit=40&category=${encodeURIComponent(category)}&q=${encodeURIComponent(effQ)}${filterQs}`),
+    queryKey: ["products", category, effQ, filterQs, pinnedIds],
+    queryFn: ({ pageParam }) => api.get<ProductPage>(`/products?page=${pageParam}&limit=40&category=${encodeURIComponent(category)}&q=${encodeURIComponent(effQ)}${filterQs}${pinnedIds ? `&ids=${encodeURIComponent(pinnedIds)}` : ""}`),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
     staleTime: 20000,
@@ -72,7 +74,7 @@ export function Catalog() {
 
   // Mini blokdan kelgan f_ parametrlarini manzildan tozalaymiz (filtr o'zi saqlanib qoladi)
   useEffect(() => {
-    const keys = [...params.keys()].filter((k) => k.startsWith("f_"));
+    const keys = [...params.keys()].filter((k) => k.startsWith("f_") || k === "ids");
     if (!keys.length) return;
     const p = new URLSearchParams(params);
     for (const k of keys) p.delete(k);

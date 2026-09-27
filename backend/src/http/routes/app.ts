@@ -159,16 +159,16 @@ async function homeBlocks(user: User, products: Product[], marks: Marks, lang: L
     if (b.kind === "chips") {
       // Mini bloklar: qo'shimcha maydon qiymatlari (Mualliflar, Nashriyotlar, Brendlar...)
       const manual = b.items.filter((i) => i.value);
-      let entries: { value: string; image: string | null; title: string | null; count: number }[];
+      let entries: { value: string; image: string | null; title: string | null; titleSize?: number | null; count: number }[];
       const counts = new Map<string, number>();
       for (const p of products) {
         const v = b.fieldKey ? valueOf(p, b.fieldKey) : null;
         if (v) counts.set(v, (counts.get(v) || 0) + 1);
       }
       if (manual.length) {
-        entries = manual.map((i) => ({ value: i.value!, image: i.image || null, title: i.title, count: counts.get(i.value!) || 0 }));
+        entries = manual.map((i) => ({ value: i.value!, image: i.image || null, title: i.title, titleSize: i.titleSize, count: counts.get(i.value!) || 0 }));
       } else {
-        entries = [...counts.entries()].sort((a, b2) => b2[1] - a[1] || a[0].localeCompare(b2[0], "uz")).slice(0, b.limit).map(([value, count]) => ({ value, image: null, title: null, count }));
+        entries = [...counts.entries()].sort((a, b2) => b2[1] - a[1] || a[0].localeCompare(b2[0], "uz")).slice(0, b.limit).map(([value, count]) => ({ value, image: null, title: null, titleSize: null, count }));
       }
       entries = entries.filter((e) => e.count > 0 || !!e.image);
       if (entries.length) out.push({ id: b.id, key: `block:${b.id}`, kind: "chips", title, fieldKey: b.fieldKey, style, entries });
@@ -234,7 +234,7 @@ appRouter.get("/bootstrap", async (req, res) => {
     store: { id: store.id, name: store.name(lang), pickupAddress: store.pickupAddress(lang), pickupLocation: store.pickupLocation },
     settings: publicSettings(),
     stories: stories.map((st) => ({ id: st.id, title: st.title, cover: st.cover, slides: st.slides.map((sl) => ({ id: sl.id, image: sl.image, caption: sl.caption, link: sl.link, duration: sl.duration || s.design.storiesDefaultDuration || 5, buttonText: sl.buttonText || null })) })).filter((st) => st.slides.length),
-    banners: banners.map((b) => ({ id: b.id, image: b.image, title: b.title, subtitle: b.subtitle, link: b.link, textColor: b.textColor, design: b.design })),
+    banners: banners.map((b) => ({ id: b.id, image: b.image, link: b.link, productIds: (b.productIds as number[]) || [] })),
     categories: cats,
     featured, newest, productCount: products.length,
     blocks: await homeBlocks(user, blockSource, marks, lang),
@@ -258,6 +258,13 @@ appRouter.get("/products", async (req, res) => {
     while (grew) { grew = false; for (const c of cats) if (c.parentId && ids.has(c.parentId) && !ids.has(c.bitoId)) { ids.add(c.bitoId); grew = true; } }
     list = list.filter((p) => p.categoryBitoId && ids.has(p.categoryBitoId));
   }
+  // Bannerga biriktirilgan mahsulotlar: ?ids=1,2,3
+  const idsParam = String(req.query.ids || "").split(",").map((x) => Number(x.trim())).filter((x) => x > 0);
+  if (idsParam.length) {
+    const order = new Map(idsParam.map((id, i) => [id, i]));
+    list = list.filter((p) => order.has(p.id)).sort((a, b) => (order.get(a.id) || 0) - (order.get(b.id) || 0));
+  }
+
   // Qo'shimcha maydon filtrlari: f_cf:<id>=qiymat, f_category=..., narx: minPrice/maxPrice
   const fieldFilters: { key: string; values: string[] }[] = [];
   for (const [qk, qv] of Object.entries(req.query)) {
@@ -411,6 +418,7 @@ appRouter.get("/purchases", async (req, res) => {
       items: (r.data || []).filter((t) => t.state !== "canceled").map((t) => ({
         id: t._id, number: t.number || t.uuid, date: t.sold_at || t.date || t.created_at, total: t.total_to_pay ?? t.total_price ?? 0,
         debt: t.debt || 0, seller: t.responsible?.full_name || t.created_by?.full_name || "", isRefund: !!t.is_refund, itemsCount: t.total_amount || 0,
+        org: t.organization?.name || null,
       })),
     });
   } catch (e) {
@@ -427,7 +435,13 @@ appRouter.get("/purchases/:id", async (req, res) => {
     res.json({
       id: t._id, number: t.number, date: t.sold_at || t.date, total: t.total_to_pay ?? t.total_price, debt: t.debt || 0,
       seller: t.responsible?.full_name || "", payments: (t.payments || []).map((p) => ({ method: p.payment_method?.name, amount: p.amount || p.paid })),
-      items: (t.products || []).map((p) => ({ bitoId: p.product_id, name: p.name, qty: p.amount, price: p.price, total: p.total_to_pay ?? p.total_price, measure: p.measure?.short_name })),
+      org: t.organization?.name || null,
+      items: await (async () => {
+        const rows = t.products || [];
+        const local = await prisma.product.findMany({ where: { bitoId: { in: rows.map((x) => x.product_id).filter(Boolean) } }, select: { bitoId: true, image: true } });
+        const imgs = new Map(local.map((x) => [x.bitoId, bito.fileUrl(x.image)]));
+        return rows.map((p) => ({ bitoId: p.product_id, name: p.name, qty: p.amount, price: p.price, total: p.total_to_pay ?? p.total_price, measure: p.measure?.short_name, image: imgs.get(p.product_id) || null }));
+      })(),
     });
   } catch (e) { res.status(500).json({ error: errMsg(e) }); }
 });

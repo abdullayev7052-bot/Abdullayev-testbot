@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Star, ArrowUp, ArrowDown, RefreshCw, Search, ArrowDownAZ, Copy, ChevronsUp, ChevronsDown, Percent } from "lucide-react";
+import { Eye, EyeOff, Star, ArrowUp, ArrowDown, RefreshCw, Search, ArrowDownAZ, Copy, ChevronsUp, ChevronsDown, Percent, Image as ImageIcon } from "lucide-react";
 import { api, type Options } from "../lib/api.ts";
 import { Modal, PageTitle, Spinner, Toggle, useToast } from "../components/ui.tsx";
 import { HomeBlocksTab } from "./HomeBlocks.tsx";
 
 interface P { id: number; bitoId: string; name: string; image: string | null; price: number; stock: number; categoryId: string | null; categoryName: string | null; hidden: boolean; featured: boolean; sortOrder: number; boxItem: number; sku: string | null; finalPrice?: number; discountPercent?: number; roundStep?: number; roundMode?: string }
 interface C { id: number; bitoId: string; name: string; parentId: string | null; image: string | null; hidden: boolean; sortOrder: number; itemCount: number }
+interface BannerRow { id: number; image: string; link: string | null; active: boolean; productIds?: number[] }
 interface Data { products: P[]; categories: C[]; uzs?: boolean; sync: { running: boolean; last: { at: string; ok: boolean; message: string } | null } }
 
 /** Tartibni serverga yuborishni 600 ms kechiktirib, bir nechta bosishni bittaga jamlash */
@@ -35,6 +36,18 @@ export function CatalogPage() {
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [disc, setDisc] = useState<{ percent: number; round: boolean; step: number; mode: string } | null>(null);
+  const [bannerPick, setBannerPick] = useState(false);
+  const banners = useQuery({ queryKey: ["banners"], queryFn: () => api.get<BannerRow[]>("/banners"), enabled: bannerPick });
+  /** Tanlangan mahsulotlarni bannerga biriktirish — mijoz bannerni bosganda shular chiqadi */
+  const attachToBanner = async (b: BannerRow) => {
+    const ids = [...sel];
+    try {
+      await api.put(`/banners/${b.id}`, { productIds: ids });
+      toast(`${ids.length} ta mahsulot bannerga biriktirildi`);
+      setBannerPick(false);
+      setSel(new Set());
+    } catch (e) { toast((e as Error).message, "err"); }
+  };
   const reorderP = useDebouncedReorder("/catalog/products/reorder");
   const reorderC = useDebouncedReorder("/catalog/categories/reorder");
 
@@ -140,6 +153,7 @@ export function CatalogPage() {
                 <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => { void bulk({ hidden: false }); }}>Ko'rsatish</button>
                 <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => { void bulk({ featured: true }); }}>★ Tavsiyaga</button>
                 <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => { void bulk({ featured: false }); }}>Tavsiyadan olish</button>
+                <button className="btn btn-ghost !py-1 !px-2 text-xs" onClick={() => setBannerPick(true)}><ImageIcon size={13} /> Bannerga biriktirish</button>
                 <button className="btn btn-ghost !py-1 !px-2 text-xs text-rose-600" onClick={() => setDisc({ percent: 10, round: true, step: 1000, mode: "nearest" })}><Percent size={12} /> Chegirma</button>
               </div>
             )}
@@ -190,6 +204,26 @@ export function CatalogPage() {
           ))}
         </div>
       )}
+
+      <Modal open={bannerPick} onClose={() => setBannerPick(false)} title={`Bannerga biriktirish (${sel.size} ta mahsulot)`}>
+        <div className="space-y-2">
+          {banners.isLoading ? <Spinner /> : !banners.data?.length ? (
+            <div className="text-sm text-slate-500 py-4 text-center">Hali banner yo'q. <b>Kontent → Banner</b> bo'limida qo'shing.</div>
+          ) : banners.data.map((b) => (
+            <button key={b.id} onClick={() => { void attachToBanner(b); }} className="w-full flex items-center gap-3 p-2 rounded-xl border border-slate-200 hover:border-[var(--primary)] text-left">
+              <img src={b.image} className="w-24 h-14 rounded-lg object-cover bg-slate-100 shrink-0" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium">Banner #{b.id}{!b.active && <span className="text-slate-400 font-normal"> · o'chirilgan</span>}</span>
+                <span className="block text-xs text-slate-500 truncate">
+                  {b.productIds?.length ? `hozir ${b.productIds.length} ta mahsulot biriktirilgan` : b.link ? `havola: ${b.link}` : "havolasiz"}
+                </span>
+              </span>
+              <span className="text-xs text-[var(--primary)] font-semibold shrink-0">Biriktirish →</span>
+            </button>
+          ))}
+          <div className="help">Biriktirilgandan keyin mijoz shu bannerni bosganda katalogda aynan shu mahsulotlar ko'rinadi.</div>
+        </div>
+      </Modal>
 
       <Modal open={!!disc} onClose={() => setDisc(null)} title={`Chegirma belgilash (${sel.size} ta mahsulot)`}>
         {disc && (

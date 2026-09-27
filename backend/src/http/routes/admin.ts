@@ -281,16 +281,16 @@ adminRouter.post("/stories/reorder", async (req, res) => {
 
 // ---------- Bannerlar ----------
 adminRouter.get("/banners", async (_req, res) => { res.json(await prisma.banner.findMany({ orderBy: { sortOrder: "asc" } })); });
-const bannerSchema = z.object({ image: z.string().min(1), title: z.string().max(80).nullable().optional(), subtitle: z.string().max(160).nullable().optional(), link: z.string().max(300).nullable().optional(), textColor: z.string().max(20).optional(), active: z.boolean().optional(), design: z.record(z.string(), z.unknown()).optional() });
+const bannerSchema = z.object({ image: z.string().min(1), link: z.string().max(300).nullable().optional(), active: z.boolean().optional(), productIds: z.array(z.number()).max(200).optional() });
 adminRouter.post("/banners", async (req, res) => {
   const b = bannerSchema.parse(req.body);
   if ((await prisma.banner.count()) >= MEDIA_LIMITS.banners) { res.status(400).json({ error: `Bannerlar limiti: ko'pi bilan ${MEDIA_LIMITS.banners} ta. Eskisini o'chiring.` }); return; }
   const max = (await prisma.banner.aggregate({ _max: { sortOrder: true } }))._max.sortOrder || 0;
-  res.json(await prisma.banner.create({ data: { image: b.image, title: b.title || null, subtitle: b.subtitle || null, link: b.link || null, textColor: b.textColor || "#ffffff", active: b.active ?? true, design: (b.design || {}) as object, sortOrder: max + 1 } }));
+  res.json(await prisma.banner.create({ data: { image: b.image, link: b.link || null, active: b.active ?? true, productIds: (b.productIds || []) as object, sortOrder: max + 1 } }));
 });
 adminRouter.put("/banners/:id", async (req, res) => {
   const b = bannerSchema.partial().extend({ sortOrder: z.number().optional() }).parse(req.body);
-  res.json(await prisma.banner.update({ where: { id: Number(req.params.id) }, data: { ...b, design: b.design as object | undefined } }));
+  res.json(await prisma.banner.update({ where: { id: Number(req.params.id) }, data: { ...b, productIds: b.productIds as object | undefined } }));
 });
 adminRouter.delete("/banners/:id", async (req, res) => { const b = await prisma.banner.findUnique({ where: { id: Number(req.params.id) } }); await prisma.banner.delete({ where: { id: Number(req.params.id) } }); if (b) await dropUpload(b.image); res.json({ ok: true }); });
 adminRouter.post("/banners/reorder", async (req, res) => {
@@ -469,14 +469,14 @@ adminRouter.put("/home-blocks/:id/items", async (req, res) => {
   const id = Number(req.params.id);
   const body = z.object({
     products: z.array(z.number()).max(200).optional(),
-    entries: z.array(z.object({ value: z.string().max(120), image: z.string().max(400).optional(), title: z.string().max(120).optional() })).max(200).optional(),
+    entries: z.array(z.object({ value: z.string().max(120), image: z.string().max(400).optional(), title: z.string().max(120).optional(), titleSize: z.number().int().min(8).max(24).optional() })).max(200).optional(),
   }).parse(req.body);
   await prisma.homeBlockItem.deleteMany({ where: { blockId: id } });
   if (body.products?.length) {
     await prisma.homeBlockItem.createMany({ data: body.products.map((productId, i) => ({ blockId: id, productId, sortOrder: i })) });
   }
   if (body.entries?.length) {
-    await prisma.homeBlockItem.createMany({ data: body.entries.map((e, i) => ({ blockId: id, value: e.value, image: localImage(e.image) || null, title: e.title || null, sortOrder: i })) });
+    await prisma.homeBlockItem.createMany({ data: body.entries.map((e, i) => ({ blockId: id, value: e.value, image: localImage(e.image) || null, title: e.title || null, titleSize: e.titleSize || null, sortOrder: i })) });
   }
   res.json({ ok: true });
 });

@@ -185,9 +185,8 @@ model Banner {
   active    Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
-  /// Matn va fon dizayni: { layout, align, valign, pad, titleSize, titleWeight, titleFont, titleColor2,
-  /// subSize, subColor, overlay, overlayFrom, overlayTo, bgColor, bgColor2, bgAngle, textShadow, badge, badgeColor, buttonText, buttonColor }
-  design    Json     @default("{}")
+  /// Bannerga biriktirilgan mahsulotlar (bosilganda katalog shular bo'yicha filtrlanadi)
+  productIds Json    @default("[]")
 }
 
 /// Admin paneldan boshqariladigan barcha sozlamalar (bo'limlar bo'yicha JSON)
@@ -322,6 +321,8 @@ model HomeBlockItem {
   value     String?
   image     String?
   title     String?
+  /// Mini blokdagi nom o'lchami (px) — har bir qiymat uchun alohida
+  titleSize Int?
   sortOrder Int       @default(0)
 
   @@index([blockId, sortOrder])

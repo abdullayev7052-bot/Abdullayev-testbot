@@ -64,7 +64,7 @@ export function Stories({ stories }: { stories: Story[] }) {
   );
 }
 
-/* Instagram uslubidagi to'liq ekran ko'ruvchi */
+/* To'liq ekranli storis ko'ruvchi */
 function StoryViewer({ stories, start, onClose }: { stories: Story[]; start: number; onClose: () => void }) {
   const nav = useNavigate();
   const { t, v } = useT();

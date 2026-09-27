@@ -81,9 +81,14 @@ function Shell() {
 }
 
 function Splash() {
-  const d = cachedDesign();
-  if (d.splashShow === false) return <div className="min-h-dvh" style={{ background: String(d.splashBg || "#fff") }} />;
-  const type = String(d.splashType || "emoji");
+  // Ilova ochilganda kesh, ma'lumot kelgach esa yangi sozlamalar ishlatiladi
+  const live = useApp((st) => st.data?.settings.design) as Record<string, unknown> | undefined;
+  const d = { ...cachedDesign(), ...(live || {}) };
+  const splashBg = d.splashBgTransparent ? "var(--bg)" : String(d.splashBg || "#fff");
+  if (d.splashShow === false) return <div className="min-h-dvh" style={{ background: splashBg }} />;
+  // Logo yuklangan bo'lsa — tur "emoji" bo'lsa ham rasm ko'rsatiladi (eski keshda qolib ketmasin)
+  const splashImg = String(d.splashImage || "") || String(d.logoImage || "");
+  const type = String(d.splashType || "") === "none" ? "none" : splashImg ? "image" : "emoji";
   const anim = String(d.splashAnimation || "pulse");
   const size = Number(d.splashImageSize || 96);
   const lang = (localStorage.getItem("lang") || "uz") as "uz" | "ru" | "en";
@@ -95,11 +100,11 @@ function Splash() {
     anim === "none" ? {} : { scale: [0.92, 1.06, 0.92] };
   const transition = anim === "spin" ? { repeat: Infinity, duration: 1.4, ease: "linear" as const } : { repeat: Infinity, duration: 1.2, ease: "easeInOut" as const };
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center" style={{ background: String(d.splashBg || "#fff") }}>
+    <div className="min-h-dvh flex flex-col items-center justify-center" style={{ background: splashBg }}>
       {type !== "none" && (
         <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ opacity: 1, ...animate }} transition={transition}>
-          {type === "image" && d.splashImage
-            ? <img src={String(d.splashImage)} alt="" style={{ width: size, height: size, objectFit: "contain" }} />
+          {type === "image" && splashImg
+            ? <img src={splashImg} alt="" style={{ width: size, height: size, objectFit: "contain" }} />
             : <div style={{ fontSize: Math.round(size * 0.66), lineHeight: 1 }}>{String(d.splashEmoji || "🛍")}</div>}
         </motion.div>
       )}

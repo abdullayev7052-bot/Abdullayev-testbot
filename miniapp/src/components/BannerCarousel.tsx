@@ -7,73 +7,6 @@ import { openLink, haptic, resolveTarget } from "../lib/telegram.ts";
 import { Media } from "./ui.tsx";
 import { track } from "../lib/analytics.ts";
 
-type D = Record<string, unknown>;
-const s = (d: D, k: string, def = "") => (typeof d[k] === "string" && d[k] ? String(d[k]) : def);
-const n = (d: D, k: string, def: number) => { const v = Number(d[k]); return Number.isFinite(v) && d[k] !== "" && d[k] !== null && d[k] !== undefined ? v : def; };
-
-/** Banner ichidagi matn bloki — joylashuvi, shrifti, gradienti admin paneldan sozlanadi */
-function BannerContent({ b, height }: { b: Banner; height: number }) {
-  const d = (b.design || {}) as D;
-  if (!b.title && !b.subtitle && !s(d, "buttonText") && !s(d, "badge")) return null;
-  const layout = s(d, "layout", "overlay");            // overlay | below | side
-  const align = s(d, "align", "left");                  // left | center | right
-  const valign = s(d, "valign", "center");              // top | center | bottom
-  const titleColor = s(d, "titleColor", b.textColor || "#ffffff");
-  const titleColor2 = s(d, "titleColor2", "");
-  const gradientText = !!titleColor2;
-  const overlay = s(d, "overlay", layout === "overlay" ? "left" : "none"); // left | bottom | full | none
-  const shadow = d.textShadow !== false && layout === "overlay";
-
-  const overlayBg =
-    overlay === "left" ? `linear-gradient(90deg, ${s(d, "overlayFrom", "rgba(0,0,0,.5)")} 0%, ${s(d, "overlayTo", "rgba(0,0,0,0)")} 75%)`
-      : overlay === "bottom" ? `linear-gradient(0deg, ${s(d, "overlayFrom", "rgba(0,0,0,.55)")} 0%, ${s(d, "overlayTo", "rgba(0,0,0,0)")} 70%)`
-        : overlay === "full" ? s(d, "overlayFrom", "rgba(0,0,0,.35)")
-          : "transparent";
-
-  const box: React.CSSProperties = {
-    background: layout === "overlay" ? overlayBg : undefined,
-    padding: n(d, "pad", 20),
-    alignItems: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
-    justifyContent: valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center",
-    textAlign: (align as React.CSSProperties["textAlign"]),
-  };
-  const titleStyle: React.CSSProperties = {
-    fontSize: n(d, "titleSize", 20),
-    fontWeight: s(d, "titleWeight", "700"),
-    lineHeight: 1.15,
-    letterSpacing: n(d, "titleSpacing", 0),
-    fontStyle: d.titleItalic ? "italic" : "normal",
-    textShadow: shadow ? "0 2px 12px rgba(0,0,0,.45)" : "none",
-    ...(gradientText
-      ? { backgroundImage: `linear-gradient(${n(d, "titleAngle", 90)}deg, ${titleColor}, ${titleColor2})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }
-      : { color: titleColor }),
-  };
-  const subStyle: React.CSSProperties = {
-    fontSize: n(d, "subSize", 13),
-    color: s(d, "subColor", titleColor),
-    opacity: n(d, "subOpacity", 90) / 100,
-    marginTop: 4,
-    fontWeight: s(d, "subWeight", "400"),
-    textShadow: shadow ? "0 1px 8px rgba(0,0,0,.4)" : "none",
-  };
-
-  return (
-    <div className={layout === "overlay" ? "absolute inset-0 flex flex-col" : "flex flex-col"}
-      style={{ ...box, ...(layout !== "overlay" ? { background: s(d, "bgColor", "transparent"), minHeight: layout === "below" ? undefined : height } : {}) }}>
-      {s(d, "badge") ? (
-        <span className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-2"
-          style={{ background: s(d, "badgeColor", "#ffffff"), color: s(d, "badgeTextColor", "#0f172a") }}>{s(d, "badge")}</span>
-      ) : null}
-      {b.title ? <div style={titleStyle} className="max-w-[85%]">{b.title}</div> : null}
-      {b.subtitle ? <div style={subStyle} className="max-w-[85%]">{b.subtitle}</div> : null}
-      {s(d, "buttonText") ? (
-        <span className="inline-flex items-center mt-3 px-3.5 py-2 rounded-xl text-sm font-semibold"
-          style={{ background: s(d, "buttonColor", "#ffffff"), color: s(d, "buttonTextColor", "#0f172a") }}>{s(d, "buttonText")}</span>
-      ) : null}
-    </div>
-  );
-}
-
 export function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { v } = useT();
   const nav = useNavigate();
@@ -99,19 +32,16 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
   if (!banners.length) return null;
   const go = (t: number) => { setDir(t > i ? 1 : -1); setI((t + banners.length) % banners.length); };
   const open = (b: Banner) => {
-    if (!b.link) return;
     haptic.light();
-    track("banner_click", { bannerId: b.id, title: b.title, link: b.link });
+    track("banner_click", { bannerId: b.id, link: b.link || "", products: b.productIds?.length || 0 });
+    // Bannerga mahsulotlar biriktirilgan bo'lsa — katalogda aynan o'shalar ko'rsatiladi
+    if (b.productIds?.length) { nav(`/catalog?ids=${b.productIds.join(",")}`); return; }
+    if (!b.link) return;
     const r = resolveTarget(b.link);
     if (r.path) nav(r.path); else if (r.url) openLink(r.url);
   };
 
-  const Slide = ({ b }: { b: Banner }) => (
-    <>
-      <Media src={b.image} className="w-full h-full object-cover pointer-events-none" />
-      <BannerContent b={b} height={height} />
-    </>
-  );
+  const Slide = ({ b }: { b: Banner }) => <Media src={b.image} className="w-full h-full object-cover pointer-events-none" />;
 
   // ---- Karusel: barcha bannerlar yonma-yon, yonidagilari ko'rinib turadi ----
   if (anim === "carousel") {
@@ -121,7 +51,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
           <motion.div className="flex" style={{ gap }} animate={{ x: -i * 1 + "%" }} transition={{ duration: 0 }}>
             <motion.div className="flex w-full" style={{ gap }}
               animate={{ x: `calc(${-i * 100}% - ${i * gap}px)` }} transition={{ type: "spring", stiffness: 300, damping: 34, duration: speed }}
-              drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.12}
+              drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={1} dragMomentum={false} dragTransition={{ bounceStiffness: 500, bounceDamping: 40 }}
               onDragEnd={(_, info) => { if (info.offset.x < -50) go(i + 1); else if (info.offset.x > 50) go(i - 1); }}>
               {banners.map((b) => (
                 <div key={b.id} className="shrink-0 relative overflow-hidden" style={{ width: `calc(100% - ${peek}px)`, height, borderRadius: radius }} onClick={() => open(b)}>
@@ -154,7 +84,7 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
           <motion.div key={b.id} className="absolute inset-0" custom={dir}
             initial={vr.initial} animate={vr.animate} exit={vr.exit}
             transition={anim === "none" ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 30, duration: speed }}
-            drag={banners.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2}
+            drag={banners.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={1} dragMomentum={false} dragTransition={{ bounceStiffness: 500, bounceDamping: 40 }}
             onDragEnd={(_, info) => { if (info.offset.x < -60) go(i + 1); else if (info.offset.x > 60) go(i - 1); }}
             onClick={() => open(b)}>
             <Slide b={b} />

@@ -32,7 +32,7 @@ export function spring(kind: "page" | "card" | "sheet" | "tap" = "card"): Transi
 
 /** Sahifa o'tish variantlari */
 export function pageVariants(): Variants {
-  const t = String(design().pageTransition || "ios");
+  const t = String(design().pageTransition || "slide");
   if (animLevel() === "off" || t === "none") return { initial: {}, animate: {}, exit: {} };
   switch (t) {
     case "fade": return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };

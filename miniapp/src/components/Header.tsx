@@ -16,7 +16,7 @@ export function Header() {
   const name = user?.name || "";
   const logoEl = showLogo ? (
     <motion.div initial={{ scale: 0.6, opacity: 0, rotate: -10 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
-      className="shrink-0 overflow-hidden flex items-center justify-center" style={{ width: size, height: size, borderRadius: radius, background: v<string>("design", "logoBg", "#f1f5f9") }}>
+      className="shrink-0 overflow-hidden flex items-center justify-center" style={{ width: size, height: size, borderRadius: radius, background: v<boolean>("design", "logoBgTransparent", false) ? "transparent" : v<string>("design", "logoBg", "#f1f5f9") }}>
       {logo ? <img src={logo} alt="logo" className="w-full h-full object-cover" /> : <span style={{ fontSize: size * 0.5 }}>🛍</span>}
     </motion.div>
   ) : null;

@@ -57,7 +57,7 @@ export interface Product {
 }
 export interface Category { id: string; name: string; parentId: string | null; image: string | null; count: number }
 export interface Story { id: number; title: string; cover: string; slides: { id: number; image: string; caption: string | null; link: string | null; duration: number; buttonText?: string | null }[] }
-export interface Banner { id: number; image: string; title: string | null; subtitle: string | null; link: string | null; textColor: string; design?: Record<string, unknown> }
+export interface Banner { id: number; image: string; link: string | null; productIds?: number[] }
 export interface Bootstrap {
   user: { id: number; telegramId: string; name: string; phone: string | null; language: Lang; address: string | null; lat: number | null; lng: number | null; registered: boolean; linked: boolean; storeId?: string };
   stores: StoreInfo[];
@@ -66,7 +66,7 @@ export interface Bootstrap {
   stories: Story[]; banners: Banner[]; categories: Category[]; featured: Product[]; newest: Product[]; productCount: number;
   blocks?: HomeBlock[];
 }
-export interface HomeChip { value: string; image: string | null; title: string | null; count: number }
+export interface HomeChip { value: string; image: string | null; title: string | null; titleSize?: number | null; count: number }
 export interface HomeBlock {
   id: number; key: string; kind: "products" | "chips"; title: string; fieldKey?: string | null;
   style: Record<string, unknown>; items?: Product[]; entries?: HomeChip[];
@@ -74,7 +74,12 @@ export interface HomeBlock {
 export interface ProductPage { total: number; page: number; limit: number; hasMore: boolean; items: Product[] }
 export interface OrderItem { productId: number; bitoId: string; name: string; price: number; qty: number; boxCount?: number; boxItem?: number; measure?: string | null; image?: string | null }
 export interface OrderRow { id: number; number: string; date: string; total: number; type: string; stage: string; status: string; items: OrderItem[]; address: string | null; comment: string | null; phone: string | null; source: "bot" | "bito" }
-export interface Purchase { id: string; number: string; date: string; total: number; debt: number; seller: string; isRefund: boolean; itemsCount: number }
+export interface Purchase { id: string; number: string; date: string; total: number; debt: number; seller: string; isRefund: boolean; itemsCount: number; org?: string | null }
+export interface PurchaseDetail extends Purchase {
+  org?: string | null;
+  items: { bitoId: string; name: string; qty: number; price: number; total?: number; measure?: string | null; image?: string | null }[];
+  payments?: { method?: string; amount?: number }[];
+}
 export interface BalanceLine { organization: string; amount: number; currency: string }
 
 export interface FilterField { key: string; label: string; values: { value: string; count: number }[] }

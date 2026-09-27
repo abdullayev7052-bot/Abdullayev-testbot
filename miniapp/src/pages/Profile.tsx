@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Package, Receipt, Wallet, CreditCard, MapPin, Globe, LifeBuoy, RefreshCw, Moon, Sun, Heart, Type } from "lucide-react";
-import { api, type BalanceLine, type Lang, type OrderRow, type Purchase, type Product } from "../lib/api.ts";
+import { api, type BalanceLine, type Lang, type OrderRow, type Purchase, type PurchaseDetail, type Product } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
 import { Page, BottomSheet, Skeleton, Empty, Img, useToast } from "../components/ui.tsx";
 import { ProductCard, useCatalogFmt } from "../components/ProductCard.tsx";
 import { ProductSheet } from "../components/ProductSheet.tsx";
+import { HistoryList, HistoryDetails, type HistoryRow } from "../components/HistoryList.tsx";
 import { MapPicker } from "../components/MapPicker.tsx";
 import { fmtDate, qty as fq, LANG_NAMES } from "../lib/format.ts";
 import { haptic, openLink } from "../lib/telegram.ts";
@@ -34,6 +35,15 @@ export function Profile() {
   useEffect(() => { track("profile_open"); }, []);
   const [orderOpen, setOrderOpen] = useState<OrderRow | null>(null);
   const [productOpen, setProductOpen] = useState<Product | null>(null);
+  const [purchaseOpen, setPurchaseOpen] = useState<string | null>(null);
+  // Tashkilot nomi (tarix kartochkalarida ko'rinadi)
+  const storeName = useApp((st) => st.data?.store?.name) || "";
+  const purchaseDetail = useQuery({
+    queryKey: ["purchase", purchaseOpen],
+    queryFn: () => api.get<PurchaseDetail>(`/purchases/${purchaseOpen}`),
+    enabled: !!purchaseOpen,
+    staleTime: 60000,
+  });
   const [scale, setScale] = useState<UserScale>(() => getUserScale());
   const toast = useToast((s) => s.show);
   const cart = useCart();
@@ -136,36 +146,27 @@ export function Profile() {
 
       {/* Buyurtmalar */}
       <BottomSheet open={sheet === "orders"} onClose={() => setSheet(null)} title={t("profile", "myOrders")} full>
-        <div className="px-4 pb-8 space-y-2.5">
-          {orders.isLoading ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />) : !orders.data?.items.length ? <Empty emoji="📦" title={t("profile", "noOrders")} /> : orders.data.items.map((o, i) => (
-            <motion.button key={`${o.source}-${o.id}-${o.number}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 * i }} onClick={() => setOrderOpen(o)} className="card w-full p-3.5 text-left">
-              <div className="flex items-center justify-between"><div className="font-bold">#{o.number}</div><span className={`text-xs font-semibold px-2 py-1 rounded-full ${STAGE_COLORS[o.stage] || STAGE_COLORS.other}`}>{o.status}</span></div>
-              <div className="text-xs text-slate-400 mt-1">{fmtDate(o.date)} · {o.items.length} · {o.type === "pickup" ? "🏪" : "🚚"}</div>
-              <div className="font-semibold mt-1">{f.price(o.total)}</div>
-            </motion.button>
-          ))}
+        <div className="px-4 pb-8">
+          <HistoryList
+            rows={(orders.data?.items || []).map((o) => ({ id: `${o.source}-${o.id}`, number: o.number, date: o.date, total: o.total, status: o.status, stage: o.stage, org: storeName, items: o.items }))}
+            loading={orders.isLoading}
+            emptyEmoji="📦" emptyTitle={t("profile", "noOrders")}
+            onOpen={(r) => { const src = (orders.data?.items || []).find((o) => `${o.source}-${o.id}` === r.id); if (src) setOrderOpen(src); }}
+          />
         </div>
       </BottomSheet>
 
       {/* Buyurtma tafsiloti */}
-      <BottomSheet open={!!orderOpen} onClose={() => setOrderOpen(null)} title={orderOpen ? `${t("profile", "orderDetails")} #${orderOpen.number}` : ""}>
+      <BottomSheet open={!!orderOpen} onClose={() => setOrderOpen(null)} title={t("profile", "orderDetailsTitle")}>
         {orderOpen && (
-          <div className="px-4 pb-8">
-            <div className="flex items-center justify-between mb-3"><span className="text-sm text-slate-500">{fmtDate(orderOpen.date)}</span><span className={`text-xs font-semibold px-2 py-1 rounded-full ${STAGE_COLORS[orderOpen.stage] || STAGE_COLORS.other}`}>{orderOpen.status}</span></div>
-            <div className="space-y-2">
-              {orderOpen.items.map((it, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Img src={it.image} className="w-12 h-12 rounded-xl shrink-0" />
-                  <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{it.name}</div><div className="text-xs text-slate-400">{fq(it.qty)} × {f.price(it.price)}</div></div>
-                  <div className="font-semibold text-sm">{f.price(it.price * it.qty)}</div>
-                </div>
-              ))}
+          <>
+            <HistoryDetails row={{ id: orderOpen.id, number: orderOpen.number, date: orderOpen.date, total: orderOpen.total, status: orderOpen.status, stage: orderOpen.stage, org: storeName, items: orderOpen.items }} />
+            <div className="px-4 pb-8 -mt-4">
+              {orderOpen.address && <div className="text-sm text-slate-500 mb-1">📍 {orderOpen.address}</div>}
+              {orderOpen.comment && <div className="text-sm text-slate-500 mb-1">💬 {orderOpen.comment}</div>}
+              <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void reorder(orderOpen); }} className="w-full mt-3 py-3.5 rounded-2xl btn-primary flex items-center justify-center gap-2"><RefreshCw size={18} /> {t("profile", "reorder")}</motion.button>
             </div>
-            {orderOpen.address && <div className="text-sm text-slate-500 mt-3">📍 {orderOpen.address}</div>}
-            {orderOpen.comment && <div className="text-sm text-slate-500 mt-1">💬 {orderOpen.comment}</div>}
-            <div className="flex justify-between font-bold text-lg mt-4 border-t border-slate-100 pt-3"><span>{t("checkout", "totalLabel")}</span><span>{f.price(orderOpen.total)}</span></div>
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => { void reorder(orderOpen); }} className="w-full mt-4 py-3.5 rounded-2xl btn-primary flex items-center justify-center gap-2"><RefreshCw size={18} /> {t("profile", "reorder")}</motion.button>
-          </div>
+          </>
         )}
       </BottomSheet>
 
@@ -189,14 +190,33 @@ export function Profile() {
 
       {/* Xaridlar */}
       <BottomSheet open={sheet === "purchases"} onClose={() => setSheet(null)} title={t("profile", "purchases")} full>
-        <div className="px-4 pb-8 space-y-2.5">
-          {purchases.isLoading ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />) : !purchases.data?.items.length ? <Empty emoji="🧾" title={t("profile", "noPurchases")} /> : purchases.data.items.map((p, i) => (
-            <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 * i }} className="card p-3.5">
-              <div className="flex items-center justify-between"><div className="font-bold">№{p.number} {p.isRefund && "↩️"}</div><div className="font-semibold">{f.price(p.total)}</div></div>
-              <div className="text-xs text-slate-400 mt-1">{fmtDate(p.date)}{p.seller ? ` · ${p.seller}` : ""}{p.debt > 0 ? ` · ${t("profile", "debt")}: ${f.price(p.debt)}` : ""}</div>
-            </motion.div>
-          ))}
+        <div className="px-4 pb-8">
+          <HistoryList
+            rows={(purchases.data?.items || []).map((p) => ({ id: p.id, number: String(p.number), date: p.date, total: p.total, status: p.isRefund ? t("statuses", "nameCanceled") : t("statuses", "nameDone"), stage: p.isRefund ? "canceled" : "done", org: p.org || storeName }))}
+            loading={purchases.isLoading}
+            emptyEmoji="🧾" emptyTitle={t("profile", "noPurchases")}
+            onOpen={(r) => setPurchaseOpen(String(r.id))}
+          />
         </div>
+      </BottomSheet>
+
+      {/* Xarid tafsiloti */}
+      <BottomSheet open={!!purchaseOpen} onClose={() => setPurchaseOpen(null)} title={t("profile", "purchaseDetailsTitle")}>
+        {purchaseDetail.isLoading ? (
+          <div className="px-4 pb-8 space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+        ) : purchaseDetail.data ? (
+          <>
+            <HistoryDetails row={{
+              id: purchaseDetail.data.id, number: String(purchaseDetail.data.number), date: purchaseDetail.data.date,
+              total: purchaseDetail.data.total, status: purchaseDetail.data.isRefund ? t("statuses", "nameCanceled") : t("statuses", "nameDone"),
+              stage: purchaseDetail.data.isRefund ? "canceled" : "done", org: purchaseDetail.data.org || storeName,
+              items: (purchaseDetail.data.items || []).map((x) => ({ name: x.name, qty: x.qty, price: x.price, image: x.image, measure: x.measure })),
+            }} />
+            {purchaseDetail.data.debt > 0 && (
+              <div className="px-4 pb-8 -mt-4 text-sm text-red-600 font-semibold">{t("profile", "debt")}: {f.price(purchaseDetail.data.debt)}</div>
+            )}
+          </>
+        ) : null}
       </BottomSheet>
 
       {/* Karta */}
