@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, type TargetAndTransition } from "motion/react";
+import { motion, AnimatePresence, animate as animateValue, useMotionValue, type TargetAndTransition } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import type { Banner } from "../lib/api.ts";
 import { useT } from "../store/app.ts";
@@ -43,27 +43,9 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
 
   const Slide = ({ b }: { b: Banner }) => <Media src={b.image} className="w-full h-full object-cover pointer-events-none" />;
 
-  // ---- Karusel: barcha bannerlar yonma-yon, yonidagilari ko'rinib turadi ----
+  // ---- Karusel: barcha bannerlar yonma-yon, barmoq bilan 1:1 suriladi ----
   if (anim === "carousel") {
-    return (
-      <div className="my-2">
-        <div className="overflow-hidden" style={{ paddingLeft: 16, paddingRight: 16 }}>
-          <motion.div className="flex" style={{ gap }} animate={{ x: -i * 1 + "%" }} transition={{ duration: 0 }}>
-            <motion.div className="flex w-full" style={{ gap }}
-              animate={{ x: `calc(${-i * 100}% - ${i * gap}px)` }} transition={{ type: "spring", stiffness: 300, damping: 34, duration: speed }}
-              drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={1} dragMomentum={false} dragTransition={{ bounceStiffness: 500, bounceDamping: 40 }}
-              onDragEnd={(_, info) => { if (info.offset.x < -50) go(i + 1); else if (info.offset.x > 50) go(i - 1); }}>
-              {banners.map((b) => (
-                <div key={b.id} className="shrink-0 relative overflow-hidden" style={{ width: `calc(100% - ${peek}px)`, height, borderRadius: radius }} onClick={() => open(b)}>
-                  <Slide b={b} />
-                </div>
-              ))}
-            </motion.div>
-          </motion.div>
-        </div>
-        <Dots banners={banners} i={i} go={go} dots={dots} inside={false} />
-      </div>
-    );
+    return <Carousel banners={banners} i={i} go={go} open={open} Slide={Slide} height={height} radius={radius} peek={peek} gap={gap} dots={dots} />;
   }
 
   const b = banners[i];
@@ -85,7 +67,12 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
             initial={vr.initial} animate={vr.animate} exit={vr.exit}
             transition={anim === "none" ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 30, duration: speed }}
             drag={banners.length > 1 ? "x" : false} dragConstraints={{ left: 0, right: 0 }} dragElastic={1} dragMomentum={false} dragTransition={{ bounceStiffness: 500, bounceDamping: 40 }}
-            onDragEnd={(_, info) => { if (info.offset.x < -60) go(i + 1); else if (info.offset.x > 60) go(i - 1); }}
+            onDragEnd={(_, info) => {
+              const far = Math.abs(info.offset.x) > window.innerWidth * 0.22;
+              const fast = Math.abs(info.velocity.x) > 300;
+              if (!far && !fast) return;
+              if (info.offset.x < 0) go(i + 1); else go(i - 1);
+            }}
             onClick={() => open(b)}>
             <Slide b={b} />
           </motion.div>
@@ -93,6 +80,52 @@ export function BannerCarousel({ banners }: { banners: Banner[] }) {
         {dots === "inside" && <Dots banners={banners} i={i} go={go} dots={dots} inside />}
       </div>
       {dots === "below" && <Dots banners={banners} i={i} go={go} dots={dots} inside={false} />}
+    </div>
+  );
+}
+
+/** Karusel: x qiymati barmoq bilan bevosita boshqariladi (animatsiya xalaqit bermaydi) */
+function Carousel({ banners, i, go, open, Slide, height, radius, peek, gap, dots }: {
+  banners: Banner[]; i: number; go: (n: number) => void; open: (b: Banner) => void;
+  Slide: (p: { b: Banner }) => React.ReactElement; height: number; radius: number; peek: number; gap: number; dots: string;
+}) {
+  const x = useMotionValue(0);
+  const strip = useRef<HTMLDivElement>(null);
+  const slideW = () => ((strip.current?.firstElementChild as HTMLElement)?.offsetWidth || 0) + gap;
+
+  // Indeks o'zgarganda joriy o'rinni yumshoq siljitamiz
+  useEffect(() => {
+    const target = -i * slideW();
+    const controls = animateValue(x, target, { type: "spring", stiffness: 320, damping: 36, restDelta: 0.5 });
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i, gap, banners.length]);
+
+  return (
+    <div className="my-2">
+      <div className="overflow-hidden px-4">
+        <motion.div ref={strip} className="flex" style={{ gap, x }}
+          drag={banners.length > 1 ? "x" : false}
+          dragConstraints={{ left: -(banners.length - 1) * slideW(), right: 0 }}
+          dragElastic={0.12}
+          dragMomentum={false}
+          onDragEnd={(_, info) => {
+            const w = slideW() || 1;
+            const moved = -x.get() / w;               // qaysi slaydga eng yaqin
+            const fast = Math.abs(info.velocity.x) > 350;
+            let next = fast ? (info.velocity.x < 0 ? Math.ceil(moved) : Math.floor(moved)) : Math.round(moved);
+            next = Math.max(0, Math.min(banners.length - 1, next));
+            if (next === i) animateValue(x, -i * w, { type: "spring", stiffness: 320, damping: 36 });
+            else go(next);
+          }}>
+          {banners.map((b) => (
+            <div key={b.id} className="shrink-0 relative overflow-hidden" style={{ width: `calc(100% - ${peek}px)`, height, borderRadius: radius }} onClick={() => open(b)}>
+              <Slide b={b} />
+            </div>
+          ))}
+        </motion.div>
+      </div>
+      <Dots banners={banners} i={i} go={go} dots={dots} inside={false} />
     </div>
   );
 }
