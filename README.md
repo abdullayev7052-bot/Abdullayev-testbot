@@ -288,6 +288,14 @@ Bloklarning bosh sahifadagi tartibi (yuqorida/o'rtada/pastda) *Sozlamalar → Mi
 
 **Rasmi yo'q mahsulot:** *Sozlamalar → Mini App → Katalog* da qurilma xotirasidan rasm yuklanadi (masalan kitob soyasi) — rasmi bo'lmagan barcha mahsulotlarda o'sha rasm ko'rinadi va markazida mahsulot nomi yoziladi.
 
+**Ulashish rejimi (adminlar uchun):** *Sozlamalar → Integratsiya → Bot → «Ulashish rejimi (adminlar)»* da Telegram ID lar ro'yxati beriladi. Shu ro'yxatdagilar uchun Mini App boshqacha ishlaydi:
+- faqat **Katalog** va **Savatcha** ko'rinadi (bosh sahifa, bannerlar, bloklar va profil yo'q)
+- buyurtma bera olmaydi, mijoz sifatida Bito'ga qo'shilmaydi
+- savatni yig'ib, **«📤 Ulashish»** tugmasi bilan havolani kanal yoki chatga yuboradi (yoki havolani nusxalaydi)
+- mahsulot oynasida va tanlangan kategoriyada ham ulashish tugmasi bor
+
+Mijoz havolani bosganda bot unga mahsulotlar ro'yxatini va «Savatga qo'shish va ochish» tugmasini yuboradi; tugma bosilganda Mini App ochilib, **o'sha mahsulotlar uning savatiga tushadi** va u odatdagidek xaridni davom ettiradi. Havola botga start bosmagan odam uchun ham ishlaydi — u avval ro'yxatdan o'tadi, keyin savat saqlanib qoladi.
+
 **Istaklarim (❤️):** mahsulot kartochkasidagi yurakcha — mijoz bosgan mahsulotlar *Profil → Istaklarim* da to'planadi. Admin panelda kim nimani yoqtirgani ko'rinadi (*Nazorat → Kutilayotgan mahsulotlar → Istaklarim*), va aynan shu mahsulotni yoqtirganlarga *Kontent → Post* orqali xabar yuborish mumkin. O'chirib qo'yilsa — Mini App'da yurakcha ham, "Istaklarim" bo'limi ham ko'rinmaydi.
 
 **Variantli mahsulotlar:** Bito'da atribut bilan ochilgan mahsulot (masalan *Futbolka Adidas* → Rang: Qora/Oq/Ko'k × O'lcham: S/M/L/XL) Mini App'da **bitta kartochka** bo'lib turadi. Ochilganda atributlar tugmalari chiqadi, tanlanganda o'sha variantning narxi, qoldig'i va rasmlari ko'rsatiladi; savatchaga *"Futbolka Adidas / Ko'k / S"* ko'rinishida tushadi va Bito'ga aynan o'sha variant yuboriladi. Tugagan variantlar chizilgan holda ko'rinadi. Ota mahsulot ro'yxatda eng arzon variant narxi va variantlar qoldig'i yig'indisi bilan turadi.

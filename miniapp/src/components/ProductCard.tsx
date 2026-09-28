@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
 import { Plus, Bell, BellRing, Heart } from "lucide-react";
 import type { Product } from "../lib/api.ts";
-import { useT } from "../store/app.ts";
+import { useApp, useT } from "../store/app.ts";
+import { themedColor } from "../lib/colors.ts";
 import { useCart } from "../store/cart.ts";
 import { money, stockLabel } from "../lib/format.ts";
 import { haptic } from "../lib/telegram.ts";
@@ -11,6 +12,7 @@ import { useFavorites } from "../store/favorites.ts";
 
 export function useCatalogFmt() {
   const { t, v, lang } = useT();
+  const theme = useApp((s) => s.theme);
   const suffix = t("general", "currencySuffix");
   const decimals = v<number>("general", "priceDecimals", 0);
   const steps = String(v<string>("catalog", "rangeSteps", "10,50")).split(",").map((x) => Number(x.trim())).filter((x) => x > 0);
@@ -25,13 +27,16 @@ export function useCatalogFmt() {
     faceLabelShow: v<boolean>("catalog", "faceLabelShow", false),
     faceSize: v<number>("catalog", "faceSize", 12),
     faceStyle: {
-      color: v<string>("catalog", "faceColor", "#64748b"),
+      color: themedColor(theme, v<string>("catalog", "faceColor", ""), v<string>("catalog", "faceColorDark", ""), "var(--muted)"),
       fontSize: v<number>("catalog", "faceSize", 12),
       fontWeight: v<string>("catalog", "faceWeight", "500"),
       fontStyle: v<boolean>("catalog", "faceItalic", false) ? "italic" : "normal",
     } as React.CSSProperties,
     nameSize: v<number>("catalog", "nameSize", 13),
-    nameColor: v<string>("catalog", "nameColor", ""),
+    nameColorResolved: themedColor(theme, v<string>("catalog", "nameColor", ""), v<string>("catalog", "nameColorDark", ""), "var(--text)"),
+    detailLabelColor: themedColor(theme, v<string>("catalog", "detailLabelColor", ""), v<string>("catalog", "detailLabelColorDark", ""), "var(--muted)"),
+    detailValueColor: themedColor(theme, v<string>("catalog", "detailValueColor", ""), v<string>("catalog", "detailValueColorDark", ""), "var(--text)"),
+    placeholderNameColor: themedColor(theme, v<string>("catalog", "placeholderNameColor", ""), v<string>("catalog", "placeholderNameColorDark", ""), "var(--text)"),
     nameWeight: v<string>("catalog", "nameWeight", "500"),
     /** Karta yuzida qo'shimcha matn sozlanganmi — barcha kartochkalarda joy ajratiladi */
     faceConfigured: ((v<{ face?: boolean; show?: boolean }[]>("catalog", "productFields", []) || []).some((f) => f?.face && f?.show !== false)),
@@ -53,7 +58,8 @@ export function ProductCard({ p, onOpen, onWaitlist, index = 0 }: { p: Product; 
   const fontSize = Math.max(10, Math.round(f.nameSize * shrink * 10) / 10);
   const lineHeight = 1.25;
   const nameBox = Math.round(fontSize * lineHeight * 2);
-  const nameStyle: React.CSSProperties = { color: f.nameColor || undefined, fontSize, fontWeight: f.nameWeight, lineHeight };
+  // Tungi rejimda yorug' rejim rangi qo'llanilmaydi — aks holda matn ko'rinmay qoladi
+  const nameStyle: React.CSSProperties = { color: f.nameColorResolved, fontSize, fontWeight: f.nameWeight, lineHeight };
   const fav = useFavorites((s) => s.isFav(p));
   const toggleFav = useFavorites((s) => s.toggle);
   return (

@@ -327,3 +327,17 @@ model HomeBlockItem {
 
   @@index([blockId, sortOrder])
 }
+
+/// Adminlar ulashgan savat/mahsulot havolasi (qisqa kod bilan)
+model Share {
+  code      String   @id
+  /// cart | product | category
+  kind      String   @default("cart")
+  /// { items: [{productId, qty, boxCount}] } yoki { productId } / { categoryId }
+  payload   Json     @default("{}")
+  createdBy Int?
+  opens     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

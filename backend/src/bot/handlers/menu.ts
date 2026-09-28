@@ -285,6 +285,10 @@ export function registerMenu(bot: Bot<MyContext>) {
     }
   });
 
+  bot.command("id", async (ctx) => {
+    await ctx.reply(`🆔 <code>${ctx.from?.id}</code>`, { parse_mode: "HTML" });
+  });
+
   bot.callbackQuery(/^lang:(uz|ru|en)$/, async (ctx) => {
     const lang = normalizeLang(ctx.match[1]);
     ctx.user = await prisma.user.update({ where: { id: ctx.user.id }, data: { language: lang } });

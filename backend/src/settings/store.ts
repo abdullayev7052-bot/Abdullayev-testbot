@@ -7,6 +7,8 @@ export interface AppSettings {
   general: {
     shopName: LText; supportPhone: string; supportTelegram: string; defaultLanguage: Lang;
     enabledLanguages: Lang[]; currencySuffix: LText; priceDecimals: number; adminPassword: string; languageMode: "default" | "telegram"; botToken: string;
+    shareAdmins: string[]; shareButton: LText; shareCopyLink: LText; shareCopied: LText; shareCaption: LText;
+    shareOpenButton: LText; shareIntro: LText; shareAdminHint: LText;
   };
   adminPanel: Record<string, unknown>;
   bito: {

@@ -59,7 +59,7 @@ export interface Category { id: string; name: string; parentId: string | null; i
 export interface Story { id: number; title: string; cover: string; slides: { id: number; image: string; caption: string | null; link: string | null; duration: number; buttonText?: string | null }[] }
 export interface Banner { id: number; image: string; link: string | null; productIds?: number[] }
 export interface Bootstrap {
-  user: { id: number; telegramId: string; name: string; phone: string | null; language: Lang; address: string | null; lat: number | null; lng: number | null; registered: boolean; linked: boolean; storeId?: string };
+  user: { id: number; telegramId: string; name: string; phone: string | null; language: Lang; address: string | null; lat: number | null; lng: number | null; registered: boolean; linked: boolean; storeId?: string; shareAdmin?: boolean };
   stores: StoreInfo[];
   store: StoreInfo;
   settings: Record<string, Record<string, unknown>> & { filesUrl: string };
@@ -84,3 +84,6 @@ export interface BalanceLine { organization: string; amount: number; currency: s
 
 export interface FilterField { key: string; label: string; values: { value: string; count: number }[] }
 export interface FiltersData { fields: FilterField[]; price: { min: number; max: number } | null; sort?: boolean; total: number }
+
+export interface ShareCartItem { qty: number; boxCount: number; product: Product }
+export interface ShareData { kind: "cart" | "product" | "category"; items: ShareCartItem[]; productId?: number; categoryId?: string }

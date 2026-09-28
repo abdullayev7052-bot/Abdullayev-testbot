@@ -62,6 +62,31 @@ export function closeApp() {
   if (tg && inTelegram) tg.close();
 }
 
+/** Telegram ulashish oynasi (kanal/chat tanlash) */
+export function shareViaTelegram(url: string, text: string) {
+  const link = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+  if (tg && inTelegram) tg.openTelegramLink(link);
+  else window.open(link, "_blank");
+}
+
+/** Havolani nusxalash (Telegram ichida ham ishlaydi) */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* pastdagi zaxira usul */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
 export function openLink(url: string) {
   if (!url) return;
   if (/^https?:\/\/t\.me\//.test(url) && tg) tg.openTelegramLink(url);
@@ -81,6 +106,7 @@ export function devUserId(): string | null {
 export function resolveTarget(target: string): { path?: string; url?: string } {
   const s = (target || "").trim();
   if (!s) return {};
+  if (s.startsWith("share:")) return { path: `/cart?share=${encodeURIComponent(s.slice(6))}` };
   if (s.startsWith("product:")) return { path: `/catalog?product=${encodeURIComponent(s.slice(8))}` };
   if (s.startsWith("category:")) return { path: `/catalog?category=${encodeURIComponent(s.slice(9))}` };
   if (s.startsWith("/")) return { path: s };

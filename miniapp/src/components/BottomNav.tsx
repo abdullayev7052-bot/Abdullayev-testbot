@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "motion/react";
 import { Home, Search, ShoppingCart, User } from "lucide-react";
-import { useT } from "../store/app.ts";
+import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
 import { haptic } from "../lib/telegram.ts";
 
@@ -9,12 +9,19 @@ export function BottomNav() {
   const { t, v } = useT();
   const count = useCart((s) => s.items.reduce((a, x) => a + x.qty, 0));
   const loc = useLocation();
-  const items = [
-    { to: "/", icon: Home, label: t("design", "navHome") },
-    { to: "/catalog", icon: Search, label: t("design", "navCatalog") },
-    { to: "/cart", icon: ShoppingCart, label: t("design", "navCart"), badge: count },
-    { to: "/profile", icon: User, label: t("design", "navProfile") },
-  ];
+  // Ulashish rejimidagi admin uchun faqat katalog va savatcha
+  const shareAdmin = useApp((s) => !!s.data?.user.shareAdmin);
+  const items = shareAdmin
+    ? [
+      { to: "/catalog", icon: Search, label: t("design", "navCatalog") },
+      { to: "/cart", icon: ShoppingCart, label: t("design", "navCart"), badge: count },
+    ]
+    : [
+      { to: "/", icon: Home, label: t("design", "navHome") },
+      { to: "/catalog", icon: Search, label: t("design", "navCatalog") },
+      { to: "/cart", icon: ShoppingCart, label: t("design", "navCart"), badge: count },
+      { to: "/profile", icon: User, label: t("design", "navProfile") },
+    ];
   const activeStyle = v<string>("design", "navActive", "pill");
   const labels = v<boolean>("design", "navLabels", true);
   const iconSize = v<number>("design", "navIconSize", 22);
@@ -27,7 +34,7 @@ export function BottomNav() {
       borderTop: floating ? "none" : "var(--nav-border)", border: floating ? "var(--nav-border)" : undefined,
       borderRadius: "var(--nav-radius)", boxShadow: "var(--nav-shadow)", overflow: "hidden",
     }}>
-      <div className="grid grid-cols-4" style={{ height: "var(--nav-h)" }}>
+      <div className={`grid ${items.length === 2 ? "grid-cols-2" : "grid-cols-4"}`} style={{ height: "var(--nav-h)" }}>
         {items.map((it) => {
           const active = it.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(it.to);
           return (

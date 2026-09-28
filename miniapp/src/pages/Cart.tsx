@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, MapPin, CheckCircle2, Navigation } from "lucide-react";
-import { api, ApiError, type Product } from "../lib/api.ts";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Trash2, MapPin, CheckCircle2, Navigation, Share2, Link as LinkIcon } from "lucide-react";
+import { api, ApiError, type Product, type ShareData } from "../lib/api.ts";
 import { ProductSheet } from "../components/ProductSheet.tsx";
 import { useWaitlist } from "../store/waitlist.ts";
 import { openLink } from "../lib/telegram.ts";
@@ -12,7 +12,7 @@ import { Page, QtyStepper, Empty, Img, Segmented, ConfirmDialog, SwipeToDelete, 
 import { MapPicker } from "../components/MapPicker.tsx";
 import { useCatalogFmt } from "../components/ProductCard.tsx";
 import { qty as fq } from "../lib/format.ts";
-import { closeApp, haptic } from "../lib/telegram.ts";
+import { closeApp, copyText, haptic, shareViaTelegram } from "../lib/telegram.ts";
 import { track } from "../lib/analytics.ts";
 
 type Step = "cart" | "checkout" | "success";
@@ -25,6 +25,40 @@ export function Cart() {
   const app = useApp();
   const user = app.data!.user;
   const [step, setStep] = useState<Step>("cart");
+  const shareAdmin = useApp((st) => !!st.data?.user.shareAdmin);
+  const [sharing, setSharing] = useState(false);
+  const [params, setParams] = useSearchParams();
+
+  /** Admin: savatni havola qilib ulashish */
+  const shareCart = async (copyOnly = false) => {
+    if (!cart.items.length) return;
+    setSharing(true);
+    try {
+      const r = await api.post<{ url: string; code: string }>("/share", {
+        kind: "cart",
+        items: cart.items.map((x) => ({ productId: x.productId, qty: x.qty, boxCount: x.boxCount || 0 })),
+      });
+      haptic.success();
+      if (copyOnly) { await copyText(r.url); toast(t("general", "shareCopied")); }
+      else shareViaTelegram(r.url, t("general", "shareCaption"));
+    } catch (e) { toast((e as Error).message, "err"); } finally { setSharing(false); }
+  };
+
+  // Havoladan kelgan mahsulotlarni savatga qo'shish: /cart?share=<kod>
+  useEffect(() => {
+    const code = params.get("share");
+    if (!code) return;
+    const p2 = new URLSearchParams(params);
+    p2.delete("share");
+    setParams(p2, { replace: true });
+    api.get<ShareData>(`/share/${code}`).then((d) => {
+      if (d.kind !== "cart" || !d.items.length) return;
+      for (const it of d.items) cart.add(it.product, it.qty, it.boxCount || 0);
+      haptic.success();
+      toast(t("general", "shareCaption"));
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [type, setType] = useState<"delivery" | "pickup">(() => {
     const d = v<"delivery" | "pickup">("checkout", "defaultType", "delivery");
     const del = v<boolean>("checkout", "deliveryEnabled", true), pick = v<boolean>("checkout", "pickupEnabled", true);
@@ -218,7 +252,19 @@ export function Cart() {
 
       <div className="fixed left-0 right-0 z-[500] p-4 bg-white/95 backdrop-blur border-t border-slate-100" style={{ bottom: "calc(var(--nav-h) + var(--safe-bottom))" }}>
         <div className="flex items-center justify-between mb-2 text-sm"><span className="text-slate-500">{t("checkout", "totalLabel")}</span><span className="text-lg font-bold">{f.price(step === "cart" ? subtotal : total)}</span></div>
-        {step === "cart" ? (
+        {shareAdmin ? (
+          <div className="space-y-2">
+            <motion.button whileTap={{ scale: 0.98 }} disabled={sharing || !cart.items.length} onClick={() => { void shareCart(false); }}
+              className="w-full py-3.5 rounded-2xl btn-primary text-base flex items-center justify-center gap-2">
+              <Share2 size={18} /> {sharing ? "⏳" : t("general", "shareButton")}
+            </motion.button>
+            <button disabled={sharing || !cart.items.length} onClick={() => { void shareCart(true); }}
+              className="w-full py-3 rounded-2xl bg-[var(--soft)] text-sm font-semibold flex items-center justify-center gap-2">
+              <LinkIcon size={16} /> {t("general", "shareCopyLink")}
+            </button>
+            <div className="text-[11px] text-slate-400 text-center leading-snug">{t("general", "shareAdminHint")}</div>
+          </div>
+        ) : step === "cart" ? (
           <motion.button whileTap={{ scale: 0.98 }} onClick={() => { haptic.medium(); track("checkout_start", { items: cart.items.length, total }); setStep("checkout"); window.scrollTo({ top: 0 }); }} className="w-full py-3.5 rounded-2xl btn-primary text-base">{t("checkout", "checkoutButton")}</motion.button>
         ) : (
           <motion.button whileTap={{ scale: 0.98 }} disabled={busy} onClick={() => { void submit(); }} className="w-full py-3.5 rounded-2xl btn-primary text-base">{busy ? "⏳" : t("checkout", "confirmButton")}</motion.button>

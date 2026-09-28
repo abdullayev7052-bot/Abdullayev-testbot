@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import { Search, X, SlidersHorizontal, Share2 } from "lucide-react";
 import { api, type Product, type ProductPage } from "../lib/api.ts";
 import { useApp, useT } from "../store/app.ts";
 import { ProductCard } from "../components/ProductCard.tsx";
@@ -10,7 +10,7 @@ import { ProductSheet } from "../components/ProductSheet.tsx";
 import { FilterSheet, emptyFilters, filtersCount, type CatalogFilters } from "../components/FilterSheet.tsx";
 import { Page, Skeleton, Empty, useToast, Img } from "../components/ui.tsx";
 import { useWaitlist, withWait } from "../store/waitlist.ts";
-import { haptic } from "../lib/telegram.ts";
+import { haptic, shareViaTelegram } from "../lib/telegram.ts";
 
 function useDebounced<T>(v: T, ms: number): T {
   const [d, setD] = useState(v);
@@ -39,6 +39,18 @@ export function Catalog() {
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const filterEnabled = v<boolean>("catalog", "filterEnabled", true);
+  // Ulashish rejimidagi admin: tanlangan kategoriyani havola qilib ulashadi
+  const shareAdmin = useApp((st) => !!st.data?.user.shareAdmin);
+  const [shareBusy, setShareBusy] = useState(false);
+  const shareCategory = async () => {
+    if (!category) return;
+    setShareBusy(true);
+    try {
+      const r = await api.post<{ url: string }>("/share", { kind: "category", categoryId: category });
+      haptic.success();
+      shareViaTelegram(r.url, cats.find((c) => c.id === category)?.name || "");
+    } catch (e) { toast((e as Error).message, "err"); } finally { setShareBusy(false); }
+  };
   const activeFilters = filtersCount(filters);
   const filterQs = useMemo(() => {
     const p = new URLSearchParams();
@@ -120,6 +132,12 @@ export function Catalog() {
                 {activeFilters > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full text-[11px] font-bold text-white flex items-center justify-center" style={{ background: "var(--primary)" }}>{activeFilters}</span>}
               </motion.button>
             )}
+            {shareAdmin && category ? (
+              <motion.button whileTap={{ scale: 0.92 }} disabled={shareBusy} onClick={() => { void shareCategory(); }}
+                className="w-12 h-12 shrink-0 rounded-2xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)]" title="Kategoriyani ulashish">
+                <Share2 size={19} />
+              </motion.button>
+            ) : null}
             <div className="relative flex-1">
               <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("catalog", "searchPlaceholder")} className="input pl-10 pr-10 py-3 rounded-2xl bg-slate-50 border-transparent" />

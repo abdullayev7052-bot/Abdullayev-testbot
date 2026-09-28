@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Bell, BellRing, Check, X, Expand, Heart, Flame, ShoppingCart } from "lucide-react";
+import { Bell, BellRing, Check, X, Expand, Heart, Flame, ShoppingCart, Share2, Link as LinkIcon } from "lucide-react";
 import { api, type Product, type Variant } from "../lib/api.ts";
-import { useT } from "../store/app.ts";
+import { useApp, useT } from "../store/app.ts";
 import { useCart } from "../store/cart.ts";
-import { haptic } from "../lib/telegram.ts";
+import { copyText, haptic, shareViaTelegram } from "../lib/telegram.ts";
 import { BottomSheet, Img, QtyStepper, useToast } from "./ui.tsx";
 import { useCatalogFmt } from "./ProductCard.tsx";
 import { qty as fq } from "../lib/format.ts";
@@ -63,8 +63,21 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
   const fav = useFavorites((s) => (product ? s.isFav(product) : false));
   const toggleFav = useFavorites((s) => s.toggle);
   const favoritesEnabled = v<boolean>("catalog", "favoritesEnabled", true);
-  const labelColor = v<string>("catalog", "detailLabelColor", "#64748b");
-  const valueColor = v<string>("catalog", "detailValueColor", "");
+  // Ulashish rejimidagi admin: mahsulot havolasini nusxalash / ulashish
+  const shareAdmin = useApp((st) => !!st.data?.user.shareAdmin);
+  const [shareBusy, setShareBusy] = useState(false);
+  const shareProduct = async (copyOnly: boolean) => {
+    if (!product) return;
+    setShareBusy(true);
+    try {
+      const r = await api.post<{ url: string }>("/share", { kind: "product", productId: product.id });
+      haptic.success();
+      if (copyOnly) { await copyText(r.url); toast(t("general", "shareCopied")); }
+      else shareViaTelegram(r.url, product.name);
+    } catch (e) { toast((e as Error).message, "err"); } finally { setShareBusy(false); }
+  };
+  const labelColor = f.detailLabelColor;
+  const valueColor = f.detailValueColor;
 
   const boxEnabled = v<boolean>("catalog", "boxModeEnabled", true) && (eff?.boxItem || 0) > 0;
   const manual = v<boolean>("catalog", "allowManualQty", true);
@@ -276,6 +289,17 @@ export function ProductSheet({ product: opened, onClose, onWaitlist }: { product
                   {product.inWaitlist ? t("catalog", "notifiedLabel") : t("catalog", "notifyLabel")}
                 </motion.button>
               ) : <div className="w-full py-3.5 rounded-2xl bg-slate-100 text-slate-500 text-center font-semibold">{t("catalog", "outOfStockLabel")}</div>
+            ) : shareAdmin ? (
+              <div className="flex gap-2">
+                <motion.button whileTap={{ scale: 0.97 }} disabled={shareBusy} onClick={() => { void shareProduct(false); }}
+                  className="flex-1 py-3.5 rounded-2xl btn-primary text-base flex items-center justify-center gap-2">
+                  <Share2 size={18} /> {t("general", "shareButton")}
+                </motion.button>
+                <button disabled={shareBusy} onClick={() => { void shareProduct(true); }}
+                  className="w-14 rounded-2xl bg-[var(--soft)] flex items-center justify-center" title={t("general", "shareCopyLink")}>
+                  <LinkIcon size={18} />
+                </button>
+              </div>
             ) : needsVariant ? (
               <div className="w-full py-3.5 rounded-2xl bg-slate-100 text-slate-500 text-center font-semibold">{t("catalog", "variantPickHint")}</div>
             ) : (

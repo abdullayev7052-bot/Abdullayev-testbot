@@ -12,12 +12,15 @@ import { matchScore } from "../../utils/search.ts";
 import { normalizePhone } from "../../utils/format.ts";
 import { activity, errMsg, log } from "../../logger.ts";
 import { sendToUser } from "../../bot/send.ts";
+import { bot } from "../../bot/instance.ts";
+import { getPublicUrl } from "../../utils/publicUrl.ts";
 import { fill } from "../../settings/store.ts";
 import { esc } from "../../utils/format.ts";
 import { isMultiStore, listStores, priceFor, userStore, getStore } from "../../bito/stores.ts";
 import { EVENT_NAMES, isEventName, normPlatform, track } from "../../analytics/track.ts";
 import { inCartCounts, weeklySales } from "../../bito/sales.ts";
 import { detailsFor, faceTextFor, filterableFields, filterPartEnabled, valueOf } from "../../bito/productFields.ts";
+import { createShare, isShareAdmin, readShare } from "../../bito/share.ts";
 
 export const appRouter = Router();
 appRouter.use(appAuth);
@@ -229,6 +232,8 @@ appRouter.get("/bootstrap", async (req, res) => {
       id: user.id, telegramId: String(user.telegramId), name: user.name || user.tgFirstName || "", phone: user.phone, language: normalizeLang(user.language),
       address: user.address, lat: user.lat, lng: user.lng, registered: user.step === "done", linked: !!user.bitoCustomerId,
       storeId: store.id,
+      // Ulashish rejimi: bosh sahifa, bloklar va profil ko'rsatilmaydi, buyurtma berilmaydi
+      shareAdmin: isShareAdmin(user.telegramId),
     },
     stores,
     store: { id: store.id, name: store.name(lang), pickupAddress: store.pickupAddress(lang), pickupLocation: store.pickupLocation },
@@ -494,6 +499,7 @@ const orderSchema = z.object({
 });
 appRouter.post("/orders", async (req, res) => {
   const user = u(req);
+  if (isShareAdmin(user.telegramId)) { res.status(403).json({ error: "Ulashish rejimida buyurtma berilmaydi", code: "share_admin" }); return; }
   const lang = normalizeLang(user.language);
   const parsed = orderSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Ma'lumotlar noto'g'ri", code: "validation" }); return; }
@@ -593,6 +599,56 @@ appRouter.put("/cart", async (req, res) => {
   ]);
   res.json({ ok: true });
 });
+
+// ---------- Ulashish (adminlar uchun) ----------
+const shareSchema = z.object({
+  kind: z.enum(["cart", "product", "category"]),
+  items: z.array(z.object({ productId: z.number(), qty: z.number().min(0.001), boxCount: z.number().optional() })).max(100).optional(),
+  productId: z.number().optional(),
+  categoryId: z.string().max(60).optional(),
+});
+appRouter.post("/share", async (req, res) => {
+  const user = u(req);
+  if (!isShareAdmin(user.telegramId)) { res.status(403).json({ error: "forbidden" }); return; }
+  const parsed = shareSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "bad share" }); return; }
+  const d = parsed.data;
+  if (d.kind === "cart" && !d.items?.length) { res.status(400).json({ error: "Savat bo'sh" }); return; }
+  try {
+    const code = await createShare(d.kind, { items: d.items, productId: d.productId, categoryId: d.categoryId }, user.id);
+    const bot = await botUsername();
+    const url = bot ? `https://t.me/${bot}?start=${code}` : `${getPublicUrl()}/app/?go=share:${code}`;
+    res.json({ ok: true, code, url });
+  } catch (e) { res.status(500).json({ error: errMsg(e) }); }
+});
+
+/** Havola tarkibi: mijoz uni ochganda savatga qo'shish uchun */
+appRouter.get("/share/:code", async (req, res) => {
+  const user = u(req);
+  const row = await readShare(String(req.params.code), true);
+  if (!row) { res.status(404).json({ error: "not found" }); return; }
+  if (row.kind !== "cart") { res.json({ kind: row.kind, productId: row.payload.productId, categoryId: row.payload.categoryId, items: [] }); return; }
+  const wanted = row.payload.items || [];
+  const list = await prisma.product.findMany({ where: { id: { in: wanted.map((x) => x.productId) }, isDeleted: false } });
+  const byId = new Map(list.map((p) => [p.id, p]));
+  const marks = await marksFor(list, user);
+  res.json({
+    kind: "cart",
+    items: wanted
+      .filter((w) => byId.has(w.productId))
+      .map((w) => ({ qty: w.qty, boxCount: w.boxCount || 0, product: serializeProduct(byId.get(w.productId)!, user, marks) })),
+  });
+});
+
+let botUserCache: { at: number; name: string | null } | null = null;
+async function botUsername(): Promise<string | null> {
+  if (botUserCache && Date.now() - botUserCache.at < 10 * 60 * 1000) return botUserCache.name;
+  try {
+    const me = await bot.api.getMe();
+    botUserCache = { at: Date.now(), name: me.username || null };
+  } catch { botUserCache = { at: Date.now(), name: null }; }
+  return botUserCache.name;
+}
 
 // ---------- Analitika hodisalari (Mini App'dan) ----------
 const eventsSchema = z.object({

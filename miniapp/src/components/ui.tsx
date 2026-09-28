@@ -4,7 +4,8 @@ import { create } from "zustand";
 import { X, Trash2 } from "lucide-react";
 import { haptic } from "../lib/telegram.ts";
 import { pageVariants, spring, tapScale } from "../lib/motion.ts";
-import { useT } from "../store/app.ts";
+import { useApp, useT } from "../store/app.ts";
+import { themedColor } from "../lib/colors.ts";
 
 /** Chiqish animatsiyasi uchun elementni biroz ushlab turish (AnimatePresence o'rniga, ishonchli) */
 export function usePresence(open: boolean, ms = 220): { mounted: boolean; visible: boolean } {
@@ -212,13 +213,15 @@ export function Img({ src, alt = "", className = "", fallback = "🖼", name }: 
 /** Rasmi yo'q mahsulot: admin yuklagan rasm + ustida mahsulot nomi */
 function ImgPlaceholder({ className, fallback, name }: { className: string; fallback: string; name?: string }) {
   const { v } = useT();
+  const theme = useApp((s) => s.theme);
+  const nameColor = themedColor(theme, v<string>("catalog", "placeholderNameColor", ""), v<string>("catalog", "placeholderNameColorDark", ""), "var(--text)");
   const img = v<string>("catalog", "placeholderImage", "");
   const showName = v<boolean>("catalog", "placeholderName", true) && !!name;
   const emoji = v<string>("catalog", "placeholderEmoji", "") || fallback;
   if (!img) {
     return (
       <div className={`relative flex items-center justify-center bg-slate-100 text-slate-300 text-3xl ${className}`}>
-        {showName ? <span className="px-2 text-center leading-tight line-clamp-3" style={{ color: v<string>("catalog", "placeholderNameColor", "#334155"), fontSize: v<number>("catalog", "placeholderNameSize", 13) }}>{name}</span> : emoji}
+        {showName ? <span className="px-2 text-center leading-tight line-clamp-3" style={{ color: nameColor, fontSize: v<number>("catalog", "placeholderNameSize", 13) }}>{name}</span> : emoji}
       </div>
     );
   }
@@ -227,7 +230,7 @@ function ImgPlaceholder({ className, fallback, name }: { className: string; fall
       <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ opacity: v<number>("catalog", "placeholderOpacity", 100) / 100 }} />
       {showName && (
         <span className="relative px-2 text-center font-semibold leading-tight line-clamp-3"
-          style={{ color: v<string>("catalog", "placeholderNameColor", "#334155"), fontSize: v<number>("catalog", "placeholderNameSize", 13) }}>{name}</span>
+          style={{ color: nameColor, fontSize: v<number>("catalog", "placeholderNameSize", 13) }}>{name}</span>
       )}
     </div>
   );

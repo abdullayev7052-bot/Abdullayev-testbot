@@ -108,6 +108,10 @@ img { display: block; }
 [data-theme="dark"] .bg-amber-50 { background-color: rgba(245,158,11,.15) !important; }
 [data-theme="dark"] .bg-blue-50, [data-theme="dark"] .bg-indigo-50, [data-theme="dark"] .bg-purple-50 { background-color: rgba(99,102,241,.18) !important; }
 [data-theme="dark"] .leaflet-container { filter: brightness(.85) contrast(1.05); }
+/* Tungi rejimda oq fonli bo'laklar ichidagi qora matn ko'rinib tursin */
+[data-theme="dark"] .bg-\[var\(--soft\)\] { background-color: var(--soft) !important; }
+[data-theme="dark"] .text-slate-700, [data-theme="dark"] .text-slate-600 { color: #e2e8f0 !important; }
+[data-theme="dark"] .border-slate-200\/70 { border-color: var(--line) !important; }
 
 
 /* ===== Narx oralig'i (ikki tomonlama slider) ===== */
