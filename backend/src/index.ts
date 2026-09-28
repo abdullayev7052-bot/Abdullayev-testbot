@@ -2,6 +2,7 @@ import { env } from "./env.ts";
 import { prisma } from "./db.ts";
 import { log, errMsg } from "./logger.ts";
 import { loadSettings, getSettings } from "./settings/store.ts";
+import { refreshShareAdmins } from "./bito/share.ts";
 import { listen, migrateDiskUploads } from "./http/server.ts";
 import { startBot } from "./bot/index.ts";
 import { ensureContext, startCatalogSyncLoop } from "./bito/sync.ts";
@@ -16,6 +17,7 @@ async function main() {
   log.info("🚀 Bito Telegram Shop ishga tushmoqda...");
   await prisma.$connect();
   await loadSettings();
+  await refreshShareAdmins();
 
   // Bito konteksti (tashkilot, ombor, narx, holatlar) — avtomatik
   try { await ensureContext(); } catch (e) { log.warn("Bito konteksti to'ldirilmadi:", errMsg(e)); }

@@ -94,9 +94,8 @@ export const settingsSchema: SectionDef[] = [
       {
         title: "Ulashish rejimi (adminlar)",
         part: "bot",
-        description: "Bu ro'yxatdagi Telegram ID egalari uchun Mini App boshqacha ishlaydi: faqat katalog va savatcha ko'rinadi, buyurtma bera olmaydi, mijoz sifatida qo'shilmaydi. Ular savatni yig'ib, «Ulashish» tugmasi orqali havolani kanal yoki chatga yuboradi — mijoz havolani bosganda o'sha mahsulotlar uning savatiga tushadi.",
+        description: "Ulashish admini uchun Mini App boshqacha ishlaydi: faqat katalog va savatcha ko'rinadi, buyurtma bera olmaydi, mijoz sifatida qo'shilmaydi. U savatni yig'ib, «Ulashish» tugmasi orqali havolani kanal yoki chatga yuboradi — mijoz havolani bosganda o'sha mahsulotlar uning savatiga tushadi. Adminlar «Integratsiya → Guruhlar va xodimlar → Xodimlar» bo'limida qo'shiladi (Telegram ID orqali). Bu yerda esa faqat matnlar sozlanadi.",
         fields: [
-          { key: "shareAdmins", label: "Adminlarning Telegram ID lari", type: "tags", default: [], help: "Telegram ID ni bilish uchun botga /id deb yozing" },
           { key: "shareButton", label: "Savatdagi «Ulashish» tugmasi", type: "ltext", default: L("📤 Ulashish", "📤 Поделиться", "📤 Share") },
           { key: "shareCopyLink", label: "«Havolani nusxalash» tugmasi", type: "ltext", default: L("🔗 Havolani nusxalash", "🔗 Скопировать ссылку", "🔗 Copy link") },
           { key: "shareCopied", label: "Nusxalandi xabari", type: "ltext", default: L("Havola nusxalandi", "Ссылка скопирована", "Link copied") },

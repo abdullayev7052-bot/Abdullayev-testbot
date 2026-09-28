@@ -212,6 +212,8 @@ model Staff {
   name       String?
   username   String?
   role       String   @default("staff") // admin | staff
+  /// Ulashish rejimi: Mini App'da faqat katalog+savatcha, buyurtma bermaydi, savatni ulashadi
+  shareAdmin Boolean  @default(false)
   createdAt  DateTime @default(now())
 }
 

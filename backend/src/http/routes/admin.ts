@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { refreshShareAdmins } from "../../bito/share.ts";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
@@ -512,11 +513,52 @@ adminRouter.post("/groups/:id/test", async (req, res) => {
   catch (e) { res.json({ ok: false, error: errMsg(e) }); }
 });
 adminRouter.get("/staff", async (_req, res) => { res.json(await prisma.staff.findMany({ orderBy: { createdAt: "desc" } })); });
-adminRouter.post("/staff", async (req, res) => {
-  const b = z.object({ telegramId: z.string().trim().regex(/^\d+$/), name: z.string().max(80).optional(), username: z.string().max(80).optional(), role: z.string().optional() }).parse(req.body);
-  res.json(await prisma.staff.upsert({ where: { telegramId: b.telegramId }, create: { telegramId: b.telegramId, name: b.name || null, username: b.username || null, role: b.role || "staff" }, update: { name: b.name || undefined, username: b.username || undefined, role: b.role || undefined } }));
+
+const staffBody = z.object({
+  telegramId: z.string().trim().regex(/^\d+$/, "Telegram ID faqat raqamlardan iborat bo'lishi kerak"),
+  name: z.string().max(80).optional(),
+  username: z.string().max(80).optional(),
+  role: z.string().optional(),
+  shareAdmin: z.boolean().optional(),
 });
-adminRouter.delete("/staff/:id", async (req, res) => { await prisma.staff.delete({ where: { id: Number(req.params.id) } }); res.json({ ok: true }); });
+
+adminRouter.post("/staff", async (req, res) => {
+  const b = staffBody.parse(req.body);
+  const row = await prisma.staff.upsert({
+    where: { telegramId: b.telegramId },
+    create: { telegramId: b.telegramId, name: b.name || null, username: b.username || null, role: b.role || "staff", shareAdmin: b.shareAdmin ?? false },
+    update: { name: b.name || undefined, username: b.username || undefined, role: b.role || undefined, shareAdmin: b.shareAdmin },
+  });
+  await refreshShareAdmins();
+  res.json(row);
+});
+
+/** Xodimni tahrirlash (ID, ism, username, roli, ulashish rejimi) */
+adminRouter.put("/staff/:id", async (req, res) => {
+  const b = staffBody.partial().parse(req.body);
+  if (b.telegramId) {
+    const busy = await prisma.staff.findUnique({ where: { telegramId: b.telegramId }, select: { id: true } });
+    if (busy && busy.id !== Number(req.params.id)) { res.status(400).json({ error: "Bu Telegram ID allaqachon ro'yxatda bor" }); return; }
+  }
+  const row = await prisma.staff.update({
+    where: { id: Number(req.params.id) },
+    data: {
+      telegramId: b.telegramId || undefined,
+      name: b.name === undefined ? undefined : (b.name || null),
+      username: b.username === undefined ? undefined : (b.username || null),
+      role: b.role || undefined,
+      shareAdmin: b.shareAdmin,
+    },
+  });
+  await refreshShareAdmins();
+  res.json(row);
+});
+
+adminRouter.delete("/staff/:id", async (req, res) => {
+  await prisma.staff.delete({ where: { id: Number(req.params.id) } });
+  await refreshShareAdmins();
+  res.json({ ok: true });
+});
 
 // ---------- Xabar tarqatish ----------
 adminRouter.post("/broadcast", async (req, res) => {

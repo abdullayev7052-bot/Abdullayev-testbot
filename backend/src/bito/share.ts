@@ -14,12 +14,31 @@ export interface SharePayload {
   categoryId?: string;
 }
 
-/** Foydalanuvchi ulashish rejimidagi adminmi (sozlamadagi Telegram ID ro'yxati bo'yicha) */
+/** Xodimlar jadvalidagi ulashish adminlari (tezkor ishlashi uchun xotirada saqlanadi) */
+let staffAdmins = new Set<string>();
+let loadedAt = 0;
+
+/** Ro'yxatni bazadan qayta o'qish (xodim qo'shilganda/o'zgarganda chaqiriladi) */
+export async function refreshShareAdmins(): Promise<void> {
+  try {
+    const rows = await prisma.staff.findMany({ where: { shareAdmin: true }, select: { telegramId: true } });
+    staffAdmins = new Set(rows.map((r) => r.telegramId.trim()));
+    loadedAt = Date.now();
+  } catch { /* baza vaqtincha yetib bo'lmasa oldingi ro'yxat qoladi */ }
+}
+
+/**
+ * Foydalanuvchi ulashish rejimidagi adminmi.
+ * Asosiy joy — «Guruhlar va xodimlar → Xodimlar» ro'yxati (Ulashish admini belgisi).
+ * Sozlamalardagi eski ro'yxat ham hisobga olinadi (moslik uchun).
+ */
 export function isShareAdmin(telegramId: bigint | number | string | null | undefined): boolean {
   if (telegramId === null || telegramId === undefined) return false;
+  if (Date.now() - loadedAt > 30_000) void refreshShareAdmins(); // fonda yangilanadi
+  const me = String(telegramId).trim();
+  if (staffAdmins.has(me)) return true;
   const list = getSettings().general.shareAdmins;
   const ids = Array.isArray(list) ? list : String(list || "").split(/[\s,;]+/);
-  const me = String(telegramId).trim();
   return ids.map((x) => String(x).trim()).filter(Boolean).includes(me);
 }
 

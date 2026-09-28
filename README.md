@@ -288,7 +288,7 @@ Bloklarning bosh sahifadagi tartibi (yuqorida/o'rtada/pastda) *Sozlamalar → Mi
 
 **Rasmi yo'q mahsulot:** *Sozlamalar → Mini App → Katalog* da qurilma xotirasidan rasm yuklanadi (masalan kitob soyasi) — rasmi bo'lmagan barcha mahsulotlarda o'sha rasm ko'rinadi va markazida mahsulot nomi yoziladi.
 
-**Ulashish rejimi (adminlar uchun):** *Sozlamalar → Integratsiya → Bot → «Ulashish rejimi (adminlar)»* da Telegram ID lar ro'yxati beriladi. Shu ro'yxatdagilar uchun Mini App boshqacha ishlaydi:
+**Ulashish rejimi (adminlar uchun):** adminlar *Integratsiya → Guruh → Xodimlar* bo'limida boshqariladi: xodim Telegram ID si bilan qo'shiladi, yonidagi **«Ulashish admini»** belgisi yoqiladi (qalamcha tugmasi bilan ID, ism va username keyin ham o'zgartiriladi). Ulashish matnlari esa *Sozlamalar → Integratsiya → Bot → «Ulashish rejimi (adminlar)»* da. Belgilangan xodim uchun Mini App boshqacha ishlaydi:
 - faqat **Katalog** va **Savatcha** ko'rinadi (bosh sahifa, bannerlar, bloklar va profil yo'q)
 - buyurtma bera olmaydi, mijoz sifatida Bito'ga qo'shilmaydi
 - savatni yig'ib, **«📤 Ulashish»** tugmasi bilan havolani kanal yoki chatga yuboradi (yoki havolani nusxalaydi)
