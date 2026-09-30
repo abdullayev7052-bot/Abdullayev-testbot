@@ -196,6 +196,16 @@ export const settingsSchema: SectionDef[] = [
         ],
       },
       {
+        title: "Bito ichidan mijozlarga xabar",
+        description: "Bito'ning o'z «Sms yuborish → Servise: Bot» tugmasi Bito boti orqali yuboradi va bizga xabar bermaydi. Shuning uchun boshqa yo'l: Bito'da xabar matnini SMS shabloni qilib yozing (Integratsiyalar → Sms shablonlari), keyin Mijozlar ro'yxatidan keraklilarini belgilab «Kategoriyaga biriktirish» orqali quyidagi kategoriyani tanlang — xabar aynan o'sha mijozlarga bizning botdan boradi, kategoriya esa avvalgi holiga qaytariladi.",
+        fields: [
+          { key: "msgEnabled", label: "Yoqilgan", type: "boolean", default: false },
+          { key: "msgCategory", label: "Xabar yuboriladigan kategoriya nomi", type: "text", default: "Bot xabar", help: "Bito'dagi mijoz kategoriyasi nomi" },
+          { key: "msgCreateCategory", label: "Kategoriya yo'q bo'lsa — Bito'da avtomatik yaratish", type: "boolean", default: true },
+          { key: "msgRestore", label: "Yuborilgach kategoriyani avvalgi holiga qaytarish", type: "boolean", default: true },
+        ],
+      },
+      {
         title: "Sinxronizatsiya",
         fields: [
           { key: "syncIntervalSec", label: "Mahsulotlarni yangilash oralig'i (soniya)", type: "number", default: 300, min: 30 },

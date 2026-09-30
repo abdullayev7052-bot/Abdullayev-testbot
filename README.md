@@ -288,6 +288,14 @@ Bloklarning bosh sahifadagi tartibi (yuqorida/o'rtada/pastda) *Sozlamalar → Mi
 
 **Rasmi yo'q mahsulot:** *Sozlamalar → Mini App → Katalog* da qurilma xotirasidan rasm yuklanadi (masalan kitob soyasi) — rasmi bo'lmagan barcha mahsulotlarda o'sha rasm ko'rinadi va markazida mahsulot nomi yoziladi.
 
+**Bito ichidan tanlangan mijozlarga botdan xabar:** Bito'ning o'z *«Sms yuborish → Servise: Bot»* tugmasi Bito'ning shaxsiy boti orqali yuboradi va bizga hech narsa xabar qilmaydi (integratsiyalar uchun bunday hodisa yo'q). Shuning uchun bizda boshqa yo'l bor — u ham to'liq Bito ichida bajariladi:
+
+1. Bito → *Integratsiyalar → Sms shablonlari* da xabar matnini yozib saqlang (eng oxirgi saqlangan shablon yuboriladi).
+2. Bito → *CRM → Mijozlar* da keraklilarini belgilang → *«Kategoriyaga biriktirish»* → **«Bot xabar»** kategoriyasini tanlang.
+3. Bito `customers.update` webhookini yuboradi; biz mijozning Telegramiga o'z botimizdan xabarni yuboramiz va kategoriyani avvalgi holiga qaytaramiz.
+
+Sozlamalari: *Sozlamalar → Bito integratsiyasi → «Bito ichidan mijozlarga xabar»* (yoqish, kategoriya nomi, kategoriyani qaytarish). Har bir yuborish Jurnalga yoziladi. Botdan ro'yxatdan o'tmagan yoki botni bloklagan mijozga yuborilmaydi — bu ham Jurnalda ko'rinadi.
+
 **Ulashish rejimi (adminlar uchun):** adminlar *Integratsiya → Guruh → Xodimlar* bo'limida boshqariladi: xodim Telegram ID si bilan qo'shiladi, yonidagi **«Ulashish admini»** belgisi yoqiladi (qalamcha tugmasi bilan ID, ism va username keyin ham o'zgartiriladi). Ulashish matnlari esa *Sozlamalar → Integratsiya → Bot → «Ulashish rejimi (adminlar)»* da. Belgilangan xodim uchun Mini App boshqacha ishlaydi:
 - faqat **Katalog** va **Savatcha** ko'rinadi (bosh sahifa, bannerlar, bloklar va profil yo'q)
 - buyurtma bera olmaydi, mijoz sifatida Bito'ga qo'shilmaydi

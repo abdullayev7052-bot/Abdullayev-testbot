@@ -12,6 +12,7 @@ export interface AppSettings {
   };
   adminPanel: Record<string, unknown>;
   bito: {
+    msgEnabled: boolean; msgCategory: string; msgCreateCategory: boolean; msgRestore: boolean;
     apiKey: string; apiUrl: string; filesUrl: string; webBaseUrl: string;
     organizationId: string; warehouseId: string; priceId: string; currencyId: string; responsibleId: string;
     stockSource: "warehouse" | "organization"; customerOrganizations: "all" | "selected";

@@ -16,6 +16,8 @@ model User {
   name           String?
   phone          String?
   bitoCustomerId String?  @unique
+  /// Bito'dagi mijoz kategoriyasi (xabar yuborilgach shu qiymat qaytariladi)
+  bitoCategoryId String?
   language       String   @default("uz")
   storeId        String   @default("main")
   address        String?

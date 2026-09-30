@@ -7,11 +7,13 @@ import { activity, errMsg, log } from "../logger.ts";
 import { reconcileOrder } from "./orders.ts";
 import { processTrade, processTransaction } from "./finance.ts";
 import { scheduleCatalogSync, syncOneProduct } from "./sync.ts";
+import { onCustomerChanged } from "./customerMessage.ts";
 import { events } from "../events.ts";
 
 export const WEBHOOK_EVENTS = [
   "saleOrders.create", "saleOrders.update", "saleOrders.status_change", "saleOrders.delete",
   "trades.create", "trades.update", "trades.status_change",
+  "customers.create", "customers.update",
   "transactions.create", "transactions.update", "transactions.status_change",
   "products.create", "products.update", "products.delete",
   "productStocks.create", "productStocks.update", "productStocks.delete", "productStocks.status_change",
@@ -32,7 +34,8 @@ export async function ensureWebhookSubscription(publicUrl: string, force = false
   if (!s.apiKey || !s.webhookEnabled || !publicUrl) return null;
   const destination = `${publicUrl.replace(/\/+$/, "")}/api/bito/webhook`;
   const cur = await getWebhookState();
-  if (!force && cur && cur.destination === destination && cur.secret && !cur.error) return cur;
+  const sameEvents = !!cur && [...(cur.events || [])].sort().join() === [...WEBHOOK_EVENTS].sort().join();
+  if (!force && cur && cur.destination === destination && cur.secret && !cur.error && sameEvents) return cur;
   try {
     // Bito bitta hodisaga faqat bitta manzilga ruxsat beradi — boshqa barcha manzillarni o'chiramiz
     const all = await bito.webhookGetAll().catch(() => null);
@@ -107,6 +110,9 @@ async function dispatch(collection: string, action: string, id: string) {
       break;
     case "transactions":
       await processTransaction(id);
+      break;
+    case "customers":
+      if (action !== "delete") await onCustomerChanged(id);
       break;
     case "products":
       if (action === "delete") await prisma.product.updateMany({ where: { bitoId: id }, data: { isDeleted: true, stock: 0 } });

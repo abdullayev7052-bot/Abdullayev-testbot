@@ -95,6 +95,22 @@ export const bito = {
   customerById: (id: string) => call<BitoCustomer>("GET", `customer/get-by-id/${id}`),
   customerCreate: (data: Record<string, unknown>) => call<BitoCustomer>("POST", "customer/create", data),
   customerUpdate: (data: Record<string, unknown> & { _id: string }) => call<BitoCustomer>("PUT", "customer/update", data),
+  /** Mijoz kategoriyalari (Bito ichidan xabar yuborish uchun kerak) */
+  customerCategories: async (): Promise<{ _id: string; name: string }[]> => {
+    const r = await call<{ data?: { _id: string; name: string }[]; list?: { _id: string; name: string }[] }>(
+      "POST", "customer-category/get-paging", { page: 1, limit: 200 },
+    );
+    return r?.data || r?.list || [];
+  },
+  customerCategoryCreate: (name: string) => call<{ _id: string; name: string }>("POST", "customer-category/create", { name }),
+  /** Bito'dagi SMS shablonlari (eng oxirgisi birinchi) */
+  smsTemplates: async (limit = 20): Promise<{ _id: string; content: string; updated_at?: string }[]> => {
+    const r = await call<{ data?: { _id: string; content: string; updated_at?: string }[]; list?: { _id: string; content: string; updated_at?: string }[] }>(
+      "POST", "sms-template/get-paging", { page: 1, limit, sort: "-updated_at" },
+    );
+    const rows = r?.data || r?.list || [];
+    return [...rows].sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+  },
   balance: (customerId: string, currencyId: string) =>
     call<BitoBalance>("GET", `balance/get-by-customer?customer_id=${customerId}&currency_id=${currencyId}`),
 
