@@ -9,6 +9,7 @@ import { log } from "../logger.ts";
 import { appRouter } from "./routes/app.ts";
 import { adminRouter } from "./routes/admin.ts";
 import { webhookHandler } from "../bito/webhook.ts";
+import { activity } from "../logger.ts";
 
 export function createServer() {
   const app = express();
@@ -17,6 +18,17 @@ export function createServer() {
 
   // Bito webhook — xom (raw) tana imzo tekshiruvi uchun
   app.post("/api/bito/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => { void webhookHandler(req, res); });
+  // Bito boshqa manzilga so'rov yuborsa ham qo'lda yo'qotmaymiz — jurnalga yozib, 200 qaytaramiz
+  app.all(/^\/api\/bito\/(?!webhook$).*/, express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
+    const body = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body || {});
+    void activity("bito_probe", `Bito so'rovi: ${req.method} ${req.originalUrl}`, {
+      method: req.method,
+      url: req.originalUrl,
+      headers: Object.fromEntries(Object.entries(req.headers).filter(([k]) => !/^(cookie|authorization)$/i.test(k))),
+      body: body.slice(0, 4000),
+    });
+    res.json({ ok: true });
+  });
 
   app.use(express.json({ limit: "5mb" }));
   app.use(cookieParser());

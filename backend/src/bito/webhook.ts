@@ -85,7 +85,11 @@ export async function webhookHandler(req: Request, res: Response) {
   let payload: { collection_name?: string; action?: string; id?: string; organization_id?: string } = {};
   try { payload = JSON.parse(raw.toString("utf8")); } catch { res.status(400).json({ ok: false }); return; }
   res.json({ ok: true });
-  if (!payload.collection_name || !payload.id) return;
+  if (!payload.collection_name || !payload.id) {
+    // Bito'dan kelgan, biz kutmagan xabar (masalan mijozlarga yuborilgan xabar) — tahlil uchun jurnalga
+    await activity("bito_unknown", `Noma'lum Bito webhook: ${raw.toString("utf8").slice(0, 300)}`, { body: raw.toString("utf8").slice(0, 4000) });
+    return;
+  }
   events.emitApp("webhook", payload as never);
   dispatch(payload.collection_name, payload.action || "", payload.id).catch((e) => log.error("webhook dispatch", e));
 }
