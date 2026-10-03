@@ -288,6 +288,25 @@ Bloklarning bosh sahifadagi tartibi (yuqorida/o'rtada/pastda) *Sozlamalar → Mi
 
 **Rasmi yo'q mahsulot:** *Sozlamalar → Mini App → Katalog* da qurilma xotirasidan rasm yuklanadi (masalan kitob soyasi) — rasmi bo'lmagan barcha mahsulotlarda o'sha rasm ko'rinadi va markazida mahsulot nomi yoziladi.
 
+## Onlayn to'lov — Payme (Payme Business)
+
+Merchant API (JSON-RPC 2.0) to'liq yozilgan va sinovdan o'tgan. Payme bilan shartnoma tugagach, admin panelga ma'lumotlarni kiritib, «Yoqilgan» ni belgilash kifoya.
+
+**Admin panel:** *Integratsiya → To'lovlar* (`/settings/payments`)
+- **Ulanish:** yoqish, rejim (sinov/ishchi), Kassa ID, ishchi kalit, sinov kaliti (TEST_KEY), avtorizatsiya logini (standart `Paycom`), `account` maydoni nomi (standart `order_id`).
+- **To'lov oynasi:** chek manzillari, qaytish manzili, kutish vaqti, eng kam/ko'p summa, yetkazilgan buyurtmani qaytarishni taqiqlash.
+- **Fiskal chek:** ИКПУ, qadoq kodi, QQS foizi (ixtiyoriy).
+- **Xabarlar:** to'lov qabul qilinganda/bekor qilinganda mijozga va guruhga.
+- **Yuridik ma'lumotlar:** shakl (YaTT/XK/MChJ/AJ/DUK/QK/NTM), STIR, OKED, h/r, bank, MFO, manzil, rahbar, shartnoma raqami va sanasi, qo'shimcha izoh.
+
+**Payme kabinetiga kiritiladigan Endpoint URL:** `https://<ommaviy manzil>/api/payme`
+
+**Qo'llab-quvvatlanadigan metodlar:** `CheckPerformTransaction`, `CreateTransaction`, `PerformTransaction`, `CancelTransaction`, `CheckTransaction`, `GetStatement`. Xatolik kodlari Payme spetsifikatsiyasi bo'yicha: `-32504` (avtorizatsiya), `-31001` (summa), `-31003` (tranzaksiya yo'q), `-31007` (yetkazilgan buyurtma), `-31008` (holat mos emas), `-31050…-31099` (`account` xatolari, uch tilda).
+
+**Qanday ishlaydi:** buyurtma uchun `POST /api/app/orders/:id/pay` to'lov havolasini qaytaradi (`https://checkout.paycom.uz/base64(...)`). Telefonda Payme ilovasi bo'lsa havola to'g'ridan-to'g'ri ilovada ochiladi va summa faktura bo'yicha oldindan to'ldirilgan bo'ladi. To'lov o'tgach Payme `PerformTransaction` yuboradi — buyurtma «to'landi» bo'ladi, mijozga va guruhga xabar ketadi, hammasi Jurnalga yoziladi. Tugallanmagan tranzaksiyalar 12 soatdan keyin avtomatik bekor qilinadi.
+
+**Mini App'da to'lov tugmasi hali qo'shilmagan** — shartnoma tayyor bo'lgach qo'shiladi (server tomoni tayyor).
+
 **Bito ichidan tanlangan mijozlarga botdan xabar:** Bito'ning o'z *«Sms yuborish → Servise: Bot»* tugmasi Bito'ning shaxsiy boti orqali yuboradi va bizga hech narsa xabar qilmaydi (integratsiyalar uchun bunday hodisa yo'q). Shuning uchun bizda boshqa yo'l bor — u ham to'liq Bito ichida bajariladi:
 
 1. Bito → *Integratsiyalar → Sms shablonlari* da xabar matnini yozib saqlang (eng oxirgi saqlangan shablon yuboriladi).

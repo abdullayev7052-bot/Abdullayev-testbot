@@ -3,6 +3,7 @@ import { prisma } from "./db.ts";
 import { log, errMsg } from "./logger.ts";
 import { loadSettings, getSettings } from "./settings/store.ts";
 import { refreshShareAdmins } from "./bito/share.ts";
+import { pruneStalePayments } from "./payments/payme.ts";
 import { listen, migrateDiskUploads } from "./http/server.ts";
 import { startBot } from "./bot/index.ts";
 import { ensureContext, startCatalogSyncLoop } from "./bito/sync.ts";
@@ -37,6 +38,9 @@ async function main() {
   // Analitika: eski hodisalarni kuniga bir marta tozalash
   void pruneEvents();
   setInterval(() => { void pruneEvents(); }, 24 * 3600 * 1000);
+  // To'lov: 12 soatdan oshgan tugallanmagan tranzaksiyalarni bekor qilish
+  void pruneStalePayments();
+  setInterval(() => { void pruneStalePayments(); }, 30 * 60 * 1000);
 
   const s = getSettings();
   log.info(`✅ Tayyor. Bito: ${s.bito.apiKey ? s.bito.apiKey.split(":")[0] : "ulanmagan"} | Admin: http://localhost:${env.PORT}/admin/`);

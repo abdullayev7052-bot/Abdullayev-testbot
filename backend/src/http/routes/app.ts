@@ -21,6 +21,7 @@ import { EVENT_NAMES, isEventName, normPlatform, track } from "../../analytics/t
 import { inCartCounts, weeklySales } from "../../bito/sales.ts";
 import { detailsFor, faceTextFor, filterableFields, filterPartEnabled, valueOf } from "../../bito/productFields.ts";
 import { createShare, isShareAdmin, readShare } from "../../bito/share.ts";
+import { paymeLink, paymeReady } from "../../payments/checkout.ts";
 
 export const appRouter = Router();
 appRouter.use(appAuth);
@@ -579,6 +580,26 @@ appRouter.delete("/favorites/:productId", async (req, res) => {
   const user = u(req);
   await prisma.favorite.deleteMany({ where: { userId: user.id, productId: Number(req.params.productId) } });
   res.json({ ok: true });
+});
+
+// ---------- Onlayn to'lov (Payme) ----------
+/**
+ * Buyurtma uchun to'lov havolasi. Telefonda Payme ilovasi bo'lsa havola o'sha ilovada ochiladi.
+ * Mini App'da tugma hali qo'shilmagan — bu endpoint tayyor turadi.
+ */
+appRouter.post("/orders/:id/pay", async (req, res) => {
+  const user = u(req);
+  const ready = paymeReady();
+  if (!ready.ok) { res.status(400).json({ error: ready.reason, code: "payme_off" }); return; }
+
+  const order = await prisma.order.findFirst({ where: { id: Number(req.params.id), userId: user.id } });
+  if (!order) { res.status(404).json({ error: "Buyurtma topilmadi" }); return; }
+  if (order.isPaid) { res.status(400).json({ error: "Buyurtma allaqachon to'langan", code: "paid" }); return; }
+  if (order.stateKey === "canceled") { res.status(400).json({ error: "Buyurtma bekor qilingan", code: "canceled" }); return; }
+
+  const link = paymeLink(order, user.language || "uz");
+  track(user.id, "payment_start", { orderId: order.id, amount: link.amount, provider: link.provider }, plat(req));
+  res.json(link);
 });
 
 // ---------- Savatcha nusxasi ("X ta insonning savatida" uchun) ----------

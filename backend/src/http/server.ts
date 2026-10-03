@@ -9,6 +9,7 @@ import { log } from "../logger.ts";
 import { appRouter } from "./routes/app.ts";
 import { adminRouter } from "./routes/admin.ts";
 import { webhookHandler } from "../bito/webhook.ts";
+import { paymeHandler } from "../payments/payme.ts";
 import { activity } from "../logger.ts";
 
 export function createServer() {
@@ -18,6 +19,8 @@ export function createServer() {
 
   // Bito webhook — xom (raw) tana imzo tekshiruvi uchun
   app.post("/api/bito/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => { void webhookHandler(req, res); });
+  // Payme Business (Merchant API) — JSON-RPC
+  app.post("/api/payme", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => { void paymeHandler(req, res); });
   // Bito boshqa manzilga so'rov yuborsa ham qo'lda yo'qotmaymiz — jurnalga yozib, 200 qaytaramiz
   app.all(/^\/api\/bito\/(?!webhook$).*/, express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
     const body = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body || {});

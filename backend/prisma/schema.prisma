@@ -132,6 +132,12 @@ model Order {
   history          Json     @default("[]")
   bitoPayload      Json?
   error            String?
+  /// To'lov: kutilmoqda | to'landi | bekor qilindi (pending | paid | canceled)
+  paymentState     String?
+  paymentProvider  String?
+  isPaid           Boolean  @default(false)
+  paidAt           DateTime?
+  payments         Payment[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -344,4 +350,34 @@ model Share {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// Onlayn to'lov tranzaksiyasi (Payme Merchant API)
+model Payment {
+  id          Int      @id @default(autoincrement())
+  provider    String   @default("payme")
+  orderId     Int?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  userId      Int?
+  /// Summa tiyinda (Payme shu birlikda ishlaydi)
+  amount      Int
+  /// 1 yaratilgan, 2 to'langan, -1 bekor, -2 to'langach bekor
+  state       Int      @default(1)
+  /// Payme tomonidagi tranzaksiya identifikatori
+  paycomId    String?  @unique
+  /// Payme'da yaratilgan vaqt (ms)
+  paycomTime  BigInt   @default(0)
+  createTime  BigInt   @default(0)
+  performTime BigInt   @default(0)
+  cancelTime  BigInt   @default(0)
+  reason      Int?
+  account     Json     @default("{}")
+  /// Sinov (песочница) kaliti bilan yaratilganmi
+  sandbox     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([state])
+  @@index([paycomTime])
 }

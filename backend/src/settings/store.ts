@@ -11,6 +11,17 @@ export interface AppSettings {
     shareOpenButton: LText; shareIntro: LText; shareAdminHint: LText;
   };
   adminPanel: Record<string, unknown>;
+  payments: {
+    paymeEnabled: boolean; paymeMode: "test" | "live"; paymeMerchantId: string; paymeKey: string; paymeTestKey: string;
+    paymeLogin: string; paymeAccountField: string; paymeEndpointPath: string;
+    paymeCheckoutUrl: string; paymeTestCheckoutUrl: string; paymeReturnUrl: string; paymeCallbackTimeout: number;
+    paymeMinAmount: number; paymeMaxAmount: number; paymeBlockRefundWhenDone: boolean;
+    paymeFiscal: boolean; paymeIkpu: string; paymePackageCode: string; paymeVatPercent: number;
+    paymePaidMsg: LText; paymeCanceledMsg: LText; paymeNotifyGroup: boolean;
+    legalForm: string; legalName: string; legalInn: string; legalOked: string; legalNdsCode: string;
+    legalBankAccount: string; legalBankName: string; legalMfo: string; legalAddress: string; legalDirector: string;
+    legalPhone: string; legalEmail: string; legalContractNumber: string; legalContractDate: string; legalNotes: string;
+  };
   bito: {
     msgEnabled: boolean; msgCategory: string; msgCreateCategory: boolean; msgRestore: boolean;
     apiKey: string; apiUrl: string; filesUrl: string; webBaseUrl: string;

@@ -28,6 +28,7 @@ export const NAV: NavSection[] = [
   { key: "integration", title: "integration", items: [
     { key: "bito", label: "bito", icon: "plug", to: "/integration/bito", keywords: ["API kalit", "sinxronlash", "webhook", "tashkilot", "ombor", "narx", "ulanish", "интеграция"] },
     { key: "bot", label: "bot", icon: "bot", to: "/integration/bot", keywords: ["token", "BotFather", "ngrok", "ommaviy manzil", "public url", "Mini App manzili", "телеграм бот"] },
+    { key: "payments", label: "payments", icon: "credit-card", to: "/settings/payments", keywords: ["payme", "to'lov", "karta", "onlayn to'lov", "оплата", "платеж", "payment", "kassa", "merchant"] },
     { key: "groups", label: "groups", icon: "users", to: "/groups", keywords: ["guruh", "xodimlar", "staff", "buyurtmalar guruhi", "группы", "сотрудники"] },
   ] },
   { key: "settings", title: "settings", items: [

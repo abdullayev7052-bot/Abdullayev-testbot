@@ -19,6 +19,7 @@ export const EVENT_NAMES = [
   "card",            // "Karta"
   "story_view",      // storis ochildi                {storyId}
   "banner_click",    // banner bosildi                {bannerId}
+  "payment_start",   // onlayn to'lov havolasi olindi  {orderId, amount, provider}
   "bot_start",       // botga birinchi marta kirdi
   "bot_active",      // botda faollik (30 daqiqada bir marta yoziladi)
 ] as const;
